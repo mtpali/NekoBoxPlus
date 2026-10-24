@@ -48,4 +48,9 @@
     <string name="mobiletina_clear_stop_failed">Stop the VPN connection and try again.</string>
     <string name="mobiletina_usage_brand" translatable="false">instagram : mobile.tina</string>
     <string name="mobiletina_usage_remaining" translatable="false">حجم باقی‌مانده</string>
+    <string name="mobiletina_cancel" translatable="false">بیخیال</string>
+    <string name="mobiletina_notification_stop" translatable="false">خاموش کردن فیلترشکن</string>
+    <string name="mobiletina_default_subscription" translatable="false">instagram : mobile.tina</string>
+    <string name="mobiletina_settings_tools">Tools and shortcuts</string>
+    <string name="mobiletina_traffic_summary" translatable="false">%1$.1f GB / %2$.1f GB</string>
 </resources>

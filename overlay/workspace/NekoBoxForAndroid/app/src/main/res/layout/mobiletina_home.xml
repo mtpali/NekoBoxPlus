@@ -4,9 +4,6 @@
     android:layout_width="match_parent" android:layout_height="match_parent"
     android:orientation="vertical" android:layoutDirection="ltr" android:background="?attr/colorSurface">
     <include layout="@layout/mobiletina_home_header" />
-    <androidx.swiperefreshlayout.widget.SwipeRefreshLayout
-        android:id="@+id/mobiletina_auto_refresh"
-        android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="1">
         <androidx.core.widget.NestedScrollView android:id="@+id/auto_panel"
             android:layout_width="match_parent" android:layout_height="match_parent"
             android:fillViewport="true" android:overScrollMode="never" android:clipToPadding="false">
@@ -33,38 +30,36 @@
                     android:clickable="true" android:contentDescription="@string/mobiletina_ping_tap" android:focusable="true"
                     android:gravity="center" android:minHeight="40dp" android:paddingHorizontal="18dp" android:paddingVertical="5dp"
                     android:textColor="@color/mobiletina_status_secondary" android:textStyle="bold" android:visibility="gone" />
-                <com.google.android.material.card.MaterialCardView android:id="@+id/subscription_card"
-                    android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="24dp"
-                    app:cardBackgroundColor="@color/mobiletina_usage_surface" app:cardCornerRadius="22dp"
-                    app:cardElevation="0dp" app:strokeColor="@color/mobiletina_usage_stroke" app:strokeWidth="1dp"
+                <com.google.android.material.card.MaterialCardView
+                    android:id="@+id/subscription_card" android:layout_width="match_parent"
+                    android:layout_height="wrap_content" android:layout_marginStart="18dp"
+                    android:layout_marginTop="28dp" android:layout_marginEnd="18dp"
+                    app:cardBackgroundColor="@color/mobiletina_mode_unselected"
+                    app:cardCornerRadius="18dp" app:cardElevation="0dp"
+                    app:strokeColor="@color/mobiletina_mode_stroke" app:strokeWidth="1dp"
                     android:visibility="gone">
                     <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
-                        android:orientation="vertical" android:padding="20dp">
-                        <TextView android:id="@+id/tv_subscription_name" android:layout_width="match_parent" android:layout_height="wrap_content"
-                            android:gravity="center" android:text="@string/mobiletina_usage_brand" android:textDirection="ltr"
-                            android:textColor="@color/mobiletina_usage_accent" android:textSize="14sp" android:textStyle="bold" />
-                        <TextView android:id="@+id/tv_subscription_group" android:layout_width="match_parent" android:layout_height="wrap_content"
-                            android:layout_marginTop="6dp" android:gravity="center" android:maxLines="1" android:ellipsize="end"
-                            android:textColor="@color/mobiletina_secondary" android:textSize="12sp" />
-                        <TextView android:id="@+id/tv_subscription_remaining_label" android:layout_width="match_parent" android:layout_height="wrap_content"
-                            android:layout_marginTop="18dp" android:gravity="center" android:text="@string/mobiletina_usage_remaining"
-                            android:textColor="@color/mobiletina_secondary" android:textSize="12sp" />
-                        <TextView android:id="@+id/tv_subscription_remaining" android:layout_width="match_parent" android:layout_height="wrap_content"
-                            android:layout_marginTop="5dp" android:gravity="center" android:maxLines="2" android:textDirection="locale"
-                            android:textColor="@color/mobiletina_primary_content" android:textSize="20sp" android:textStyle="bold" />
-                        <com.google.android.material.progressindicator.LinearProgressIndicator android:id="@+id/subscription_progress"
-                            android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="16dp"
-                            android:max="100" app:indicatorColor="@color/mobiletina_usage_accent"
-                            app:trackColor="@color/mobiletina_usage_stroke" app:trackCornerRadius="4dp" app:trackThickness="6dp" />
-                        <TextView android:id="@+id/tv_subscription_traffic" android:layout_width="match_parent" android:layout_height="wrap_content"
-                            android:layout_marginTop="12dp" android:gravity="center" android:textDirection="locale"
-                            android:textColor="@color/mobiletina_secondary" android:textSize="12sp" />
-                        <TextView android:id="@+id/tv_subscription_days" android:layout_width="match_parent" android:layout_height="wrap_content"
-                            android:layout_marginTop="12dp" android:gravity="center"
-                            android:textColor="@color/mobiletina_usage_accent" android:textSize="13sp" android:textStyle="bold" />
+                        android:orientation="vertical" android:padding="18dp">
+                        <TextView android:id="@+id/tv_subscription_name" android:layout_width="match_parent"
+                            android:layout_height="wrap_content" android:gravity="center"
+                            android:textColor="@color/mobiletina_primary_content"
+                            android:text="@string/mobiletina_usage_brand" android:textSize="16sp" android:textStyle="bold" />
+                        <ProgressBar android:id="@+id/subscription_progress" style="?android:attr/progressBarStyleHorizontal"
+                            android:layout_width="match_parent" android:layout_height="6dp"
+                            android:layout_marginTop="18dp" android:max="100" />
+                        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+                            android:layout_marginTop="14dp" android:orientation="horizontal">
+                            <TextView android:id="@+id/tv_subscription_days" android:layout_width="0dp"
+                                android:layout_height="wrap_content" android:layout_weight="1"
+                                android:gravity="center" android:textColor="@color/mobiletina_primary_content"
+                                android:textStyle="bold" />
+                            <TextView android:id="@+id/tv_subscription_traffic" android:layout_width="0dp"
+                                android:layout_height="wrap_content" android:layout_weight="1"
+                                android:gravity="center" android:textColor="@color/mobiletina_primary_content"
+                                android:textStyle="bold" />
+                        </LinearLayout>
                     </LinearLayout>
                 </com.google.android.material.card.MaterialCardView>
             </LinearLayout>
         </androidx.core.widget.NestedScrollView>
-    </androidx.swiperefreshlayout.widget.SwipeRefreshLayout>
 </LinearLayout>

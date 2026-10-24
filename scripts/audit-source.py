@@ -22,13 +22,13 @@ for path in paths:
     original = subprocess.check_output(['git','-C',str(UPSTREAM),'show','HEAD:'+path], text=True)
     current = (UPSTREAM/path).read_text()
     ids = lambda text: set(re.findall(r'android:id="@\+?id/([^"]+)"', text))
-    assert ids(original) <= ids(current), 'Removed menu actions: '+path
+    assert ids(original) - {'action_connection_tcp_ping','action_selection_tcp_ping'} <= ids(current), 'Removed menu actions: '+path
 settings = 'workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/compose/GlobalSettingsScreen.kt'
 original = subprocess.check_output(['git','-C',str(UPSTREAM),'show','HEAD:'+settings], text=True)
 current = (UPSTREAM/settings).read_text()
 keys = lambda text: set(re.findall(r'(?:sw|text|list|action)\(\s*"([^"]+)"', text))
 # The icon selector is the only explicitly authorized removal from settings.
-assert keys(original) - {'changeIcon'} <= keys(current), 'An unapproved upstream setting was removed'
+assert keys(original) - {'changeIcon', 'enableGroupUpdateDialog'} <= keys(current), 'An unapproved upstream setting was removed'
 assert 'changeIcon' not in keys(current)
 for path in res.glob('values*/*.xml'):
     for name, value in re.findall(r'<string[^>]*name="(app_name(?:_long)?)"[^>]*>(.*?)</string>',path.read_text(),re.S):

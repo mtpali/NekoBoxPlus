@@ -79,17 +79,7 @@ internal object MobileTinaHomeChrome {
                 source.findItem(R.id.action_misc)?.subMenu?.let {
                     copyMenu(it, popup.menu, setOf(R.id.action_update_subscription, R.id.action_connection_url_test))
                 }
-                // Keep the former drawer utilities accessible without crowding its requested order.
-                val tools = popup.menu.addSubMenu(0, R.id.action_mobiletina_tools, popup.menu.size(), R.string.mobiletina_more_tools)
-                for ((id, title, icon) in listOf(
-                    Triple(R.id.nav_route, R.string.menu_route, R.drawable.ic_maps_directions),
-                    Triple(R.id.nav_adblock, R.string.adblock, R.drawable.ic_baseline_filter_list_24),
-                    Triple(R.id.nav_tools, R.string.menu_tools, R.drawable.baseline_construction_24),
-                    Triple(R.id.nav_logcat, R.string.menu_log, R.drawable.ic_baseline_bug_report_24),
-                )) tools.add(0, id, tools.size(), title).setIcon(icon)
-                if (activity.mobileTinaTrafficAvailable) {
-                    tools.add(0, R.id.nav_traffic, tools.size(), R.string.menu_dashboard).setIcon(R.drawable.ic_baseline_transform_24)
-                }
+
             }
             val orderItem = when (order) {
                 GroupOrder.BY_NAME -> R.id.action_order_by_name

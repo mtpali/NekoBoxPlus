@@ -94,16 +94,17 @@ object MobileTinaImportNormalizer {
 
         // QR generators and subscription panels commonly wrap the real link in the
         // v2rayNG deep-link format. Match MobileTinaVPN's UrlSchemeActivity behavior.
-        val wrapped = runCatching { Uri.parse(normalized) }.getOrNull() ?: return null
-        val scheme = wrapped.scheme.orEmpty()
-        if (scheme.lowercase() !in wrapperSchemes) {
-            return null
-        }
+        val wrapped = runCatching { java.net.URI(normalized) }.getOrNull() ?: return null
+        if (wrapped.scheme.orEmpty().lowercase() !in wrapperSchemes) return null
+        val query = wrapped.rawQuery.orEmpty().split('&').mapNotNull { part ->
+            val pair = part.split('=', limit = 2)
+            if (pair.size != 2) null else runCatching {
+                java.net.URLDecoder.decode(pair[0], "UTF-8") to
+                    java.net.URLDecoder.decode(pair[1], "UTF-8")
+            }.getOrNull()
+        }.toMap()
         val wrappedUrl = sequenceOf("url", "subscription", "link")
-            .mapNotNull(wrapped::getQueryParameter)
-            .map(String::trim)
-            .firstOrNull(::isHTTPorHTTPSURL)
-            .orEmpty()
+            .mapNotNull(query::get).map(String::trim).firstOrNull(::isHTTPorHTTPSURL).orEmpty()
         if (wrappedUrl.contains('\n') || wrappedUrl.contains('\r')) return null
         return wrappedUrl.takeIf(::isHTTPorHTTPSURL)
     }

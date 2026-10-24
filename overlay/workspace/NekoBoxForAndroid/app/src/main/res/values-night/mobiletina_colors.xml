@@ -1,29 +1,29 @@
 <resources>
     <color name="mobiletina_primary">#F5F6F8</color>
     <color name="mobiletina_on_primary">#17181C</color>
-    <color name="mobiletina_surface">#17181C</color>
+    <color name="mobiletina_surface">#000000</color>
     <color name="mobiletina_container">#23252B</color>
     <color name="mobiletina_text">#F5F6F8</color>
     <color name="mobiletina_secondary">#B8BDC9</color>
     <color name="mobiletina_stroke">#3A3D46</color>
-    <color name="mobiletina_mode_surface">#17181C</color>
+    <color name="mobiletina_mode_surface">#000000</color>
     <color name="mobiletina_mode_selected">#F4F5F7</color>
-    <color name="mobiletina_mode_unselected">#17181C</color>
+    <color name="mobiletina_mode_unselected">#000000</color>
     <color name="mobiletina_mode_text_selected">#17181C</color>
     <color name="mobiletina_mode_text_unselected">#A9ADB7</color>
     <color name="mobiletina_mode_stroke">#303238</color>
     <color name="mobiletina_status_secondary">#A9ADB7</color>
-    <color name="mobiletina_manual_dock_bg">#111214</color>
+    <color name="mobiletina_manual_dock_bg">#000000</color>
     <color name="mobiletina_manual_dock_text">#D7D9DE</color>
     <color name="mobiletina_about_accent">#FF4081</color>
     <color name="mobiletina_about_telegram">#2AABEE</color>
-    <color name="mobiletina_about_card">#17181C</color>
+    <color name="mobiletina_about_card">#000000</color>
     <color name="mobiletina_about_stroke">#343741</color>
     <color name="mobiletina_about_text">#F3F4F7</color>
     <color name="mobiletina_about_secondary">#A9ADB7</color>
     <color name="mobiletina_header_icon">#F4F5F7</color>
     <color name="mobiletina_primary_content">#F4F5F7</color>
-    <color name="mobiletina_usage_surface">#221D25</color>
+    <color name="mobiletina_usage_surface">#000000</color>
     <color name="mobiletina_usage_stroke">#49364B</color>
     <color name="mobiletina_usage_accent">#F2A2D1</color>
 </resources>

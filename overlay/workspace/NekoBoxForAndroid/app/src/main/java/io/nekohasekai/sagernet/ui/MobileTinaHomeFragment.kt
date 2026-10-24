@@ -14,7 +14,6 @@ import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.isVisible
 import androidx.fragment.app.activityViewModels
-import androidx.swiperefreshlayout.widget.SwipeRefreshLayout
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
@@ -30,7 +29,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import kotlin.math.ceil
 
 /** Exclave's native Auto layout connected to NekoBox's existing state and service lifecycle. */
 class MobileTinaHomeFragment : ToolbarFragment(R.layout.mobiletina_home) {
@@ -40,16 +38,6 @@ class MobileTinaHomeFragment : ToolbarFragment(R.layout.mobiletina_home) {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         MobileTinaHomeChrome.bind(view, requireActivity() as MainActivity, auto = true)
-        view.findViewById<SwipeRefreshLayout>(R.id.mobiletina_auto_refresh).apply {
-            setColorSchemeResources(R.color.mobiletina_about_accent)
-            setOnChildScrollUpCallback { _, _ -> view.findViewById<View>(R.id.auto_panel).canScrollVertically(-1) }
-            setOnRefreshListener {
-                viewLifecycleOwner.lifecycleScope.launch {
-                    try { model.refreshNow(byUser = false)?.join() }
-                    finally { isRefreshing = false }
-                }
-            }
-        }
         view.findViewById<View>(R.id.fab_auto).setOnClickListener { model.toggle() }
         view.findViewById<View>(R.id.tv_auto_ping).setOnClickListener { refreshPing() }
         view.findViewById<View>(R.id.subscription_card).setOnClickListener {
@@ -96,38 +84,27 @@ class MobileTinaHomeFragment : ToolbarFragment(R.layout.mobiletina_home) {
             text = if (state.ping > 0) getString(R.string.mobiletina_ping_value, state.ping) else ""
         }
         root.findViewById<View>(R.id.subscription_card).isVisible = state.usage.visible && !state.expired
-        root.findViewById<TextView>(R.id.tv_subscription_group).apply {
-            text = state.groupName
-            isVisible = state.groupName.isNotBlank()
-        }
-        val hasRemaining = state.usage.total != null && (state.usage.total == 0L || state.usage.used != null)
-        root.findViewById<View>(R.id.tv_subscription_remaining_label).isVisible = hasRemaining
-        root.findViewById<TextView>(R.id.tv_subscription_remaining).apply {
-            isVisible = hasRemaining
-            val total = state.usage.total
-            val used = state.usage.used
-            text = when {
-                total == 0L -> getString(R.string.mobiletina_unlimited)
-                total != null && used != null -> formatBytes((total - used).coerceAtLeast(0L))
-                else -> ""
-            }
-        }
         root.findViewById<ProgressBar>(R.id.subscription_progress).apply {
             isVisible = (state.usage.total ?: 0) > 0 && state.usage.used != null
-            progress = ((1f - state.usage.fraction) * 100).toInt().coerceIn(0, 100)
+            progress = (state.usage.fraction * 100).toInt().coerceIn(0, 100)
         }
         root.findViewById<TextView>(R.id.tv_subscription_days).apply {
             isVisible = state.usage.expiresAt != null
             state.usage.expiresAt?.let { expiry ->
-                val days = ceil((expiry - MobileTinaSubscriptionExpiry.nowMillis() / 1000L) / 86400.0).toInt().coerceAtLeast(0)
+                val days = ((expiry - MobileTinaSubscriptionExpiry.nowMillis() / 1000L) / 86400L).coerceAtLeast(0L)
                 text = getString(R.string.mobiletina_days_remaining, days)
             }
         }
         root.findViewById<TextView>(R.id.tv_subscription_traffic).apply {
             isVisible = state.usage.used != null
             state.usage.used?.let { used ->
-                val total = state.usage.total?.takeIf { it > 0 }?.let(::formatBytes) ?: getString(R.string.mobiletina_unlimited)
-                text = getString(R.string.mobiletina_usage, formatBytes(used), total)
+                val total = state.usage.total
+                val gb = 1024.0 * 1024.0 * 1024.0
+                text = when {
+                    total == 0L -> getString(R.string.mobiletina_unlimited)
+                    total != null -> getString(R.string.mobiletina_traffic_summary, used / gb, total / gb)
+                    else -> formatBytes(used)
+                }
             }
         }
         val artwork = when {

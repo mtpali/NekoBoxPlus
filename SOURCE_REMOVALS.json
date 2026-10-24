@@ -1,10 +1,16 @@
 [
+  "workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/bg/proto/TcpPingProbe.kt",
   "workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/AppIconDialog.kt",
+  "workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/ProfileTcpPingController.kt",
+  "workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/TcpPingSupport.kt",
   "workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/compose/AboutScreen.kt",
   "workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/compose/AppIconDialogContent.kt",
+  "workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/compose/MobileTinaProfileCard.kt",
   "workspace/NekoBoxForAndroid/app/src/main/res/drawable/ic_launcher_background.xml",
   "workspace/NekoBoxForAndroid/app/src/main/res/drawable/ic_launcher_monochrome.xml",
   "workspace/NekoBoxForAndroid/app/src/main/res/drawable/splash_screen.xml",
+  "workspace/NekoBoxForAndroid/app/src/main/res/layout/mobiletina_nav_header.xml",
+  "workspace/NekoBoxForAndroid/app/src/main/res/layout/mobiletina_profile.xml",
   "workspace/NekoBoxForAndroid/app/src/main/res/mipmap-anydpi-v26/ic_launcher_black_white.xml",
   "workspace/NekoBoxForAndroid/app/src/main/res/mipmap-anydpi-v26/ic_launcher_cyberpunk.xml",
   "workspace/NekoBoxForAndroid/app/src/main/res/mipmap-anydpi-v26/ic_launcher_dark.xml",
@@ -213,7 +219,5 @@
   "workspace/NekoBoxForAndroid/app/src/main/res/values-zh-rTW/strings.xml",
   "workspace/NekoBoxForAndroid/app/src/main/res/values/ic_launcher_background.xml",
   "workspace/NekoBoxForAndroid/app/src/test/java/io/nekohasekai/sagernet/AppIconStatePolicyTest.kt",
-  "workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/compose/MobileTinaProfileCard.kt",
-  "workspace/NekoBoxForAndroid/app/src/main/res/layout/mobiletina_profile.xml",
-  "workspace/NekoBoxForAndroid/app/src/main/res/layout/mobiletina_nav_header.xml"
+  "workspace/NekoBoxForAndroid/app/src/test/java/io/nekohasekai/sagernet/bg/proto/TcpPingProbeTest.kt"
 ]
