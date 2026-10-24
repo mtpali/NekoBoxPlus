@@ -3281,7 +3281,7 @@ index 123be94..75f57cc 100644
      val protocolValues = stringArrayResource(R.array.naive_proto_value).toList()
      val congestionLabels = stringArrayResource(R.array.naive_quic_congestion_control_entry).toList()
 diff --git a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/compose/NekoComposeTheme.kt b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/compose/NekoComposeTheme.kt
-index 7fa2bbc..1c04c86 100644
+index 7fa2bbc..6bdf4b8 100644
 --- a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/compose/NekoComposeTheme.kt
 +++ b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/compose/NekoComposeTheme.kt
 @@ -1,6 +1,9 @@
@@ -3303,7 +3303,7 @@ index 7fa2bbc..1c04c86 100644
          val onSurface = Color(context.getColorAttr(R.attr.colorOnSurface))
          val surfaceVariant = Color(context.getColorAttr(R.attr.colorSurfaceVariant))
          val onSurfaceVariant = Color(context.getColorAttr(R.attr.colorOnSurfaceVariant))
-@@ -51,13 +54,37 @@ fun NekoComposeTheme(content: @Composable () -> Unit) {
+@@ -51,13 +54,38 @@ fun NekoComposeTheme(content: @Composable () -> Unit) {
              onSurface = onSurface,
              surfaceVariant = surfaceVariant,
              onSurfaceVariant = onSurfaceVariant,
@@ -3314,6 +3314,7 @@ index 7fa2bbc..1c04c86 100644
 +            surfaceContainerLowest = if (night) Color.Black else base.surfaceContainerLowest,
 +            surfaceContainerLow = if (night) Color.Black else base.surfaceContainerLow,
 +            surfaceContainerHighest = if (night) Color.Black else base.surfaceContainerHighest,
++            surfaceTint = if (night) Color.Black else primary,
              outline = outline,
              outlineVariant = outlineVariant,
          )
