@@ -1,3 +1,16 @@
+diff --git a/workspace/NekoBoxForAndroid/app/build.gradle.kts b/workspace/NekoBoxForAndroid/app/build.gradle.kts
+index 414f488..ff21af1 100644
+--- a/workspace/NekoBoxForAndroid/app/build.gradle.kts
++++ b/workspace/NekoBoxForAndroid/app/build.gradle.kts
+@@ -76,6 +76,8 @@ android {
+             excludes.remove("org/**")
+         }
+         jniLibs {
++            // Transitive AARs also contain desktop-emulator libraries; the universal APK is ARM-only.
++            excludes.addAll(listOf("**/x86/**", "**/x86_64/**"))
+             useLegacyPackaging = true
+         }
+     }
 diff --git a/workspace/NekoBoxForAndroid/app/proguard-rules.pro b/workspace/NekoBoxForAndroid/app/proguard-rules.pro
 index 3e6f05a..a15dbea 100644
 --- a/workspace/NekoBoxForAndroid/app/proguard-rules.pro

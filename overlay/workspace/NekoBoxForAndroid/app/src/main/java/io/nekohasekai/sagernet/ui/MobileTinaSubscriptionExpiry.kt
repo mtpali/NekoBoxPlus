@@ -48,6 +48,11 @@ internal object MobileTinaSubscriptionExpiry {
     private val app get() = SagerNet.application
     private val prefs get() = app.getSharedPreferences("mobiletina.expiry", Context.MODE_PRIVATE)
     private val mutex = Mutex()
+    private val clockProcess = java.util.UUID.randomUUID().toString()
+
+    private fun bootCount(): Int = if (android.os.Build.VERSION.SDK_INT >= 24) {
+        android.provider.Settings.Global.getInt(app.contentResolver, android.provider.Settings.Global.BOOT_COUNT, -1)
+    } else -1
 
     fun isMarker(profile: ProxyEntity): Boolean = profile.socksBean?.let {
         it.serverAddress == "1" && it.serverPort == 1 && it.username.isNullOrEmpty() && it.password.isNullOrEmpty()
@@ -66,7 +71,10 @@ internal object MobileTinaSubscriptionExpiry {
         val epoch = prefs.getLong("clock.epoch", 0)
         val elapsed = prefs.getLong("clock.elapsed", -1)
         val now = SystemClock.elapsedRealtime()
-        return if (epoch > 0 && elapsed >= 0 && now >= elapsed) epoch + now - elapsed
+        val boot = bootCount()
+        val sameClock = if (boot >= 0) prefs.getInt("clock.boot", -1) == boot
+            else prefs.getString("clock.process", "") == clockProcess
+        return if (sameClock && epoch > 0 && elapsed >= 0 && now >= elapsed) epoch + now - elapsed
         else maxOf(System.currentTimeMillis(), epoch)
     }
 
@@ -112,14 +120,14 @@ internal object MobileTinaSubscriptionExpiry {
 
     fun recover() {
         prefs.all.keys.filter { it.startsWith("expiry.") }.forEach { key ->
-            key.substringAfter('.').toLongOrNull()?.let { id -> expiresAt(id)?.let { schedule(id, it) } }
+            key.substringAfter('.').toLongOrNull()?.let { id -> expiresAt(id)?.let { schedule(id, it, verifyNow = true) } }
         }
     }
 
-    private fun schedule(groupId: Long, trigger: Long) {
+    private fun schedule(groupId: Long, trigger: Long, verifyNow: Boolean = false) {
         val work = OneTimeWorkRequestBuilder<MobileTinaExpiryWorker>()
             .setInputData(workDataOf("group" to groupId, "trigger" to trigger))
-            .setInitialDelay((trigger - nowMillis()).coerceAtLeast(0), TimeUnit.MILLISECONDS)
+            .setInitialDelay(if (verifyNow) 0L else (trigger - nowMillis()).coerceAtLeast(0), TimeUnit.MILLISECONDS)
             .setBackoffCriteria(BackoffPolicy.EXPONENTIAL, 30, TimeUnit.SECONDS).build()
         WorkManager.getInstance(app).enqueueUniqueWork("mobiletina.expiry.$groupId", ExistingWorkPolicy.REPLACE, work)
     }
@@ -134,10 +142,11 @@ internal object MobileTinaSubscriptionExpiry {
         if (expiresAt(groupId) != trigger) return@withContext true
         val initial = AppData.groups.getById(groupId) ?: return@withContext true
         if (digest(initial.subscription?.link.orEmpty()) != prefs.getString("link.$groupId", "")) return@withContext true
-        val serverTime = fetchTime()
+        val serverTime = if (trigger == 1L) null else fetchTime()
         if (serverTime == null && trigger != 1L) return@withContext false
         if (serverTime != null) prefs.edit().putLong("clock.epoch", serverTime)
-            .putLong("clock.elapsed", SystemClock.elapsedRealtime()).apply()
+            .putLong("clock.elapsed", SystemClock.elapsedRealtime())
+            .putInt("clock.boot", bootCount()).putString("clock.process", clockProcess).apply()
         if (nowMillis() < trigger) { schedule(groupId, trigger); return@withContext true }
 
         val activeGroup = AppData.profiles.getById(DataStore.currentProfile)?.groupId
