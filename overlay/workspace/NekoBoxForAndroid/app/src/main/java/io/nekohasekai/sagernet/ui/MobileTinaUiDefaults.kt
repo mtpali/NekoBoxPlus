@@ -26,6 +26,12 @@ object MobileTinaUiDefaults {
     }
 
     fun apply() {
+        val phoneModeKey = "mobiletinaFollowPhoneThemeV1"
+        if (!DataStore.configurationStore.getBoolean(phoneModeKey, false)) {
+            DataStore.nightTheme = 0
+            Theme.currentNightMode = 0
+            DataStore.configurationStore.putBoolean(phoneModeKey, true)
+        }
         if (DataStore.configurationStore.getBoolean(MIGRATED, false)) return
         if (DataStore.appTheme == Theme.BLUE) DataStore.appTheme = Theme.SIMPLE
         // The previous first-run setup forced this on. Keep the saved app selection.

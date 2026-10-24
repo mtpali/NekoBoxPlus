@@ -825,7 +825,7 @@ index b7a7e07..268f9d3 100644
          this.testType = testType
      }
 diff --git a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/database/DataStore.kt b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/database/DataStore.kt
-index cc5908d..c0b2051 100644
+index cc5908d..8f3eec8 100644
 --- a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/database/DataStore.kt
 +++ b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/database/DataStore.kt
 @@ -1,5 +1,7 @@
@@ -850,7 +850,7 @@ index cc5908d..c0b2051 100644
      var customThemePendingPreview by configurationStore.string(Key.CUSTOM_THEME_PENDING_PREVIEW) { "" }
 -    var nightTheme by configurationStore.stringToInt(Key.NIGHT_THEME)
 -    var appLanguage by configurationStore.string(Key.APP_LANGUAGE) { "" }
-+    var nightTheme by configurationStore.stringToInt(Key.NIGHT_THEME) { 2 }
++    var nightTheme by configurationStore.stringToInt(Key.NIGHT_THEME) { 0 }
 +    var appLanguage by configurationStore.string(Key.APP_LANGUAGE) { "en" }
      var useToolbar by configurationStore.boolean(Key.USE_TOOLBAR)
      var toolbarLayout by configurationStore.string(Key.TOOLBAR_LAYOUT) { "" }
@@ -1861,17 +1861,19 @@ index 936c057..431957f 100644
                      return true
                  }
 diff --git a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/GlobalSettingsController.kt b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/GlobalSettingsController.kt
-index 48e90b0..1c6dabf 100644
+index 48e90b0..40f3af6 100644
 --- a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/GlobalSettingsController.kt
 +++ b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/GlobalSettingsController.kt
-@@ -66,7 +66,6 @@ internal class GlobalSettingsController(
+@@ -66,8 +66,7 @@ internal class GlobalSettingsController(
      }
  
      fun isEnabled(key: String): Boolean = when (key) {
 -        Key.CHANGE_ICON -> !SagerNet.isTv
-         Key.NIGHT_THEME -> !Theme.isNightModeForced(DataStore.appTheme)
+-        Key.NIGHT_THEME -> !Theme.isNightModeForced(DataStore.appTheme)
++        Key.NIGHT_THEME -> false
          Key.PROFILE_TRAFFIC_STATISTICS -> DataStore.profileTrafficUpdateInterval != 0
          Key.REMOTE_DNS_DEADLINE -> activeDnsLineCount(DataStore.remoteDns) > 1
+         Key.DIRECT_DNS_DEADLINE -> activeDnsLineCount(DataStore.directDns) > 1
 @@ -145,11 +144,6 @@ internal class GlobalSettingsController(
              Key.APP_THEME -> context.showThemePickerDialog(
                  context.getText(R.string.theme), includeCustom = true, onThemeSelected = ::applyTheme,
@@ -1884,7 +1886,22 @@ index 48e90b0..1c6dabf 100644
              "configureCustomTheme" -> activity.displayFragment(CustomThemeFragment())
              Key.CONFIGURE_TOOLBAR_LAYOUT -> context.startActivity(Intent(context, ToolbarLayoutActivity::class.java))
              Key.GLOBAL_CUSTOM_CONFIG -> context.startActivity(Intent(context, ConfigEditActivity::class.java).apply {
-@@ -208,6 +202,7 @@ internal class GlobalSettingsController(
+@@ -182,11 +176,9 @@ internal class GlobalSettingsController(
+         }
+         if (themeId == Theme.CUSTOM) CustomTheme.ensureDefaults(context)
+         DataStore.appTheme = themeId
+-        if (Theme.isNightModeForced(themeId)) {
+-            DataStore.nightTheme = 1
+-            Theme.currentNightMode = 1
+-            Theme.applyNightTheme()
+-        }
++        DataStore.nightTheme = 0
++        Theme.currentNightMode = 0
++        Theme.applyNightTheme()
+         val theme = Theme.getTheme(themeId)
+         context.applicationContext.setTheme(theme)
+         activity.setTheme(theme)
+@@ -208,6 +200,7 @@ internal class GlobalSettingsController(
  
      private companion object {
          val RELOAD_KEYS = setOf(
@@ -2911,7 +2928,7 @@ index d79bf9a..d46b5c2 100644
              confirmButton = {
                  TextButton(onClick = onConfirmCreateBranch) { Text(stringResource(android.R.string.ok)) }
 diff --git a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/compose/GlobalSettingsScreen.kt b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/compose/GlobalSettingsScreen.kt
-index b6c495f..5d1d74f 100644
+index b6c495f..2832673 100644
 --- a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/compose/GlobalSettingsScreen.kt
 +++ b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/compose/GlobalSettingsScreen.kt
 @@ -6,7 +6,6 @@ import androidx.annotation.StringRes
@@ -3004,15 +3021,6 @@ index b6c495f..5d1d74f 100644
      "openGroupSettingsOnLongPress",
      "confirmProfileDelete",
      "networkChangeResetConnections",
-@@ -274,7 +245,7 @@ private fun globalBooleanDefault(context: android.content.Context, key: String):
-     else key in GLOBAL_TRUE_DEFAULT_KEYS
- 
- private val GLOBAL_STRING_DEFAULTS = mapOf(
--    "nightTheme" to "0",
-+    "nightTheme" to "2",
-     "speedInterval" to "0",
-     "profileTrafficUpdateInterval" to "0",
-     "subscriptionTrafficUnit" to "0",
 @@ -293,7 +264,7 @@ private val GLOBAL_STRING_DEFAULTS = mapOf(
      "mixedUsername" to "User",
      "tunUnrecognizedTraffic" to "block",
@@ -3881,7 +3889,7 @@ index 9499eed..1f04346 100644
      }
  }
 diff --git a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/utils/Theme.kt b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/utils/Theme.kt
-index e94d18a..830a413 100644
+index e94d18a..5052ce1 100644
 --- a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/utils/Theme.kt
 +++ b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/utils/Theme.kt
 @@ -32,9 +32,10 @@ object Theme {
@@ -3904,6 +3912,17 @@ index e94d18a..830a413 100644
              MATERIAL_YOU -> R.style.Theme_SagerNet
              RED -> R.style.Theme_SagerNet_Red
              PINK -> R.style.Theme_SagerNet
+@@ -87,8 +89,8 @@ object Theme {
+             BROWN -> R.style.Theme_SagerNet_Brown
+             GREY -> R.style.Theme_SagerNet_Grey
+             BLUE_GREY -> R.style.Theme_SagerNet_BlueGrey
+-            BLACK -> R.style.Theme_SagerNet_Black
+-            AMOLED -> R.style.Theme_SagerNet_Amoled
++            BLACK -> if (usingNightMode()) R.style.Theme_SagerNet_Black else R.style.Theme_SagerNet_MobileTina
++            AMOLED -> if (usingNightMode()) R.style.Theme_SagerNet_Amoled else R.style.Theme_SagerNet_MobileTina
+             CUSTOM -> R.style.Theme_SagerNet_Custom
+             else -> getTheme(defaultTheme())
+         }
 @@ -96,6 +98,7 @@ object Theme {
  
      fun getDialogTheme(theme: Int): Int {
@@ -3912,6 +3931,52 @@ index e94d18a..830a413 100644
              MATERIAL_YOU -> R.style.Theme_SagerNet_Dialog
              RED -> R.style.Theme_SagerNet_Dialog_Red
              PINK -> R.style.Theme_SagerNet_Dialog
+@@ -117,8 +120,8 @@ object Theme {
+             BROWN -> R.style.Theme_SagerNet_Dialog_Brown
+             GREY -> R.style.Theme_SagerNet_Dialog_Grey
+             BLUE_GREY -> R.style.Theme_SagerNet_Dialog_BlueGrey
+-            BLACK -> R.style.Theme_SagerNet_Dialog_Black
+-            AMOLED -> R.style.Theme_SagerNet_Dialog_Amoled
++            BLACK -> if (usingNightMode()) R.style.Theme_SagerNet_Dialog_Black else R.style.Theme_SagerNet_Dialog_MobileTina
++            AMOLED -> if (usingNightMode()) R.style.Theme_SagerNet_Dialog_Amoled else R.style.Theme_SagerNet_Dialog_MobileTina
+             CUSTOM -> R.style.Theme_SagerNet_Dialog_Custom
+             else -> getDialogTheme(defaultTheme())
+         }
+@@ -126,13 +129,8 @@ object Theme {
+ 
+     var currentNightMode = -1
+     fun getNightMode(): Int {
+-        if (isNightModeForced()) {
+-            return AppCompatDelegate.MODE_NIGHT_YES
+-        }
+-        if (currentNightMode == -1) {
+-            currentNightMode = DataStore.nightTheme
+-        }
+-        return getNightMode(currentNightMode)
++        currentNightMode = 0
++        return AppCompatDelegate.MODE_NIGHT_FOLLOW_SYSTEM
+     }
+ 
+     fun getNightMode(mode: Int): Int {
+@@ -144,16 +142,8 @@ object Theme {
+         }
+     }
+ 
+-    fun usingNightMode(): Boolean {
+-        if (isNightModeForced()) {
+-            return true
+-        }
+-        return when (DataStore.nightTheme) {
+-            1 -> true
+-            2 -> false
+-            else -> (app.resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK) == Configuration.UI_MODE_NIGHT_YES
+-        }
+-    }
++    fun usingNightMode(): Boolean =
++        (app.resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK) == Configuration.UI_MODE_NIGHT_YES
+ 
+     fun applyNightTheme() {
+         AppCompatDelegate.setDefaultNightMode(getNightMode())
 diff --git a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/widget/RulesetEditTextPreferenceDialogFragment.kt b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/widget/RulesetEditTextPreferenceDialogFragment.kt
 index 67b4e26..01180a6 100644
 --- a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/widget/RulesetEditTextPreferenceDialogFragment.kt
