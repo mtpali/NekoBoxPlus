@@ -37,10 +37,28 @@ jobs:
           link-to-sdk: true
       - name: Install platform
         run: sdkmanager 'platforms;android-37.0' 'build-tools;36.0.0'
+      - uses: actions/cache/restore@v4
+        id: cache
+        with:
+          key: native-toolchain-${{ runner.os }}-7e662032-v1
+          path: |
+            .cache/native-toolchain.tar.zst
+            upstream/workspace/NekoBoxForAndroid/.cache/docker-go-mod
+            upstream/workspace/NekoBoxForAndroid/.cache/docker-go-build
+            upstream/workspace/sing-box/common/adblock/bridge/target
       - name: Build original core for ARMv7 and ARM64
         env:
           ANDROID_NDK_HOME: ${{ steps.ndk.outputs.ndk-path }}
         run: bash scripts/build-native.sh
+      - uses: actions/cache/save@v4
+        if: always() && steps.cache.outputs.cache-hit != 'true' && hashFiles('.cache/native-toolchain.tar.zst') != ''
+        with:
+          key: native-toolchain-${{ runner.os }}-7e662032-v1
+          path: |
+            .cache/native-toolchain.tar.zst
+            upstream/workspace/NekoBoxForAndroid/.cache/docker-go-mod
+            upstream/workspace/NekoBoxForAndroid/.cache/docker-go-build
+            upstream/workspace/sing-box/common/adblock/bridge/target
       - uses: actions/upload-artifact@v4
         with:
           name: native-7e662032-arm
