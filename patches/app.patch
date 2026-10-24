@@ -1,0 +1,1139 @@
+diff --git a/workspace/NekoBoxForAndroid/app/proguard-rules.pro b/workspace/NekoBoxForAndroid/app/proguard-rules.pro
+index 3e6f05a..a15dbea 100644
+--- a/workspace/NekoBoxForAndroid/app/proguard-rules.pro
++++ b/workspace/NekoBoxForAndroid/app/proguard-rules.pro
+@@ -74,3 +74,6 @@
+     <init>();
+     public java.lang.String *;
+ }
++
++# Persisted work names and Android entry points added by MobileTina.
++-keep class io.nekohasekai.sagernet.ui.MobileTinaExpiryWorker { public <init>(android.content.Context, androidx.work.WorkerParameters); }
+diff --git a/workspace/NekoBoxForAndroid/app/src/main/AndroidManifest.xml b/workspace/NekoBoxForAndroid/app/src/main/AndroidManifest.xml
+index a412021..eac9dd8 100644
+--- a/workspace/NekoBoxForAndroid/app/src/main/AndroidManifest.xml
++++ b/workspace/NekoBoxForAndroid/app/src/main/AndroidManifest.xml
+@@ -804,6 +804,7 @@
+             android:name="androidx.room.MultiInstanceInvalidationService"
+             android:process=":bg" />
+ 
++        <receiver android:name=".bg.MobileTinaSessionReceiver" android:exported="false" android:process=":bg" />
+     </application>
+ 
+ </manifest>
+diff --git a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/BootReceiver.kt b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/BootReceiver.kt
+index 8437e1e..d543844 100644
+--- a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/BootReceiver.kt
++++ b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/BootReceiver.kt
+@@ -27,6 +27,7 @@ class BootReceiver : BroadcastReceiver() {
+         runOnDefaultDispatcher {
+             try {
+                 SubscriptionUpdater.reconfigureUpdater()
++                io.nekohasekai.sagernet.ui.MobileTinaSubscriptionExpiry.recover()
+             } finally {
+                 pendingResult.finish()
+             }
+diff --git a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/SagerNet.kt b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/SagerNet.kt
+index af78c50..2312346 100644
+--- a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/SagerNet.kt
++++ b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/SagerNet.kt
+@@ -32,6 +32,9 @@ import io.nekohasekai.sagernet.ktx.isPreview
+ import io.nekohasekai.sagernet.ktx.runOnDefaultDispatcher
+ import io.nekohasekai.sagernet.ui.MainActivity
+ import io.nekohasekai.sagernet.utils.*
++import kotlinx.coroutines.launch
++import kotlinx.coroutines.withContext
++import kotlinx.coroutines.Dispatchers
+ import kotlinx.coroutines.DEBUG_PROPERTY_NAME
+ import kotlinx.coroutines.DEBUG_PROPERTY_VALUE_ON
+ import libcore.Libcore
+@@ -62,6 +65,7 @@ class SagerNet : Application(),
+ 
+     override fun onCreate() {
+         super.onCreate()
++        MobileTinaIntegrity.verify(this)
+ 
+         Thread.setDefaultUncaughtExceptionHandler(CrashHandler)
+ 
+@@ -119,6 +123,7 @@ class SagerNet : Application(),
+ 
+                 runCatching {
+                     SubscriptionUpdater.reconfigureUpdater()
++                    io.nekohasekai.sagernet.ui.MobileTinaSubscriptionExpiry.recover()
+                 }.onFailure {
+                     Logs.w("Unable to reconfigure subscription updater: ${it.message}")
+                 }
+@@ -281,7 +286,26 @@ class SagerNet : Application(),
+             }
+         }
+ 
++        private val mobileTinaStartGeneration = java.util.concurrent.atomic.AtomicLong()
++
+         fun startService() {
++            val token = mobileTinaStartGeneration.incrementAndGet()
++            val profileId = DataStore.selectedProxy
++            if (io.nekohasekai.sagernet.ui.MobileTinaSubscriptionExpiry.hasSchedules()) {
++                io.nekohasekai.sagernet.app.AppGraph.applicationScope.launch {
++                    if (!io.nekohasekai.sagernet.ui.MobileTinaSubscriptionExpiry.canStart(profileId)) {
++                        withContext(Dispatchers.Main) {
++                            android.widget.Toast.makeText(application, R.string.mobiletina_expired, android.widget.Toast.LENGTH_LONG).show()
++                        }
++                        return@launch
++                    }
++                    withContext(Dispatchers.Main) { startMobileTinaChecked(profileId, token) }
++                }
++            } else startMobileTinaChecked(profileId, token)
++        }
++
++        private fun startMobileTinaChecked(profileId: Long, token: Long) {
++            if (mobileTinaStartGeneration.get() != token || DataStore.selectedProxy != profileId) return
+             CoreRecoveryService.updateStopWatchdog(
+                 context = application,
+                 serviceMode = DataStore.serviceMode,
+@@ -290,7 +314,7 @@ class SagerNet : Application(),
+             ContextCompat.startForegroundService(
+                 application,
+                 Intent(application, SagerConnection.serviceClass)
+-                    .putExtra(Action.EXTRA_PROFILE_ID, DataStore.selectedProxy)
++                    .putExtra(Action.EXTRA_PROFILE_ID, profileId)
+                     .putExtra(Action.EXTRA_REQUEST_ID, SystemClock.elapsedRealtimeNanos()),
+             )
+         }
+@@ -311,6 +335,7 @@ class SagerNet : Application(),
+         }
+ 
+         fun stopService() {
++            mobileTinaStartGeneration.incrementAndGet()
+             CoreRecoveryService.updateStopWatchdog(
+                 context = application,
+                 serviceMode = DataStore.serviceMode,
+diff --git a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/bg/BaseService.kt b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/bg/BaseService.kt
+index fcac457..b7cd730 100644
+--- a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/bg/BaseService.kt
++++ b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/bg/BaseService.kt
+@@ -172,6 +172,7 @@ class BaseService {
+         fun changeState(s: State, msg: String? = null) {
+             if (state == s && msg == null) return
+             state = s
++            MobileTinaSessionLimiter.onState(service as android.content.Context, s)
+             DataStore.serviceState = s
+             if (s != State.Connected) binder.resetConnectionTestState()
+             binder.stateChanged(s, msg)
+diff --git a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/bg/proto/UrlTest.kt b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/bg/proto/UrlTest.kt
+index b7a7e07..268f9d3 100644
+--- a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/bg/proto/UrlTest.kt
++++ b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/bg/proto/UrlTest.kt
+@@ -10,7 +10,7 @@ import moe.matsuri.nb4a.net.LocalResolverImpl
+ 
+ class UrlTest {
+ 
+-    private val link = DataStore.connectionTestURL
++    private val link: String
+     private val timeout: Int
+     private val testType: Int
+     private val runKey = SystemClock.elapsedRealtimeNanos().toString()
+@@ -19,7 +19,9 @@ class UrlTest {
+     constructor(
+         timeout: Int = DataStore.connectionTestTimeout,
+         testType: Int = DataStore.profileTestType,
++        link: String = DataStore.connectionTestURL,
+     ) {
++        this.link = link
+         this.timeout = timeout
+         this.testType = testType
+     }
+diff --git a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/database/DataStore.kt b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/database/DataStore.kt
+index cc5908d..d8726c5 100644
+--- a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/database/DataStore.kt
++++ b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/database/DataStore.kt
+@@ -210,14 +210,14 @@ object DataStore : OnPreferenceDataStoreChangeListener {
+     //
+ 
+     var isExpert by configurationStore.boolean(Key.APP_EXPERT)
+-    var appTheme by configurationStore.int(Key.APP_THEME)
++    var appTheme by configurationStore.int(Key.APP_THEME) { 7 }
+     var customThemeLight by configurationStore.string(Key.CUSTOM_THEME_LIGHT) { "" }
+     var customThemeDark by configurationStore.string(Key.CUSTOM_THEME_DARK) { "" }
+     var customThemeDynamicColors by configurationStore.boolean(Key.CUSTOM_THEME_DYNAMIC_COLORS)
+     var customThemeHeaderPrimary by configurationStore.boolean(Key.CUSTOM_THEME_HEADER_PRIMARY)
+     var customThemeStatsBarPrimary by configurationStore.boolean(Key.CUSTOM_THEME_STATS_BAR_PRIMARY)
+     var customThemePendingPreview by configurationStore.string(Key.CUSTOM_THEME_PENDING_PREVIEW) { "" }
+-    var nightTheme by configurationStore.stringToInt(Key.NIGHT_THEME)
++    var nightTheme by configurationStore.stringToInt(Key.NIGHT_THEME) { 2 }
+     var appLanguage by configurationStore.string(Key.APP_LANGUAGE) { "" }
+     var useToolbar by configurationStore.boolean(Key.USE_TOOLBAR)
+     var toolbarLayout by configurationStore.string(Key.TOOLBAR_LAYOUT) { "" }
+@@ -242,7 +242,8 @@ object DataStore : OnPreferenceDataStoreChangeListener {
+     var udpNatFiltering by configurationStore.string(Key.UDP_NAT_FILTERING) { "" }
+     var udpNatMax by configurationStore.string(Key.UDP_NAT_MAX) { "" }
+ 
+-    var trafficSniffing by configurationStore.stringToInt(Key.TRAFFIC_SNIFFING) { 1 }
++    var mobileTinaBypassIr by configurationStore.boolean("mobileTinaBypassIr") { true }
++    var trafficSniffing by configurationStore.stringToInt(Key.TRAFFIC_SNIFFING) { 0 }
+     var resolveDestination by configurationStore.boolean(Key.RESOLVE_DESTINATION)
+ 
+     var mtu by configurationStore.stringToInt(Key.MTU) { 9000 }
+diff --git a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/database/SubscriptionBean.java b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/database/SubscriptionBean.java
+index c2d981b..0356a6b 100644
+--- a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/database/SubscriptionBean.java
++++ b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/database/SubscriptionBean.java
+@@ -226,8 +226,8 @@ public class SubscriptionBean extends Serializable {
+         if (deduplication == null) deduplication = false;
+         if (updateWhenConnectedOnly == null) updateWhenConnectedOnly = false;
+         if (customUserAgent == null) customUserAgent = "";
+-        if (autoUpdate == null) autoUpdate = false;
+-        if (autoUpdateDelay == null) autoUpdateDelay = 1440;
++        if (autoUpdate == null) autoUpdate = true;
++        if (autoUpdateDelay == null) autoUpdateDelay = 60;
+         if (providerAutoUpdateDefaultsApplied == null) providerAutoUpdateDefaultsApplied = false;
+         if (lastUpdated == null) lastUpdated = 0;
+         if (filterMode == null) filterMode = 0;
+diff --git a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/fmt/ConfigBuilder.kt b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/fmt/ConfigBuilder.kt
+index d363fd0..ed67299 100644
+--- a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/fmt/ConfigBuilder.kt
++++ b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/fmt/ConfigBuilder.kt
+@@ -163,7 +163,10 @@ fun buildConfig(
+             deadline = DataStore.remoteDnsDeadline,
+             strategy = SingBoxOptionsUtil.domainStrategy("dns-remote").takeIf(String::isNotBlank),
+         ),
+-    )?.let { return it }
++    )?.let {
++        if (!forTest && !forExport) it.config = MobileTinaIranRouting.apply(it.config, DataStore.mobileTinaBypassIr)
++        return it
++    }
+ 
+     val trafficMap = HashMap<String, List<ProxyEntity>>()
+     val tagMap = HashMap<Long, String>()
+@@ -1887,7 +1890,7 @@ fun buildConfig(
+             }
+ 
+             ConfigBuildResult(
+-                gson.toJson(configMap),
++                MobileTinaIranRouting.apply(gson.toJson(configMap), !forTest && !forExport && DataStore.mobileTinaBypassIr),
+                 externalIndexMap,
+                 proxy.id,
+                 trafficMap,
+diff --git a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/group/RawUpdater.kt b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/group/RawUpdater.kt
+index f2c562e..a276c59 100644
+--- a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/group/RawUpdater.kt
++++ b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/group/RawUpdater.kt
+@@ -281,6 +281,8 @@ object RawUpdater : GroupUpdater() {
+             SubscriptionUpdater.reconfigureUpdater()
+         }
+ 
++        io.nekohasekai.sagernet.ui.MobileTinaSubscriptionExpiry.syncPayload(proxyGroup.id, responseText)
++
+         userInterface?.onUpdateSuccess(
+             proxyGroup,
+             syncResult.changed,
+diff --git a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/AppSelectionModel.kt b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/AppSelectionModel.kt
+index c1325b2..f22f937 100644
+--- a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/AppSelectionModel.kt
++++ b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/AppSelectionModel.kt
+@@ -111,7 +111,8 @@ internal object AppSelectionLogic {
+     }
+ 
+     fun sort(apps: List<SelectableApp>, selectedUids: Set<Int>): List<SelectableApp> {
+-        return apps.sortedWith(compareBy({ it.uid !in selectedUids }, { it.name }))
++        val pinned = listOf("org.telegram.messenger", "com.instagram.android", "com.whatsapp", "com.android.chrome", "com.google.android.googlequicksearchbox")
++        return apps.sortedWith(compareBy({ pinned.indexOf(it.packageName).takeIf { rank -> rank >= 0 } ?: Int.MAX_VALUE }, { it.uid !in selectedUids }, { it.name }))
+     }
+ 
+     fun filter(
+diff --git a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/ConfigurationFragment.kt b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/ConfigurationFragment.kt
+index 936c057..e26a804 100644
+--- a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/ConfigurationFragment.kt
++++ b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/ConfigurationFragment.kt
+@@ -953,6 +953,11 @@ class ConfigurationFragment @JvmOverloads constructor(
+ 
+     override fun onMenuItemClick(item: MenuItem): Boolean {
+         when (item.itemId) {
++            R.id.action_mobiletina_auto -> {
++                (activity as? MainActivity)?.displayFragmentWithId(R.id.nav_mobiletina)
++                return true
++            }
++
+             R.id.action_select_profiles -> {
+                 enterProfileSelectionMode()
+                 return true
+diff --git a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/GlobalSettingsController.kt b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/GlobalSettingsController.kt
+index 48e90b0..6d37e68 100644
+--- a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/GlobalSettingsController.kt
++++ b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/GlobalSettingsController.kt
+@@ -208,6 +208,7 @@ internal class GlobalSettingsController(
+ 
+     private companion object {
+         val RELOAD_KEYS = setOf(
++            "mobileTinaBypassIr",
+             Key.SPEED_INTERVAL, Key.PROFILE_TRAFFIC_UPDATE_INTERVAL, Key.TUN_UNRECOGNIZED_TRAFFIC,
+             Key.TUN_SYSTEM_DNS_TRAFFIC, Key.TUN_DNS_WHITELIST, Key.TUN_DOT_WHITELIST,
+             Key.TUN_DOH_WHITELIST, Key.CONNECTION_GUARD, Key.OVERLOAD_WATCHDOG, Key.MEMORY_LIMIT,
+diff --git a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/MainActivity.kt b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/MainActivity.kt
+index c403caa..6f01e06 100644
+--- a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/MainActivity.kt
++++ b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/MainActivity.kt
+@@ -32,6 +32,8 @@ import androidx.core.view.WindowInsetsCompat
+ import androidx.core.view.updatePadding
+ import androidx.fragment.app.Fragment
+ import androidx.fragment.app.FragmentManager
++import androidx.activity.viewModels
++import androidx.lifecycle.repeatOnLifecycle
+ import androidx.lifecycle.lifecycleScope
+ import androidx.preference.PreferenceDataStore
+ import com.google.android.material.snackbar.Snackbar
+@@ -115,6 +117,8 @@ class MainActivity :
+         }
+     }
+ 
++    private val mobileTina: MobileTinaViewModel by viewModels()
++
+     lateinit var binding: LayoutMainBinding
+     private val shellState = MainShellState()
+     private var bottomControlsVisibleForCurrentFragment = false
+@@ -208,28 +212,13 @@ class MainActivity :
+         )
+ 
+         binding.fab.setOnClickListener {
+-            if (DataStore.serviceState.canStop) {
+-                SagerNet.stopService()
+-            } else {
+-                // ПРОВЕРКА БАЗ ПЕРЕД ЗАПУСКОМ VPN
+-                val filesDir = getExternalFilesDir(null) ?: filesDir
+-                val geoip = java.io.File(filesDir, "geoip.db")
+-                val geosite = java.io.File(filesDir, "geosite.db")
+-
+-                if (!geoip.exists() || !geosite.exists()) {
+-                    // Баз нет! Показываем красивое окно и отправляем качать
+-                    showComposeMessageDialog(
+-                        title = getText(R.string.geodb_update_needed),
+-                        message = getText(R.string.geodb_update_needed_message),
+-                        positiveButton = getText(R.string.download),
+-                        negativeButton = getText(android.R.string.cancel),
+-                        onPositive = {
+-                            startActivity(Intent(this, AssetsActivity::class.java))
+-                        },
+-                    )
+-                } else {
+-                    // Базы есть, запускаем VPN
+-                    connect.launch(null)
++            mobileTina.cancelPending()
++            if (DataStore.serviceState.canStop) SagerNet.stopService() else requestVpnStart()
++        }
++        lifecycleScope.launch {
++            repeatOnLifecycle(androidx.lifecycle.Lifecycle.State.STARTED) {
++                mobileTina.startRequests.collect { token ->
++                    if (MobileTinaConnectionGate.accepts(token)) requestVpnStart(token)
+                 }
+             }
+         }
+@@ -244,8 +233,7 @@ class MainActivity :
+         }
+ 
+         if (savedInstanceState == null && !openSettingsOnCreate) {
+-            holdInitialDrawForProfiles()
+-            displayFragmentWithId(R.id.nav_configuration)
++            displayFragmentWithId(R.id.nav_mobiletina)
+         }
+         onBackPressedDispatcher.addCallback {
+             if (shellState.drawerIsOpen) {
+@@ -256,8 +244,10 @@ class MainActivity :
+             if ((fragment as? ToolbarFragment)?.onBackPressed() == true) {
+                 return@addCallback
+             }
+-            if (fragment is ConfigurationFragment) {
++            if (fragment is MobileTinaHomeFragment) {
+                 moveTaskToBack(true)
++            } else if (fragment is ConfigurationFragment) {
++                displayFragmentWithId(R.id.nav_mobiletina)
+             } else {
+                 displayFragmentWithId(R.id.nav_configuration)
+             }
+@@ -317,6 +307,31 @@ class MainActivity :
+         }
+     }
+ 
++    private fun requestVpnStart(automaticToken: Long? = null) {
++        if (automaticToken != null && !MobileTinaConnectionGate.accepts(automaticToken)) return
++                // ПРОВЕРКА БАЗ ПЕРЕД ЗАПУСКОМ VPN
++                val filesDir = getExternalFilesDir(null) ?: filesDir
++                val geoip = java.io.File(filesDir, "geoip.db")
++                val geosite = java.io.File(filesDir, "geosite.db")
++
++                if (!geoip.exists() || !geosite.exists()) {
++                    if (automaticToken != null) mobileTina.fail(R.string.geodb_update_needed)
++                    // Баз нет! Показываем красивое окно и отправляем качать
++                    showComposeMessageDialog(
++                        title = getText(R.string.geodb_update_needed),
++                        message = getText(R.string.geodb_update_needed_message),
++                        positiveButton = getText(R.string.download),
++                        negativeButton = getText(android.R.string.cancel),
++                        onPositive = {
++                            startActivity(Intent(this, AssetsActivity::class.java))
++                        },
++                    )
++                } else {
++                    // Базы есть, запускаем VPN
++                    if (automaticToken == null) connect.launch(null) else autoConnect.launch(automaticToken)
++                }
++    }
++
+     private fun setupLegacyNavigationBarInsets() {
+         val coordinatorInitialLeft = binding.coordinator.paddingLeft
+         val coordinatorInitialRight = binding.coordinator.paddingRight
+@@ -477,6 +492,11 @@ class MainActivity :
+             return
+         }
+         val uri = intent.data ?: return
++        io.nekohasekai.sagernet.utils.MobileTinaImportNormalizer.subscriptionUrl(uri.toString())?.let { normalized ->
++            setIntent(Intent(intent).setAction(null).setData(null))
++            lifecycleScope.launch { importSubscription(android.net.Uri.parse(normalized)) }
++            return
++        }
+ 
+         RoutingLinkProcessors.forLink(uri.toString())?.let { processor ->
+             setIntent(Intent(intent).setAction(null).setData(null))
+@@ -959,6 +979,10 @@ class MainActivity :
+         @IdRes id: Int,
+     ): Boolean {
+         when (id) {
++            R.id.nav_mobiletina -> {
++                displayFragment(MobileTinaHomeFragment())
++            }
++
+             R.id.nav_configuration -> {
+                 displayFragment(ConfigurationFragment())
+             }
+@@ -1018,6 +1042,7 @@ class MainActivity :
+         val previousState = renderedServiceState
+         renderedServiceState = state
+         DataStore.serviceState = state
++        mobileTina.onServiceState(state, msg)
+ 
+         if (bottomControlsVisibleForCurrentFragment) {
+             binding.fab.changeState(state, previousState, animate)
+@@ -1141,6 +1166,12 @@ class MainActivity :
+         connection.connect(this, this)
+     }
+ 
++    private val autoConnect =
++        registerForActivityResult(VpnRequestActivity.AutoStartService()) { denied ->
++            mobileTina.onPermissionResult(denied)
++            if (denied) snackbar(R.string.vpn_permission_denied).show()
++        }
++
+     private val connect =
+         registerForActivityResult(VpnRequestActivity.StartService()) {
+             if (it) snackbar(R.string.vpn_permission_denied).show()
+diff --git a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/VpnRequestActivity.kt b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/VpnRequestActivity.kt
+index eb316ba..ae1d813 100644
+--- a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/VpnRequestActivity.kt
++++ b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/VpnRequestActivity.kt
+@@ -125,6 +125,12 @@ class VpnRequestActivity : AppCompatActivity() {
+     }
+ 
+     private fun startServiceAndFinish() {
++        if (intent.hasExtra(MobileTinaConnectionGate.EXTRA_ATTEMPT) &&
++            !MobileTinaConnectionGate.accepts(intent.getLongExtra(MobileTinaConnectionGate.EXTRA_ATTEMPT, 0))) {
++            setResult(Activity.RESULT_CANCELED)
++            finish()
++            return
++        }
+         SagerNet.startService()
+         setResult(Activity.RESULT_OK)
+         finish()
+@@ -143,6 +149,12 @@ class VpnRequestActivity : AppCompatActivity() {
+         if (receiver != null) unregisterReceiver(receiver)
+     }
+ 
++    class AutoStartService : ActivityResultContract<Long, Boolean>() {
++        override fun createIntent(context: Context, input: Long): Intent =
++            StartService().createIntent(context, null).putExtra(MobileTinaConnectionGate.EXTRA_ATTEMPT, input)
++        override fun parseResult(resultCode: Int, intent: Intent?) = resultCode != Activity.RESULT_OK
++    }
++
+     class StartService : ActivityResultContract<Void?, Boolean>() {
+         override fun getSynchronousResult(
+             context: Context,
+diff --git a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/compose/GlobalSettingsScreen.kt b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/compose/GlobalSettingsScreen.kt
+index b6c495f..ccad2f3 100644
+--- a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/compose/GlobalSettingsScreen.kt
++++ b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/compose/GlobalSettingsScreen.kt
+@@ -253,6 +253,7 @@ private val GLOBAL_NUMBER_KEYS = setOf(
+ private val GLOBAL_TEXT_ACTION_KEYS = setOf("globalCustomConfig", "dnsDomainOverrides")
+ 
+ private val GLOBAL_TRUE_DEFAULT_KEYS = setOf(
++    "mobileTinaBypassIr",
+     "profileCountryIndicator",
+     "notificationCountryIndicator",
+     "tabDoubleTapToNavigate",
+@@ -274,7 +275,7 @@ private fun globalBooleanDefault(context: android.content.Context, key: String):
+     else key in GLOBAL_TRUE_DEFAULT_KEYS
+ 
+ private val GLOBAL_STRING_DEFAULTS = mapOf(
+-    "nightTheme" to "0",
++    "nightTheme" to "2",
+     "speedInterval" to "0",
+     "profileTrafficUpdateInterval" to "0",
+     "subscriptionTrafficUnit" to "0",
+@@ -293,7 +294,7 @@ private val GLOBAL_STRING_DEFAULTS = mapOf(
+     "mixedUsername" to "User",
+     "tunUnrecognizedTraffic" to "block",
+     "tunSystemDnsTraffic" to "normal-proxy-bypass-direct",
+-    "trafficSniffing" to "1",
++    "trafficSniffing" to "0",
+     "ipv6Mode" to "0",
+     "rulesProvider" to "1",
+     "rulesGeositeUrl" to "https://github.com/SagerNet/sing-geosite/releases/latest/download/geosite.db",
+@@ -412,6 +413,7 @@ private val GLOBAL_SETTINGS: Map<String, List<GlobalSettingItem>> = mapOf(
+         sw("allowAccess", R.drawable.ic_baseline_nat_24, R.string.allow_access, R.string.allow_access_sum),
+     ),
+     "routing" to listOf(
++        sw("mobileTinaBypassIr", R.drawable.ic_maps_directions, R.string.mobiletina_ir_bypass, R.string.mobiletina_ir_bypass_summary),
+         sw("proxyApps", R.drawable.ic_navigation_apps, R.string.proxied_apps, R.string.proxied_apps_summary),
+         list("tunUnrecognizedTraffic", R.drawable.ic_baseline_add_road_24, R.string.title_tun_unrecognized_traffic, R.array.tun_unrecognized_traffic_mode, R.array.tun_unrecognized_traffic_mode_values, R.string.summary_tun_unrecognized_traffic),
+         list("tunSystemDnsTraffic", R.drawable.ic_baseline_add_road_24, R.string.title_tun_system_dns_traffic, R.array.tun_system_dns_traffic_mode, R.array.tun_system_dns_traffic_mode_values, R.string.summary_tun_system_dns_traffic),
+diff --git a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/compose/MainComposeShell.kt b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/compose/MainComposeShell.kt
+index 26620ca..13621f8 100644
+--- a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/compose/MainComposeShell.kt
++++ b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/compose/MainComposeShell.kt
+@@ -42,7 +42,7 @@ import io.nekohasekai.sagernet.R
+ internal class MainShellState {
+     var drawerRequestedOpen by mutableStateOf(false)
+     var drawerIsOpen by mutableStateOf(false)
+-    var selectedItemId by mutableIntStateOf(R.id.nav_configuration)
++    var selectedItemId by mutableIntStateOf(R.id.nav_mobiletina)
+     var trafficVisible by mutableStateOf(false)
+     var proxyAppsEnabled by mutableStateOf(false)
+ 
+@@ -62,6 +62,7 @@ private data class DrawerDestination(
+ )
+ 
+ private val primaryDestinations = listOf(
++    DrawerDestination(R.id.nav_mobiletina, R.string.mobiletina_auto, R.drawable.ic_service_idle),
+     DrawerDestination(R.id.nav_configuration, R.string.menu_configuration, R.drawable.ic_action_description),
+     DrawerDestination(R.id.nav_group, R.string.menu_group, R.drawable.ic_baseline_view_list_24),
+     DrawerDestination(R.id.nav_route, R.string.menu_route, R.drawable.ic_maps_directions),
+diff --git a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/compose/NekoComposeTheme.kt b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/compose/NekoComposeTheme.kt
+index 7fa2bbc..c5e115f 100644
+--- a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/compose/NekoComposeTheme.kt
++++ b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/compose/NekoComposeTheme.kt
+@@ -1,6 +1,9 @@
+ package io.nekohasekai.sagernet.ui.compose
+ 
+ import android.content.res.Configuration
++import androidx.compose.material3.Typography
++import androidx.compose.ui.text.font.Font
++import androidx.compose.ui.text.font.FontFamily
+ import androidx.compose.material3.MaterialTheme
+ import androidx.compose.foundation.LocalIndication
+ import androidx.compose.material3.darkColorScheme
+@@ -57,7 +60,28 @@ fun NekoComposeTheme(content: @Composable () -> Unit) {
+             outlineVariant = outlineVariant,
+         )
+     }
+-    MaterialTheme(colorScheme = colors) {
++    val typeface = remember { FontFamily(Font(R.font.mobiletina)) }
++    val typography = remember(typeface) {
++        val base = Typography()
++        Typography(
++            displayLarge = base.displayLarge.copy(fontFamily = typeface),
++            displayMedium = base.displayMedium.copy(fontFamily = typeface),
++            displaySmall = base.displaySmall.copy(fontFamily = typeface),
++            headlineLarge = base.headlineLarge.copy(fontFamily = typeface),
++            headlineMedium = base.headlineMedium.copy(fontFamily = typeface),
++            headlineSmall = base.headlineSmall.copy(fontFamily = typeface),
++            titleLarge = base.titleLarge.copy(fontFamily = typeface),
++            titleMedium = base.titleMedium.copy(fontFamily = typeface),
++            titleSmall = base.titleSmall.copy(fontFamily = typeface),
++            bodyLarge = base.bodyLarge.copy(fontFamily = typeface),
++            bodyMedium = base.bodyMedium.copy(fontFamily = typeface),
++            bodySmall = base.bodySmall.copy(fontFamily = typeface),
++            labelLarge = base.labelLarge.copy(fontFamily = typeface),
++            labelMedium = base.labelMedium.copy(fontFamily = typeface),
++            labelSmall = base.labelSmall.copy(fontFamily = typeface),
++        )
++    }
++    MaterialTheme(colorScheme = colors, typography = typography) {
+         if (isTelevisionUi()) {
+             CompositionLocalProvider(
+                 LocalIndication provides remember(colors.primary) {
+diff --git a/workspace/NekoBoxForAndroid/app/src/main/res/menu/add_profile_menu.xml b/workspace/NekoBoxForAndroid/app/src/main/res/menu/add_profile_menu.xml
+index 09e6e0d..1fe9bd1 100644
+--- a/workspace/NekoBoxForAndroid/app/src/main/res/menu/add_profile_menu.xml
++++ b/workspace/NekoBoxForAndroid/app/src/main/res/menu/add_profile_menu.xml
+@@ -1,6 +1,8 @@
+ <?xml version="1.0" encoding="utf-8"?>
+ <menu xmlns:android="http://schemas.android.com/apk/res/android"
+     xmlns:app="http://schemas.android.com/apk/res-auto">
++    <item android:id="@id/action_mobiletina_auto" android:icon="@drawable/ic_service_idle" android:title="@string/mobiletina_auto" app:showAsAction="ifRoom"/>
++
+     <item
+         android:id="@+id/action_search"
+         android:title="@android:string/search_go"
+diff --git a/workspace/NekoBoxForAndroid/app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml b/workspace/NekoBoxForAndroid/app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml
+index 858386c..20d3f2a 100644
+--- a/workspace/NekoBoxForAndroid/app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml
++++ b/workspace/NekoBoxForAndroid/app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml
+@@ -1,6 +1,5 @@
+ <?xml version="1.0" encoding="utf-8"?>
+ <adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
+-    <background android:drawable="@color/ic_launcher_background"/>
+-    <foreground android:drawable="@mipmap/ic_launcher_foreground"/>
+-    <monochrome android:drawable="@drawable/ic_launcher_monochrome"/>
++    <background android:drawable="@android:color/black"/>
++    <foreground android:drawable="@drawable/mobiletina_launcher_safe"/>
+ </adaptive-icon>
+diff --git a/workspace/NekoBoxForAndroid/app/src/main/res/mipmap-anydpi-v26/ic_launcher_dark.xml b/workspace/NekoBoxForAndroid/app/src/main/res/mipmap-anydpi-v26/ic_launcher_dark.xml
+index 77b5e97..20d3f2a 100644
+--- a/workspace/NekoBoxForAndroid/app/src/main/res/mipmap-anydpi-v26/ic_launcher_dark.xml
++++ b/workspace/NekoBoxForAndroid/app/src/main/res/mipmap-anydpi-v26/ic_launcher_dark.xml
+@@ -1,6 +1,5 @@
+ <?xml version="1.0" encoding="utf-8"?>
+ <adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
+-    <background android:drawable="@color/ic_launcher_background_dark"/>
+-    <foreground android:drawable="@mipmap/ic_launcher_foreground"/>
+-    <monochrome android:drawable="@drawable/ic_launcher_monochrome"/>
++    <background android:drawable="@android:color/black"/>
++    <foreground android:drawable="@drawable/mobiletina_launcher_safe"/>
+ </adaptive-icon>
+diff --git a/workspace/NekoBoxForAndroid/app/src/main/res/mipmap-anydpi-v26/ic_launcher_light.xml b/workspace/NekoBoxForAndroid/app/src/main/res/mipmap-anydpi-v26/ic_launcher_light.xml
+index 91517cf..20d3f2a 100644
+--- a/workspace/NekoBoxForAndroid/app/src/main/res/mipmap-anydpi-v26/ic_launcher_light.xml
++++ b/workspace/NekoBoxForAndroid/app/src/main/res/mipmap-anydpi-v26/ic_launcher_light.xml
+@@ -1,6 +1,5 @@
+ <?xml version="1.0" encoding="utf-8"?>
+ <adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
+-    <background android:drawable="@color/ic_launcher_background_light"/>
+-    <foreground android:drawable="@mipmap/ic_launcher_foreground"/>
+-    <monochrome android:drawable="@drawable/ic_launcher_monochrome"/>
++    <background android:drawable="@android:color/black"/>
++    <foreground android:drawable="@drawable/mobiletina_launcher_safe"/>
+ </adaptive-icon>
+diff --git a/workspace/NekoBoxForAndroid/app/src/main/res/mipmap-anydpi-v26/ic_launcher_round.xml b/workspace/NekoBoxForAndroid/app/src/main/res/mipmap-anydpi-v26/ic_launcher_round.xml
+index 858386c..20d3f2a 100644
+--- a/workspace/NekoBoxForAndroid/app/src/main/res/mipmap-anydpi-v26/ic_launcher_round.xml
++++ b/workspace/NekoBoxForAndroid/app/src/main/res/mipmap-anydpi-v26/ic_launcher_round.xml
+@@ -1,6 +1,5 @@
+ <?xml version="1.0" encoding="utf-8"?>
+ <adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
+-    <background android:drawable="@color/ic_launcher_background"/>
+-    <foreground android:drawable="@mipmap/ic_launcher_foreground"/>
+-    <monochrome android:drawable="@drawable/ic_launcher_monochrome"/>
++    <background android:drawable="@android:color/black"/>
++    <foreground android:drawable="@drawable/mobiletina_launcher_safe"/>
+ </adaptive-icon>
+diff --git a/workspace/NekoBoxForAndroid/app/src/main/res/mipmap-night-anydpi-v26/ic_launcher.xml b/workspace/NekoBoxForAndroid/app/src/main/res/mipmap-night-anydpi-v26/ic_launcher.xml
+index 858386c..20d3f2a 100644
+--- a/workspace/NekoBoxForAndroid/app/src/main/res/mipmap-night-anydpi-v26/ic_launcher.xml
++++ b/workspace/NekoBoxForAndroid/app/src/main/res/mipmap-night-anydpi-v26/ic_launcher.xml
+@@ -1,6 +1,5 @@
+ <?xml version="1.0" encoding="utf-8"?>
+ <adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
+-    <background android:drawable="@color/ic_launcher_background"/>
+-    <foreground android:drawable="@mipmap/ic_launcher_foreground"/>
+-    <monochrome android:drawable="@drawable/ic_launcher_monochrome"/>
++    <background android:drawable="@android:color/black"/>
++    <foreground android:drawable="@drawable/mobiletina_launcher_safe"/>
+ </adaptive-icon>
+diff --git a/workspace/NekoBoxForAndroid/app/src/main/res/mipmap-night-anydpi-v26/ic_launcher_round.xml b/workspace/NekoBoxForAndroid/app/src/main/res/mipmap-night-anydpi-v26/ic_launcher_round.xml
+index 858386c..20d3f2a 100644
+--- a/workspace/NekoBoxForAndroid/app/src/main/res/mipmap-night-anydpi-v26/ic_launcher_round.xml
++++ b/workspace/NekoBoxForAndroid/app/src/main/res/mipmap-night-anydpi-v26/ic_launcher_round.xml
+@@ -1,6 +1,5 @@
+ <?xml version="1.0" encoding="utf-8"?>
+ <adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
+-    <background android:drawable="@color/ic_launcher_background"/>
+-    <foreground android:drawable="@mipmap/ic_launcher_foreground"/>
+-    <monochrome android:drawable="@drawable/ic_launcher_monochrome"/>
++    <background android:drawable="@android:color/black"/>
++    <foreground android:drawable="@drawable/mobiletina_launcher_safe"/>
+ </adaptive-icon>
+diff --git a/workspace/NekoBoxForAndroid/app/src/main/res/values-ar/strings.xml b/workspace/NekoBoxForAndroid/app/src/main/res/values-ar/strings.xml
+index d732a50..d128acd 100644
+--- a/workspace/NekoBoxForAndroid/app/src/main/res/values-ar/strings.xml
++++ b/workspace/NekoBoxForAndroid/app/src/main/res/values-ar/strings.xml
+@@ -379,7 +379,7 @@
+     <string name="ssh_private_key">مفتاح خاص</string>
+     <string name="ssh_public_key">المفتاح العمومي</string>
+     <string name="ssh_auth_type_none">لا شيء</string>
+-    <string name="app_name" translatable="false">NekoBox+</string>
++    <string name="app_name" translatable="false">VPN</string>
+     <string name="custom_theme">مخصص</string>
+     <string name="custom_theme_unsupported">يتطلب المظهر المخصص نظام Android 11 أو إصدارًا أحدث.</string>
+     <string name="custom_theme_colors">الألوان</string>
+@@ -794,7 +794,7 @@
+     <string name="searchview_clear_text_content_description">مسح حقل النص</string>
+     <string name="side_sheet_accessibility_pane_title">ورقة جانبية</string>
+     <string name="v7_preference_off">OFF</string>
+-    <string name="app_name_long" translatable="false">NekoBox+ for Android</string>
++    <string name="app_name_long" translatable="false">VPN</string>
+     <string name="configure_custom_theme">تكوين موضوع مخصص</string>
+     <string name="custom_theme_base_settings">الإعدادات الأساسية</string>
+     <string name="copy_from_another_theme">نسخ من موضوع آخر</string>
+diff --git a/workspace/NekoBoxForAndroid/app/src/main/res/values-be/strings.xml b/workspace/NekoBoxForAndroid/app/src/main/res/values-be/strings.xml
+index d5647bb..ae08179 100644
+--- a/workspace/NekoBoxForAndroid/app/src/main/res/values-be/strings.xml
++++ b/workspace/NekoBoxForAndroid/app/src/main/res/values-be/strings.xml
+@@ -108,7 +108,7 @@
+     <string name="menu_about">Пра</string>
+     <string name="menu_group">Група</string>
+     <string name="menu_configuration">Канфігурацыя</string>
+-    <string name="app_name" translatable="false">NekoBox+</string>
++    <string name="app_name" translatable="false">VPN</string>
+     <string name="custom_theme">Прыстасаваныя</string>
+     <string name="custom_theme_unsupported">Карыстальніцкая тэма патрабуе Android 11 або больш позняй версіі.</string>
+     <string name="custom_theme_colors">Колеры</string>
+@@ -654,7 +654,7 @@
+     <string name="searchview_clear_text_content_description">Ачысціць тэкставае поле</string>
+     <string name="side_sheet_accessibility_pane_title">Бакавы ліст</string>
+     <string name="v7_preference_off">OFF</string>
+-    <string name="app_name_long" translatable="false">NekoBox+ for Android</string>
++    <string name="app_name_long" translatable="false">VPN</string>
+     <string name="configure_custom_theme">Наладзьце карыстальніцкую тэму</string>
+     <string name="custom_theme_base_settings">Базавыя налады</string>
+     <string name="copy_from_another_theme">Скапіруйце з іншай тэмы</string>
+diff --git a/workspace/NekoBoxForAndroid/app/src/main/res/values-de/strings.xml b/workspace/NekoBoxForAndroid/app/src/main/res/values-de/strings.xml
+index ab9018c..7a9cd2c 100644
+--- a/workspace/NekoBoxForAndroid/app/src/main/res/values-de/strings.xml
++++ b/workspace/NekoBoxForAndroid/app/src/main/res/values-de/strings.xml
+@@ -36,7 +36,7 @@
+     <string name="list">Liste</string>
+     <string name="random">Zufällig</string>
+     <string name="enable_log_sum">Für Debugging-Zwecken</string>
+-    <string name="app_name" translatable="false">NekoBox+</string>
++    <string name="app_name" translatable="false">VPN</string>
+     <string name="custom_theme">Benutzerdefiniert</string>
+     <string name="custom_theme_unsupported">Für das benutzerdefinierte Design ist Android 11 oder neuer erforderlich.</string>
+     <string name="custom_theme_colors">Farben</string>
+@@ -617,7 +617,7 @@
+     <string name="searchview_clear_text_content_description">Klartextfeld</string>
+     <string name="side_sheet_accessibility_pane_title">Seitenblech</string>
+     <string name="v7_preference_off">OFF</string>
+-    <string name="app_name_long" translatable="false">NekoBox+ for Android</string>
++    <string name="app_name_long" translatable="false">VPN</string>
+     <string name="configure_custom_theme">Konfigurieren Sie ein benutzerdefiniertes Design</string>
+     <string name="custom_theme_base_settings">Grundeinstellungen</string>
+     <string name="copy_from_another_theme">Aus einem anderen Thema kopieren</string>
+diff --git a/workspace/NekoBoxForAndroid/app/src/main/res/values-es/strings.xml b/workspace/NekoBoxForAndroid/app/src/main/res/values-es/strings.xml
+index 2851415..3400997 100644
+--- a/workspace/NekoBoxForAndroid/app/src/main/res/values-es/strings.xml
++++ b/workspace/NekoBoxForAndroid/app/src/main/res/values-es/strings.xml
+@@ -452,7 +452,7 @@
+ 
+     <string name="connection_test_delete_unavailable">Borrado no disponible</string>
+ 
+-    <string name="app_name" translatable="false">NekoBox+</string>
++    <string name="app_name" translatable="false">VPN</string>
+     <string name="custom_theme">personalizado</string>
+     <string name="custom_theme_unsupported">El tema personalizado requiere Android 11 o posterior.</string>
+     <string name="custom_theme_colors">Colores</string>
+@@ -827,7 +827,7 @@
+     <string name="searchview_clear_text_content_description">Borrar campo de texto</string>
+     <string name="side_sheet_accessibility_pane_title">hoja lateral</string>
+     <string name="v7_preference_off">OFF</string>
+-    <string name="app_name_long" translatable="false">NekoBox+ for Android</string>
++    <string name="app_name_long" translatable="false">VPN</string>
+     <string name="configure_custom_theme">Configurar tema personalizado</string>
+     <string name="custom_theme_base_settings">Configuraciones básicas</string>
+     <string name="copy_from_another_theme">Copiar de otro tema</string>
+diff --git a/workspace/NekoBoxForAndroid/app/src/main/res/values-fa/strings.xml b/workspace/NekoBoxForAndroid/app/src/main/res/values-fa/strings.xml
+index 8734436..ecb0f41 100644
+--- a/workspace/NekoBoxForAndroid/app/src/main/res/values-fa/strings.xml
++++ b/workspace/NekoBoxForAndroid/app/src/main/res/values-fa/strings.xml
+@@ -1,7 +1,7 @@
+ <?xml version="1.0" encoding="utf-8"?>
+ <resources>
+-    <string name="app_name" translatable="false">NekoBox+</string>
+-    <string name="app_name_long" translatable="false">NekoBox+ for Android</string>
++    <string name="app_name" translatable="false">VPN</string>
++    <string name="app_name_long" translatable="false">VPN</string>
+     <string name="app_desc">مجموعه ابزار جامع پراکسی برای اندروید، نوشته‌شده با کاتلین.</string>
+     <string name="project">پروژه</string>
+     <string name="github">کد منبع</string>
+diff --git a/workspace/NekoBoxForAndroid/app/src/main/res/values-fr/strings.xml b/workspace/NekoBoxForAndroid/app/src/main/res/values-fr/strings.xml
+index afa413a..aad6ef9 100644
+--- a/workspace/NekoBoxForAndroid/app/src/main/res/values-fr/strings.xml
++++ b/workspace/NekoBoxForAndroid/app/src/main/res/values-fr/strings.xml
+@@ -300,7 +300,7 @@
+     <string name="backup_import_summary">L\'importation écrasera les données existantes.</string>
+     <string name="tools_network">Réseaux</string>
+     <string name="backup_importing">Importation…</string>
+-    <string name="app_name" translatable="false">NekoBox+</string>
++    <string name="app_name" translatable="false">VPN</string>
+     <string name="custom_theme">Personnalisé</string>
+     <string name="custom_theme_unsupported">Le thème personnalisé nécessite Android 11 ou une version ultérieure.</string>
+     <string name="custom_theme_colors">Couleurs</string>
+@@ -752,7 +752,7 @@
+     <string name="searchview_clear_text_content_description">Effacer le champ de texte</string>
+     <string name="side_sheet_accessibility_pane_title">Feuille latérale</string>
+     <string name="v7_preference_off">OFF</string>
+-    <string name="app_name_long" translatable="false">NekoBox+ for Android</string>
++    <string name="app_name_long" translatable="false">VPN</string>
+     <string name="configure_custom_theme">Configurer un thème personnalisé</string>
+     <string name="custom_theme_base_settings">Paramètres de base</string>
+     <string name="copy_from_another_theme">Copier à partir d\'un autre thème</string>
+diff --git a/workspace/NekoBoxForAndroid/app/src/main/res/values-in/strings.xml b/workspace/NekoBoxForAndroid/app/src/main/res/values-in/strings.xml
+index af3941d..4771616 100644
+--- a/workspace/NekoBoxForAndroid/app/src/main/res/values-in/strings.xml
++++ b/workspace/NekoBoxForAndroid/app/src/main/res/values-in/strings.xml
+@@ -199,7 +199,7 @@
+     <string name="header_type">Jenis Tajuk</string>
+     <string name="security">Enkripsi lapisan transportasi</string>
+     <string name="alter_id">Ubah ID</string>
+-    <string name="app_name" translatable="false">NekoBox+</string>
++    <string name="app_name" translatable="false">VPN</string>
+     <string name="custom_theme">Adat</string>
+     <string name="custom_theme_unsupported">Tema khusus memerlukan Android 11 atau lebih baru.</string>
+     <string name="custom_theme_colors">Warna</string>
+@@ -699,7 +699,7 @@
+     <string name="searchview_clear_text_content_description">Hapus bidang teks</string>
+     <string name="side_sheet_accessibility_pane_title">Lembar samping</string>
+     <string name="v7_preference_off">OFF</string>
+-    <string name="app_name_long" translatable="false">NekoBox+ for Android</string>
++    <string name="app_name_long" translatable="false">VPN</string>
+     <string name="configure_custom_theme">Konfigurasikan Tema Khusus</string>
+     <string name="custom_theme_base_settings">Pengaturan dasar</string>
+     <string name="copy_from_another_theme">Salin dari tema lain</string>
+diff --git a/workspace/NekoBoxForAndroid/app/src/main/res/values-it/strings.xml b/workspace/NekoBoxForAndroid/app/src/main/res/values-it/strings.xml
+index cf7fc29..46d2a61 100644
+--- a/workspace/NekoBoxForAndroid/app/src/main/res/values-it/strings.xml
++++ b/workspace/NekoBoxForAndroid/app/src/main/res/values-it/strings.xml
+@@ -8,7 +8,7 @@
+     <string name="github">Codice sorgente</string>
+     <string name="project">Progetto</string>
+     <string name="app_desc">La toolchain proxy universale per Android, scritta in Kotlin.</string>
+-    <string name="app_name" translatable="false">NekoBox+</string>
++    <string name="app_name" translatable="false">VPN</string>
+     <string name="menu_configuration">Configurazione</string>
+     <string name="menu_about">Circa</string>
+     <string name="custom_theme">Personalizzato</string>
+@@ -603,7 +603,7 @@
+     <string name="searchview_clear_text_content_description">Campo di testo chiaro</string>
+     <string name="side_sheet_accessibility_pane_title">Foglio laterale</string>
+     <string name="v7_preference_off">OFF</string>
+-    <string name="app_name_long" translatable="false">NekoBox+ for Android</string>
++    <string name="app_name_long" translatable="false">VPN</string>
+     <string name="menu_group">Gruppo</string>
+     <string name="theme">Tema</string>
+     <string name="configure_custom_theme">Configura tema personalizzato</string>
+diff --git a/workspace/NekoBoxForAndroid/app/src/main/res/values-ja/strings.xml b/workspace/NekoBoxForAndroid/app/src/main/res/values-ja/strings.xml
+index 20c98b5..772bf97 100644
+--- a/workspace/NekoBoxForAndroid/app/src/main/res/values-ja/strings.xml
++++ b/workspace/NekoBoxForAndroid/app/src/main/res/values-ja/strings.xml
+@@ -101,7 +101,7 @@
+     <string name="key_opt">キー（オプション）</string>
+     <string name="network">ネットワーク</string>
+     <string name="speed_interval">速度通知のアップデート間隔</string>
+-    <string name="app_name" translatable="false">NekoBox+</string>
++    <string name="app_name" translatable="false">VPN</string>
+     <string name="custom_theme">カスタム</string>
+     <string name="custom_theme_unsupported">カスタムテーマにはAndroid 11以降が必要です。</string>
+     <string name="custom_theme_colors">色</string>
+@@ -650,7 +650,7 @@
+     <string name="searchview_clear_text_content_description">クリアテキストフィールド</string>
+     <string name="side_sheet_accessibility_pane_title">サイドシート</string>
+     <string name="v7_preference_off">OFF</string>
+-    <string name="app_name_long" translatable="false">NekoBox+ for Android</string>
++    <string name="app_name_long" translatable="false">VPN</string>
+     <string name="configure_custom_theme">カスタムテーマの構成</string>
+     <string name="custom_theme_base_settings">基本設定</string>
+     <string name="copy_from_another_theme">別のテーマからコピーする</string>
+diff --git a/workspace/NekoBoxForAndroid/app/src/main/res/values-ko/strings.xml b/workspace/NekoBoxForAndroid/app/src/main/res/values-ko/strings.xml
+index ba10dc9..fb8b9c1 100644
+--- a/workspace/NekoBoxForAndroid/app/src/main/res/values-ko/strings.xml
++++ b/workspace/NekoBoxForAndroid/app/src/main/res/values-ko/strings.xml
+@@ -569,7 +569,7 @@
+     <string name="snell_obfs_host">Obfs 호스트</string>
+     <string name="snell_reuse">재사용</string>
+     <string name="snell_reuse_summary">v4/v5만</string>
+-    <string name="app_name" translatable="false">NekoBox+</string>
++    <string name="app_name" translatable="false">VPN</string>
+     <string name="custom_theme">맞춤</string>
+     <string name="custom_theme_unsupported">맞춤 테마에는 Android 11 이상이 필요합니다.</string>
+     <string name="custom_theme_colors">색상</string>
+@@ -869,7 +869,7 @@
+     <string name="searchview_clear_text_content_description">텍스트 필드 지우기</string>
+     <string name="side_sheet_accessibility_pane_title">사이드 시트</string>
+     <string name="v7_preference_off">OFF</string>
+-    <string name="app_name_long" translatable="false">NekoBox+ for Android</string>
++    <string name="app_name_long" translatable="false">VPN</string>
+     <string name="configure_custom_theme">사용자 정의 테마 구성</string>
+     <string name="custom_theme_base_settings">기본 설정</string>
+     <string name="copy_from_another_theme">다른 테마에서 복사</string>
+diff --git a/workspace/NekoBoxForAndroid/app/src/main/res/values-nb-rNO/strings.xml b/workspace/NekoBoxForAndroid/app/src/main/res/values-nb-rNO/strings.xml
+index d985be9..1280958 100644
+--- a/workspace/NekoBoxForAndroid/app/src/main/res/values-nb-rNO/strings.xml
++++ b/workspace/NekoBoxForAndroid/app/src/main/res/values-nb-rNO/strings.xml
+@@ -371,7 +371,7 @@
+     <string name="copy_package_name">Kopier pakkenavn</string>
+     <string name="copy_label">Kopier navn</string>
+     <string name="udp_connections">%d UDP-tilkoblinger</string>
+-    <string name="app_name" translatable="false">NekoBox+</string>
++    <string name="app_name" translatable="false">VPN</string>
+     <string name="custom_theme">Egendefinert</string>
+     <string name="custom_theme_unsupported">Egendefinert tema krever Android 11 eller nyere.</string>
+     <string name="custom_theme_colors">Farger</string>
+@@ -787,7 +787,7 @@
+     <string name="searchview_clear_text_content_description">Tøm tekstfelt</string>
+     <string name="side_sheet_accessibility_pane_title">Sideark</string>
+     <string name="v7_preference_off">OFF</string>
+-    <string name="app_name_long" translatable="false">NekoBox+ for Android</string>
++    <string name="app_name_long" translatable="false">VPN</string>
+     <string name="configure_custom_theme">Konfigurer tilpasset tema</string>
+     <string name="custom_theme_base_settings">Grunninnstillinger</string>
+     <string name="copy_from_another_theme">Kopier fra et annet tema</string>
+diff --git a/workspace/NekoBoxForAndroid/app/src/main/res/values-nl/strings.xml b/workspace/NekoBoxForAndroid/app/src/main/res/values-nl/strings.xml
+index 090ec74..27723cb 100644
+--- a/workspace/NekoBoxForAndroid/app/src/main/res/values-nl/strings.xml
++++ b/workspace/NekoBoxForAndroid/app/src/main/res/values-nl/strings.xml
+@@ -8,7 +8,7 @@
+     <string name="github">Broncode</string>
+     <string name="project">Project</string>
+     <string name="app_desc">De universele proxy-toolchain voor Android, geschreven in Kotlin.</string>
+-    <string name="app_name" translatable="false">NekoBox+</string>
++    <string name="app_name" translatable="false">VPN</string>
+     <string name="menu_configuration">Configuratie</string>
+     <string name="menu_about">Over</string>
+     <string name="custom_theme">Aangepast</string>
+@@ -603,7 +603,7 @@
+     <string name="searchview_clear_text_content_description">Tekstveld wissen</string>
+     <string name="side_sheet_accessibility_pane_title">Zijblad</string>
+     <string name="v7_preference_off">OFF</string>
+-    <string name="app_name_long" translatable="false">NekoBox+ for Android</string>
++    <string name="app_name_long" translatable="false">VPN</string>
+     <string name="menu_group">Groep</string>
+     <string name="theme">Thema</string>
+     <string name="configure_custom_theme">Configureer een aangepast thema</string>
+diff --git a/workspace/NekoBoxForAndroid/app/src/main/res/values-pt-rBR/strings.xml b/workspace/NekoBoxForAndroid/app/src/main/res/values-pt-rBR/strings.xml
+index 0aee383..d915920 100644
+--- a/workspace/NekoBoxForAndroid/app/src/main/res/values-pt-rBR/strings.xml
++++ b/workspace/NekoBoxForAndroid/app/src/main/res/values-pt-rBR/strings.xml
+@@ -17,7 +17,7 @@
+     <string name="app_desc">Um conjunto de ferramentas de proxy universal para Android, escrito em Kotlin.</string>
+     <string name="group_subscription_link">Link de inscrição</string>
+     <string name="group_update">Atualizar</string>
+-    <string name="app_name" translatable="false">NekoBox+</string>
++    <string name="app_name" translatable="false">VPN</string>
+     <string name="custom_theme">Personalizado</string>
+     <string name="custom_theme_unsupported">O tema personalizado requer Android 11 ou mais recente.</string>
+     <string name="custom_theme_colors">Cores</string>
+@@ -607,7 +607,7 @@
+     <string name="searchview_clear_text_content_description">Limpar campo de texto</string>
+     <string name="side_sheet_accessibility_pane_title">Folha lateral</string>
+     <string name="v7_preference_off">OFF</string>
+-    <string name="app_name_long" translatable="false">NekoBox+ for Android</string>
++    <string name="app_name_long" translatable="false">VPN</string>
+     <string name="configure_custom_theme">Configurar tema personalizado</string>
+     <string name="custom_theme_base_settings">Configurações básicas</string>
+     <string name="copy_from_another_theme">Copiar de outro tema</string>
+diff --git a/workspace/NekoBoxForAndroid/app/src/main/res/values-ru/strings.xml b/workspace/NekoBoxForAndroid/app/src/main/res/values-ru/strings.xml
+index ea47afe..e504599 100644
+--- a/workspace/NekoBoxForAndroid/app/src/main/res/values-ru/strings.xml
++++ b/workspace/NekoBoxForAndroid/app/src/main/res/values-ru/strings.xml
+@@ -82,8 +82,8 @@
+     <string name="always_show_address">Показывать адрес</string>
+     <string name="always_show_address_sum">Всегда показывать адрес сервера в карточке</string>
+     <string name="app_desc">Универсальный прокси-инструмент для Android на Kotlin.</string>
+-    <string name="app_name">NekoBox+</string>
+-    <string name="app_name_long">NekoBox+ для Android</string>
++    <string name="app_name">VPN</string>
++    <string name="app_name_long">VPN</string>
+     <string name="app_tls_version">Мин. TLS подписки</string>
+     <string name="app_version">Версия</string>
+     <string name="require_proxy_in_vpn">Локальный прокси в VPN</string>
+diff --git a/workspace/NekoBoxForAndroid/app/src/main/res/values-tr/strings.xml b/workspace/NekoBoxForAndroid/app/src/main/res/values-tr/strings.xml
+index 470396e..d5508f3 100644
+--- a/workspace/NekoBoxForAndroid/app/src/main/res/values-tr/strings.xml
++++ b/workspace/NekoBoxForAndroid/app/src/main/res/values-tr/strings.xml
+@@ -389,7 +389,7 @@
+     <string name="naive_insecure_concurrency_summary">Kötü ağ koşullarında daha sağlam olmak için N eşzamanlı tünel bağlantısı kullan. Daha fazla bağlantı, tünellemeyi algılamayı kolaylaştırır ve daha az güvenli hale getirir. Bu proje, trafik çözümlemesine karşı en güçlü güvenlik için çaba göstermektedir. Güvensiz bir şekilde kullanmak amacını bozar.
+ \n
+ \nBunu kullanmanız gerekiyorsa, sorunlarınızı çözüp çözmediğini görmek için önce N=2 değerini deneyin. Burada 4\'ten fazla bağlantı kullanmamanızı şiddetle tavsiye ederiz.</string>
+-    <string name="app_name" translatable="false">NekoBox+</string>
++    <string name="app_name" translatable="false">VPN</string>
+     <string name="custom_theme">Özel</string>
+     <string name="custom_theme_unsupported">Özel tema Android 11 veya daha yenisini gerektirir.</string>
+     <string name="custom_theme_colors">Renkler</string>
+@@ -789,7 +789,7 @@
+     <string name="searchview_clear_text_content_description">Metin alanını temizle</string>
+     <string name="side_sheet_accessibility_pane_title">Yan sayfa</string>
+     <string name="v7_preference_off">OFF</string>
+-    <string name="app_name_long" translatable="false">NekoBox+ for Android</string>
++    <string name="app_name_long" translatable="false">VPN</string>
+     <string name="configure_custom_theme">Özel Temayı Yapılandır</string>
+     <string name="custom_theme_base_settings">Temel ayarlar</string>
+     <string name="copy_from_another_theme">Başka bir temadan kopyala</string>
+diff --git a/workspace/NekoBoxForAndroid/app/src/main/res/values-uk/strings.xml b/workspace/NekoBoxForAndroid/app/src/main/res/values-uk/strings.xml
+index 4099eda..a3efe01 100644
+--- a/workspace/NekoBoxForAndroid/app/src/main/res/values-uk/strings.xml
++++ b/workspace/NekoBoxForAndroid/app/src/main/res/values-uk/strings.xml
+@@ -1,7 +1,7 @@
+ <?xml version="1.0" encoding="utf-8"?>
+ <resources>
+-    <string name="app_name" translatable="false">NekoBox+</string>
+-    <string name="app_name_long" translatable="false">NekoBox+ for Android</string>
++    <string name="app_name" translatable="false">VPN</string>
++    <string name="app_name_long" translatable="false">VPN</string>
+     <string name="app_desc">Універсальний набір інструментів проксі для Android, написаний на Kotlin.</string>
+     <string name="project">Проєкт</string>
+     <string name="github">Вихідний код</string>
+diff --git a/workspace/NekoBoxForAndroid/app/src/main/res/values-zh-rCN/strings.xml b/workspace/NekoBoxForAndroid/app/src/main/res/values-zh-rCN/strings.xml
+index a58176e..4cff9b5 100644
+--- a/workspace/NekoBoxForAndroid/app/src/main/res/values-zh-rCN/strings.xml
++++ b/workspace/NekoBoxForAndroid/app/src/main/res/values-zh-rCN/strings.xml
+@@ -597,7 +597,7 @@
+     <string name="snell_obfs_host">Obfs 主机</string>
+     <string name="snell_reuse">重复利用</string>
+     <string name="snell_reuse_summary">仅限 v4/v5</string>
+-    <string name="app_name" translatable="false">NekoBox+</string>
++    <string name="app_name" translatable="false">VPN</string>
+     <string name="custom_theme">定制</string>
+     <string name="custom_theme_unsupported">自定义主题需要 Android 11 或更高版本。</string>
+     <string name="custom_theme_colors">颜色</string>
+@@ -896,7 +896,7 @@
+     <string name="searchview_clear_text_content_description">清除文本字段</string>
+     <string name="side_sheet_accessibility_pane_title">侧板</string>
+     <string name="v7_preference_off">OFF</string>
+-    <string name="app_name_long" translatable="false">NekoBox+ for Android</string>
++    <string name="app_name_long" translatable="false">VPN</string>
+     <string name="configure_custom_theme">配置自定义主题</string>
+     <string name="custom_theme_base_settings">基本设置</string>
+     <string name="copy_from_another_theme">从另一个主题复制</string>
+diff --git a/workspace/NekoBoxForAndroid/app/src/main/res/values-zh-rHK/strings.xml b/workspace/NekoBoxForAndroid/app/src/main/res/values-zh-rHK/strings.xml
+index 618d180..7b7fea3 100644
+--- a/workspace/NekoBoxForAndroid/app/src/main/res/values-zh-rHK/strings.xml
++++ b/workspace/NekoBoxForAndroid/app/src/main/res/values-zh-rHK/strings.xml
+@@ -94,7 +94,7 @@
+     <string name="route_asset_no_update">沒有更新</string>
+     <string name="insecure">不安全</string>
+     <string name="connection_test_icmp_ping_unavailable">ICMPing 不可用</string>
+-    <string name="app_name" translatable="false">NekoBox+</string>
++    <string name="app_name" translatable="false">VPN</string>
+     <string name="menu_configuration">配置</string>
+     <string name="custom_theme">客製化</string>
+     <string name="custom_theme_unsupported">自訂主題需要 Android 11 或更高版本。</string>
+@@ -649,7 +649,7 @@
+     <string name="searchview_clear_text_content_description">清除文字字段</string>
+     <string name="side_sheet_accessibility_pane_title">側板</string>
+     <string name="v7_preference_off">OFF</string>
+-    <string name="app_name_long" translatable="false">NekoBox+ for Android</string>
++    <string name="app_name_long" translatable="false">VPN</string>
+     <string name="logcat">匯出調試資訊</string>
+     <string name="configure_custom_theme">配置自訂主題</string>
+     <string name="custom_theme_base_settings">基本設定</string>
+diff --git a/workspace/NekoBoxForAndroid/app/src/main/res/values-zh-rTW/strings.xml b/workspace/NekoBoxForAndroid/app/src/main/res/values-zh-rTW/strings.xml
+index 895ef47..cdee129 100644
+--- a/workspace/NekoBoxForAndroid/app/src/main/res/values-zh-rTW/strings.xml
++++ b/workspace/NekoBoxForAndroid/app/src/main/res/values-zh-rTW/strings.xml
+@@ -599,7 +599,7 @@
+     <string name="snell_obfs_host">Obfs 主機</string>
+     <string name="snell_reuse">重用</string>
+     <string name="snell_reuse_summary">僅 v4/v5</string>
+-    <string name="app_name" translatable="false">NekoBox+</string>
++    <string name="app_name" translatable="false">VPN</string>
+     <string name="custom_theme">客製化</string>
+     <string name="custom_theme_unsupported">自訂主題需要 Android 11 或更高版本。</string>
+     <string name="custom_theme_colors">顏色</string>
+@@ -897,7 +897,7 @@
+     <string name="searchview_clear_text_content_description">清除文字字段</string>
+     <string name="side_sheet_accessibility_pane_title">側板</string>
+     <string name="v7_preference_off">OFF</string>
+-    <string name="app_name_long" translatable="false">NekoBox+ for Android</string>
++    <string name="app_name_long" translatable="false">VPN</string>
+     <string name="configure_custom_theme">配置自訂主題</string>
+     <string name="custom_theme_base_settings">基本設定</string>
+     <string name="copy_from_another_theme">從另一個主題複製</string>
+diff --git a/workspace/NekoBoxForAndroid/app/src/main/res/values/strings.xml b/workspace/NekoBoxForAndroid/app/src/main/res/values/strings.xml
+index 2f6ec1c..3a07590 100644
+--- a/workspace/NekoBoxForAndroid/app/src/main/res/values/strings.xml
++++ b/workspace/NekoBoxForAndroid/app/src/main/res/values/strings.xml
+@@ -1,8 +1,8 @@
+ <?xml version="1.0" encoding="utf-8"?>
+ <resources>
+     <string name="profile_insecure">Insecure profile</string>
+-    <string name="app_name" translatable="false">NekoBox+</string>
+-    <string name="app_name_long" translatable="false">NekoBox+ for Android</string>
++    <string name="app_name" translatable="false">VPN</string>
++    <string name="app_name_long" translatable="false">VPN</string>
+     <string name="app_desc">The universal proxy toolchain for Android, written in Kotlin.</string>
+     <string name="project">Project</string>
+     <string name="github">Source code</string>
+diff --git a/workspace/NekoBoxForAndroid/app/src/main/res/xml/shortcuts.xml b/workspace/NekoBoxForAndroid/app/src/main/res/xml/shortcuts.xml
+index e309c36..2f65e07 100644
+--- a/workspace/NekoBoxForAndroid/app/src/main/res/xml/shortcuts.xml
++++ b/workspace/NekoBoxForAndroid/app/src/main/res/xml/shortcuts.xml
+@@ -8,7 +8,7 @@
+         <intent
+             android:action="android.intent.action.MAIN"
+             android:targetClass="io.nekohasekai.sagernet.QuickToggleShortcut"
+-            android:targetPackage="com.nb4a.plus" />
++            android:targetPackage="com.nb4a.mobiletina" />
+     </shortcut>
+     <shortcut
+         android:icon="@drawable/ic_qu_enable_launcher"
+@@ -18,7 +18,7 @@
+         <intent
+             android:action="android.intent.action.MAIN"
+             android:targetClass="io.nekohasekai.sagernet.ui.QuickEnableShortcut"
+-            android:targetPackage="com.nb4a.plus" />
++            android:targetPackage="com.nb4a.mobiletina" />
+     </shortcut>
+     <shortcut
+         android:icon="@drawable/ic_qu_disable_launcher"
+@@ -28,7 +28,7 @@
+         <intent
+             android:action="android.intent.action.MAIN"
+             android:targetClass="io.nekohasekai.sagernet.ui.QuickDisableShortcut"
+-            android:targetPackage="com.nb4a.plus" />
++            android:targetPackage="com.nb4a.mobiletina" />
+     </shortcut>
+     <shortcut
+         android:icon="@drawable/ic_qu_scan_launcher"
+@@ -38,6 +38,6 @@
+         <intent
+             android:action="android.intent.action.MAIN"
+             android:targetClass="io.nekohasekai.sagernet.ui.ScannerActivity"
+-            android:targetPackage="com.nb4a.plus" />
++            android:targetPackage="com.nb4a.mobiletina" />
+     </shortcut>
+ </shortcuts>
+diff --git a/workspace/NekoBoxForAndroid/buildSrc/src/main/kotlin/Helpers.kt b/workspace/NekoBoxForAndroid/buildSrc/src/main/kotlin/Helpers.kt
+index fde311a..1891a31 100644
+--- a/workspace/NekoBoxForAndroid/buildSrc/src/main/kotlin/Helpers.kt
++++ b/workspace/NekoBoxForAndroid/buildSrc/src/main/kotlin/Helpers.kt
+@@ -133,6 +133,7 @@ fun Project.setupApp() {
+     val verCode = (requireMetadata().getProperty("VERSION_CODE").toInt()) * 5
+     android.apply {
+         defaultConfig {
++            buildConfigField("String", "MOBILETINA_SIGNER_SHA256", "\"${System.getenv("VPN_EXPECTED_CERT_SHA256").orEmpty()}\"")
+             applicationId = pkgName
+             versionCode = verCode
+             versionName = verName
+@@ -157,8 +158,6 @@ fun Project.setupApp() {
+             isUniversalApk = true
+             include("armeabi-v7a")
+             include("arm64-v8a")
+-            include("x86")
+-            include("x86_64")
+         }
+ 
+         flavorDimensions += "vendor"
+@@ -189,7 +188,7 @@ fun Project.setupApp() {
+ 
+     androidComponents.onVariants { variant ->
+         val flavorName = variant.productFlavors.firstOrNull { it.first == "vendor" }?.second
+-        val fileNamePrefix = if (flavorName == "plus") "NekoBoxPlus-" else "NekoBox-"
++        val fileNamePrefix = if (flavorName == "plus") "VPN-" else "NekoBox-"
+         variant.outputs.forEach { output ->
+             val originalFileName = output.outputFileName.get()
+             output.outputFileName.set(
+diff --git a/workspace/NekoBoxForAndroid/nb4a.properties b/workspace/NekoBoxForAndroid/nb4a.properties
+index b5f787d..2c8773b 100644
+--- a/workspace/NekoBoxForAndroid/nb4a.properties
++++ b/workspace/NekoBoxForAndroid/nb4a.properties
+@@ -1,4 +1,4 @@
+-PACKAGE_NAME=com.nb4a.plus
++PACKAGE_NAME=com.nb4a.mobiletina
+ VERSION_NAME=1.4.2-97
+ PRE_VERSION_NAME=pre-1.4.2-20260214-1
+ VERSION_CODE=84

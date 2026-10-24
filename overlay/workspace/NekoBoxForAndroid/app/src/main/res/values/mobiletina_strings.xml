@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="mobiletina_auto">Auto</string>
+    <string name="mobiletina_manual">Manual</string>
+    <string name="mobiletina_menu">Open menu</string>
+    <string name="mobiletina_import">Add configuration</string>
+    <string name="mobiletina_import_hint">Subscription URL or configuration</string>
+    <string name="mobiletina_paste">Paste from clipboard</string>
+    <string name="mobiletina_connect">Connect</string>
+    <string name="mobiletina_disconnect">Disconnect or cancel</string>
+    <string name="mobiletina_add_subscription">Choose or add a subscription</string>
+    <string name="mobiletina_subscription">Subscription details</string>
+    <string name="mobiletina_share_hint">Copy the subscription link or show its QR code.</string>
+    <string name="mobiletina_qr">Show QR code</string>
+    <string name="mobiletina_unlimited">Unlimited</string>
+    <string name="mobiletina_usage">%1$s used of %2$s</string>
+    <string name="mobiletina_days_left">%1$d days remaining</string>
+    <string name="mobiletina_refresh">Refresh subscription</string>
+    <string name="mobiletina_profile_count">%1$d available profiles</string>
+    <string name="mobiletina_no_internet">Please turn on your internet connection.</string>
+    <string name="mobiletina_no_working_server">No reachable server was found. Try again or choose a profile manually.</string>
+    <string name="mobiletina_start_timeout">The service did not start. Check the selected profile and try again.</string>
+    <string name="mobiletina_expired">Your subscription has expired.</string>
+    <string name="mobiletina_testing">Finding a reachable server…</string>
+    <string name="mobiletina_status_connected">Connected</string>
+    <string name="mobiletina_status_connecting">Connecting…</string>
+    <string name="mobiletina_status_failed">Connection unsuccessful</string>
+    <string name="mobiletina_status_disconnected">Tap to connect</string>
+    <string name="mobiletina_ping_value">%1$d ms</string>
+    <string name="mobiletina_welcome_title">Welcome to VPN</string>
+    <string name="mobiletina_welcome_body">Auto checks the profiles in your selected group. Manual opens the full NekoBox+ interface with all protocols and settings.</string>
+    <string name="mobiletina_ir_bypass">Bypass .ir domains</string>
+    <string name="mobiletina_ir_bypass_summary">Route .ir domains directly; keep all other routing rules.</string>
+</resources>

@@ -1,0 +1,83 @@
+name: Build VPN APK
+on:
+  push:
+    branches: [main]
+    paths-ignore: ['**.md']
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: vpn-apk-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  apk:
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+          persist-credentials: false
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - uses: android-actions/setup-android@v3
+        with:
+          packages: platform-tools
+      - run: sdkmanager 'platforms;android-37.0' 'build-tools;36.0.0'
+      - uses: gradle/actions/setup-gradle@v4
+      - name: Prepare custom application
+        run: |
+          python3 scripts/prepare-app.py
+          python3 scripts/audit-source.py
+          echo "VPN_EXPECTED_CERT_SHA256=$(cat RELEASE_CERT_SHA256)" >> "$GITHUB_ENV"
+      - name: Find native core
+        id: native
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: bash scripts/find-native.sh
+      - uses: actions/download-artifact@v4
+        with:
+          name: native-7e662032-arm
+          github-token: ${{ github.token }}
+          run-id: ${{ steps.native.outputs.run_id }}
+          path: native
+      - name: Install native core and prepare geodata
+        run: |
+          cmp UPSTREAM_COMMIT native/UPSTREAM_COMMIT
+          mkdir -p upstream/workspace/NekoBoxForAndroid/app/libs
+          cp native/libcore.aar upstream/workspace/NekoBoxForAndroid/app/libs/
+          cd upstream/workspace/NekoBoxForAndroid
+          bash buildScript/lib/assets.sh
+          printf 'sdk.dir=%s\n' "$ANDROID_HOME" > local.properties
+          chmod +x gradlew
+      - name: Test and compile Debug and Release
+        working-directory: upstream/workspace/NekoBoxForAndroid
+        run: ./gradlew :app:testPlusDebugUnitTest :app:assemblePlusDebug :app:assemblePlusRelease --stacktrace
+      - name: Validate and collect unsigned release APKs
+        run: |
+          mkdir -p dist/apk dist/validation dist/signing-tools
+          cp upstream/workspace/NekoBoxForAndroid/app/build/outputs/apk/plus/release/*.apk dist/apk/
+          for apk in dist/apk/*.apk; do
+            python3 scripts/verify-apk.py "$apk" "$ANDROID_HOME/build-tools/36.0.0/aapt2"
+          done
+          cp upstream/workspace/NekoBoxForAndroid/app/build/outputs/mapping/plusRelease/mapping.txt dist/validation/
+          cp -r upstream/workspace/NekoBoxForAndroid/app/build/test-results/testPlusDebugUnitTest dist/validation/
+          cp "$ANDROID_HOME/build-tools/36.0.0/lib/apksigner.jar" dist/signing-tools/
+          cp RELEASE_CERT_SHA256 UPSTREAM_COMMIT dist/validation/
+      - uses: actions/upload-artifact@v4
+        if: success()
+        with:
+          name: VPN-ARMv7-ARMv8-unsigned
+          path: dist/
+          retention-days: 90
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: VPN-build-diagnostics
+          path: |
+            upstream/workspace/NekoBoxForAndroid/app/build/reports/
+            upstream/workspace/NekoBoxForAndroid/app/build/test-results/
+          if-no-files-found: ignore

@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="mobiletina_auto">خودکار</string>
+    <string name="mobiletina_manual">دستی</string>
+    <string name="mobiletina_menu">باز کردن منو</string>
+    <string name="mobiletina_import">افزودن کانفیگ</string>
+    <string name="mobiletina_import_hint">لینک اشتراک یا متن کانفیگ</string>
+    <string name="mobiletina_paste">جای‌گذاری از کلیپ‌بورد</string>
+    <string name="mobiletina_connect">اتصال</string>
+    <string name="mobiletina_disconnect">قطع اتصال یا لغو</string>
+    <string name="mobiletina_add_subscription">انتخاب یا افزودن اشتراک</string>
+    <string name="mobiletina_subscription">مشخصات اشتراک</string>
+    <string name="mobiletina_share_hint">لینک اشتراک را کپی کنید یا کد QR آن را نمایش دهید.</string>
+    <string name="mobiletina_qr">نمایش کد QR</string>
+    <string name="mobiletina_unlimited">نامحدود</string>
+    <string name="mobiletina_usage">%1$s مصرف‌شده از %2$s</string>
+    <string name="mobiletina_days_left">%1$d روز باقی‌مانده</string>
+    <string name="mobiletina_refresh">به‌روزرسانی اشتراک</string>
+    <string name="mobiletina_profile_count">%1$d کانفیگ در این گروه</string>
+    <string name="mobiletina_no_internet">لطفاً اینترنت خود را روشن کنید.</string>
+    <string name="mobiletina_no_working_server">سرور قابل دسترسی پیدا نشد؛ دوباره تلاش کنید یا سرور را دستی انتخاب کنید.</string>
+    <string name="mobiletina_start_timeout">سرویس راه‌اندازی نشد؛ کانفیگ انتخاب‌شده را بررسی و دوباره تلاش کنید.</string>
+    <string name="mobiletina_expired">اشتراک شما منقضی شد.</string>
+    <string name="mobiletina_testing">در حال بررسی و انتخاب سرور…</string>
+    <string name="mobiletina_status_connected">متصل</string>
+    <string name="mobiletina_status_connecting">در حال اتصال…</string>
+    <string name="mobiletina_status_failed">اتصال برقرار نشد</string>
+    <string name="mobiletina_status_disconnected">برای اتصال لمس کنید</string>
+    <string name="mobiletina_ping_value">%1$d ms</string>
+    <string name="mobiletina_welcome_title">به VPN خوش آمدید</string>
+    <string name="mobiletina_welcome_body">در حالت خودکار، سرورهای گروه انتخابی بررسی می‌شوند. حالت دستی، رابط کامل NekoBox+ را با تمام پروتکل‌ها و تنظیمات باز می‌کند.</string>
+    <string name="mobiletina_ir_bypass">اتصال مستقیم دامنه‌های ir</string>
+    <string name="mobiletina_ir_bypass_summary">دامنه‌های ir مستقیم باز شوند؛ سایر قوانین مسیریابی حفظ می‌شوند.</string>
+</resources>
