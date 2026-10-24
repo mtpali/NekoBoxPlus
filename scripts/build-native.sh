@@ -1,0 +1,64 @@
+#!/usr/bin/env bash
+set -euo pipefail
+ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
+cd "$ROOT"
+test "$(git -C upstream rev-parse HEAD)" = "$(cat UPSTREAM_COMMIT)"
+NBA="$ROOT/upstream/workspace/NekoBoxForAndroid"
+WORKSPACE="$ROOT/upstream/workspace"
+
+# The source snapshot already contains the patched dependencies. Do not run
+# upstream's placeholder clone URLs or check out unpatched maintainer commits.
+cat > "$NBA/buildScript/lib/core/get_source.sh" <<'SH'
+#!/usr/bin/env bash
+set -euo pipefail
+for module in sing-box sing-vmess libneko amneziawg-go MasterDnsVPN-plus byedpi utls; do
+  test -d "../$module" || { echo "Missing source dependency: $module" >&2; exit 1; }
+done
+SH
+
+fetch_dependency() {
+  local name="$1" url="$2" ref="$3"
+  local dest="$WORKSPACE/$name"
+  if [ ! -d "$dest/.git" ]; then
+    mkdir -p "$dest"
+    git -C "$dest" init -q
+    git -C "$dest" remote add origin "$url"
+    git -C "$dest" fetch --depth 1 origin "$ref"
+    git -C "$dest" checkout -q --detach FETCH_HEAD
+  fi
+}
+# Keep the actual upstream Adblock assets; an empty placeholder would silently
+# remove functionality from the original application.
+fetch_dependency adblock-rust https://github.com/brave/adblock-rust.git refs/tags/v0.13.2
+fetch_dependency adblock-resources https://github.com/brave/adblock-resources.git 9a0cc4312e155cb5b16b701afc0ab9285dc30f24
+fetch_dependency uBlock https://github.com/gorhill/uBlock.git refs/tags/1.73.0
+
+python3 - "$NBA/libcore/build.sh" <<'PY'
+from pathlib import Path
+import sys
+p = Path(sys.argv[1])
+s = p.read_text()
+s = s.replace('gomobile bind -v -androidapi 23', 'gomobile bind -target=android/arm,android/arm64 -v -androidapi 23')
+for abi in ['i686-linux-android', 'x86_64-linux-android']:
+    s = '\n'.join(line for line in s.split('\n') if not ('cargo build ' in line and '--target ' + abi in line))
+p.write_text(s)
+PY
+cd "$NBA"
+chmod +x libcore/*.sh buildScript/lib/core/*.sh
+bash buildScript/lib/core.docker.sh
+test -s app/libs/libcore.aar
+mkdir -p "$ROOT/dist/native"
+cp app/libs/libcore.aar "$ROOT/dist/native/"
+cp "$ROOT/UPSTREAM_COMMIT" "$ROOT/dist/native/UPSTREAM_COMMIT"
+sha256sum "$ROOT/dist/native/libcore.aar" > "$ROOT/dist/native/SHA256SUMS"
+python3 - "$ROOT/dist/native/libcore.aar" <<'PY'
+import sys, zipfile
+with zipfile.ZipFile(sys.argv[1]) as z:
+    abis = {p.split('/')[1] for p in z.namelist() if p.startswith('jni/') and p.endswith('.so')}
+    assert abis == {'armeabi-v7a', 'arm64-v8a'}, abis
+    assert z.getinfo('classes.jar').file_size > 0
+    for abi in abis:
+        payload = z.read(f'jni/{abi}/libgojni.so')
+        assert b'amneziawg' in payload.lower(), f'AWG backend absent from {abi}'
+    print('Verified native core:', ', '.join(sorted(abis)))
+PY

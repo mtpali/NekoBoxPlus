@@ -1,0 +1,6 @@
+dist/
+.cache/
+*.keystore
+*.jks
+local.properties
+__pycache__/

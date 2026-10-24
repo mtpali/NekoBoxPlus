@@ -1,0 +1,48 @@
+name: Build native core
+on:
+  push:
+    branches: [main]
+    paths:
+      - UPSTREAM_COMMIT
+      - upstream
+      - scripts/build-native.sh
+      - .github/workflows/native.yml
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  native:
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+          persist-credentials: false
+      - name: Reclaim space
+        run: |
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android/sdk/ndk /opt/ghc /usr/local/.ghcup /opt/hostedtoolcache/CodeQL
+          df -h /
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - uses: android-actions/setup-android@v3
+        with:
+          packages: platform-tools
+      - uses: nttld/setup-ndk@v1
+        id: ndk
+        with:
+          ndk-version: r28
+          link-to-sdk: true
+      - name: Install platform
+        run: sdkmanager 'platforms;android-37.0' 'build-tools;36.0.0'
+      - name: Build original core for ARMv7 and ARM64
+        env:
+          ANDROID_NDK_HOME: ${{ steps.ndk.outputs.ndk-path }}
+        run: bash scripts/build-native.sh
+      - uses: actions/upload-artifact@v4
+        with:
+          name: native-7e662032-arm
+          path: dist/native/
+          retention-days: 90
