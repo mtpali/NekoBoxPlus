@@ -1,16 +1,8 @@
 diff --git a/workspace/NekoBoxForAndroid/app/build.gradle.kts b/workspace/NekoBoxForAndroid/app/build.gradle.kts
-index 414f488..35fb9d5 100644
+index 414f488..7bc4a3e 100644
 --- a/workspace/NekoBoxForAndroid/app/build.gradle.kts
 +++ b/workspace/NekoBoxForAndroid/app/build.gradle.kts
-@@ -44,6 +44,7 @@ tasks.named("preBuild").configure {
- 
- android {
-     defaultConfig {
-+        resourceConfigurations += listOf("en")
-         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
-     }
-     lint {
-@@ -76,11 +77,13 @@ android {
+@@ -76,11 +76,14 @@ android {
              excludes.remove("org/**")
          }
          jniLibs {
@@ -21,6 +13,7 @@ index 414f488..35fb9d5 100644
      }
      androidResources {
 -        generateLocaleConfig = true
++        localeFilters += listOf("en")
 +        generateLocaleConfig = false
      }
  }
@@ -518,7 +511,7 @@ index 8437e1e..d543844 100644
                  pendingResult.finish()
              }
 diff --git a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/SagerNet.kt b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/SagerNet.kt
-index af78c50..c2909d2 100644
+index af78c50..bb46a46 100644
 --- a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/SagerNet.kt
 +++ b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/SagerNet.kt
 @@ -32,6 +32,9 @@ import io.nekohasekai.sagernet.ktx.isPreview
@@ -531,7 +524,7 @@ index af78c50..c2909d2 100644
  import kotlinx.coroutines.DEBUG_PROPERTY_NAME
  import kotlinx.coroutines.DEBUG_PROPERTY_VALUE_ON
  import libcore.Libcore
-@@ -62,11 +65,13 @@ class SagerNet : Application(),
+@@ -62,11 +65,12 @@ class SagerNet : Application(),
  
      override fun onCreate() {
          super.onCreate()
@@ -542,11 +535,18 @@ index af78c50..c2909d2 100644
 -        if (isMainProcess && isTv) {
 -            AppIconManager.set(this, AppIcon.NEKOBOX_PLUS)
 +        if (isMainProcess) {
-+            io.nekohasekai.sagernet.ui.MobileTinaUiDefaults.apply()
 +            AppIconManager.ensureDefault(this)
          }
  
          if (isMainProcess || isBgProcess) {
+@@ -98,6 +102,7 @@ class SagerNet : Application(),
+         }
+ 
+         if (isMainProcess) {
++            io.nekohasekai.sagernet.ui.MobileTinaUiDefaults.apply()
+             DynamicColors.applyToActivitiesIfAvailable(
+                 this,
+                 DynamicColorsOptions.Builder()
 @@ -119,6 +124,7 @@ class SagerNet : Application(),
  
                  runCatching {
@@ -635,10 +635,18 @@ index b7a7e07..268f9d3 100644
          this.testType = testType
      }
 diff --git a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/database/DataStore.kt b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/database/DataStore.kt
-index cc5908d..060d4dd 100644
+index cc5908d..e87cfb4 100644
 --- a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/database/DataStore.kt
 +++ b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/database/DataStore.kt
-@@ -210,15 +210,15 @@ object DataStore : OnPreferenceDataStoreChangeListener {
+@@ -1,5 +1,7 @@
+ package io.nekohasekai.sagernet.database
+ 
++import io.nekohasekai.sagernet.utils.Theme
++
+ import android.content.Context
+ import android.net.Uri
+ import android.os.Binder
+@@ -210,15 +212,15 @@ object DataStore : OnPreferenceDataStoreChangeListener {
      //
  
      var isExpert by configurationStore.boolean(Key.APP_EXPERT)
@@ -657,7 +665,7 @@ index cc5908d..060d4dd 100644
      var useToolbar by configurationStore.boolean(Key.USE_TOOLBAR)
      var toolbarLayout by configurationStore.string(Key.TOOLBAR_LAYOUT) { "" }
      var showProfileCountOnTabs by configurationStore.boolean(Key.SHOW_PROFILE_COUNT_ON_TABS)
-@@ -242,7 +242,8 @@ object DataStore : OnPreferenceDataStoreChangeListener {
+@@ -242,7 +244,8 @@ object DataStore : OnPreferenceDataStoreChangeListener {
      var udpNatFiltering by configurationStore.string(Key.UDP_NAT_FILTERING) { "" }
      var udpNatMax by configurationStore.string(Key.UDP_NAT_MAX) { "" }
  
