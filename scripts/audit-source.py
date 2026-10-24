@@ -71,3 +71,16 @@ header = ET.parse(res/'layout/mobiletina_home_header.xml').getroot()
 header_ids = {n.get(android+'id') for n in header.iter()}
 assert {'@+id/mobiletina_scan','@+id/mobiletina_add','@+id/mobiletina_more','@+id/btn_mode_manual','@+id/btn_mode_auto'} <= header_ids
 assert (res/'layout/mobiletina_manual_dock.xml').is_file()
+owned_resources = set()
+for path in res.rglob('*'):
+    if not path.is_file():
+        continue
+    if path.parent.name.startswith('values') and path.suffix == '.xml':
+        for node in ET.parse(path).getroot():
+            if node.get('name'):
+                owned_resources.add((node.tag, node.get('name')))
+    else:
+        owned_resources.add((path.parent.name.split('-')[0], path.stem))
+for path in (ROOT/'overlay/workspace/NekoBoxForAndroid/app/src/main/res').rglob('*.xml'):
+    for kind, name in re.findall(r'@(string|layout|drawable|color|font)/([A-Za-z0-9_.]+)', path.read_text()):
+        assert (kind, name) in owned_resources, ('Missing reference resource', path, kind, name)
