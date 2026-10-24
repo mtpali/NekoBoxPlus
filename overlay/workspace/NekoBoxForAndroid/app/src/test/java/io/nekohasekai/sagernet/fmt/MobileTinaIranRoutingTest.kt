@@ -30,4 +30,14 @@ class MobileTinaIranRoutingTest {
         assertEquals("mobiletina-ir-direct-1", generated.get("tag").asString)
         assertFalse(generated.has("detour"))
     }
+    @Test fun scalarSuffixAndRulesBehindCatchAllAreHandledWithoutDroppingOtherDomains() {
+        val input = """{"outbounds":[{"type":"direct","tag":"direct"}],"route":{"rules":[{"outbound":"proxy"},{"domain_suffix":"ir","outbound":"direct"},{"domain_suffix":["com","ir"],"outbound":"direct","network":"tcp"}]}}"""
+        val root = JsonParser.parseString(MobileTinaIranRouting.apply(input, true)).asJsonObject
+        val rules = root.getAsJsonObject("route").getAsJsonArray("rules")
+        assertEquals("ir", rules[0].asJsonObject.getAsJsonArray("domain_suffix")[0].asString)
+        assertEquals("proxy", rules[1].asJsonObject.get("outbound").asString)
+        assertEquals("tcp", rules[2].asJsonObject.get("network").asString)
+        assertEquals(2, rules[2].asJsonObject.getAsJsonArray("domain_suffix").size())
+    }
+
 }

@@ -493,10 +493,23 @@ index b6c495f..ccad2f3 100644
          list("tunUnrecognizedTraffic", R.drawable.ic_baseline_add_road_24, R.string.title_tun_unrecognized_traffic, R.array.tun_unrecognized_traffic_mode, R.array.tun_unrecognized_traffic_mode_values, R.string.summary_tun_unrecognized_traffic),
          list("tunSystemDnsTraffic", R.drawable.ic_baseline_add_road_24, R.string.title_tun_system_dns_traffic, R.array.tun_system_dns_traffic_mode, R.array.tun_system_dns_traffic_mode_values, R.string.summary_tun_system_dns_traffic),
 diff --git a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/compose/MainComposeShell.kt b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/compose/MainComposeShell.kt
-index 26620ca..13621f8 100644
+index 26620ca..ba4df91 100644
 --- a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/compose/MainComposeShell.kt
 +++ b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/compose/MainComposeShell.kt
-@@ -42,7 +42,7 @@ import io.nekohasekai.sagernet.R
+@@ -3,6 +3,12 @@ package io.nekohasekai.sagernet.ui.compose
+ import androidx.annotation.DrawableRes
+ import androidx.annotation.IdRes
+ import androidx.annotation.StringRes
++import androidx.compose.foundation.Image
++import androidx.compose.foundation.shape.CircleShape
++import androidx.compose.foundation.layout.Row
++import androidx.compose.foundation.layout.size
++import androidx.compose.ui.Alignment
++import androidx.compose.ui.draw.clip
+ import androidx.compose.foundation.focusGroup
+ import androidx.compose.foundation.layout.Column
+ import androidx.compose.foundation.layout.Spacer
+@@ -42,7 +48,7 @@ import io.nekohasekai.sagernet.R
  internal class MainShellState {
      var drawerRequestedOpen by mutableStateOf(false)
      var drawerIsOpen by mutableStateOf(false)
@@ -505,7 +518,7 @@ index 26620ca..13621f8 100644
      var trafficVisible by mutableStateOf(false)
      var proxyAppsEnabled by mutableStateOf(false)
  
-@@ -62,6 +62,7 @@ private data class DrawerDestination(
+@@ -62,6 +68,7 @@ private data class DrawerDestination(
  )
  
  private val primaryDestinations = listOf(
@@ -513,6 +526,26 @@ index 26620ca..13621f8 100644
      DrawerDestination(R.id.nav_configuration, R.string.menu_configuration, R.drawable.ic_action_description),
      DrawerDestination(R.id.nav_group, R.string.menu_group, R.drawable.ic_baseline_view_list_24),
      DrawerDestination(R.id.nav_route, R.string.menu_route, R.drawable.ic_maps_directions),
+@@ -120,11 +127,15 @@ internal fun MainComposeDrawer(
+                     .verticalScroll(rememberScrollState()),
+             ) {
+                 Spacer(Modifier.height(20.dp))
+-                Text(
+-                    text = stringResource(R.string.app_name),
+-                    style = MaterialTheme.typography.titleLarge,
++                Row(
+                     modifier = Modifier.padding(horizontal = 28.dp, vertical = 16.dp),
+-                )
++                    verticalAlignment = Alignment.CenterVertically,
++                ) {
++                    Image(painterResource(R.drawable.mobiletina_launcher), contentDescription = null,
++                        modifier = Modifier.size(56.dp).clip(CircleShape))
++                    Spacer(Modifier.width(16.dp))
++                    Text(stringResource(R.string.app_name), style = MaterialTheme.typography.titleLarge)
++                }
+                 DrawerItems(
+                     primaryDestinations,
+                     state.selectedItemId,
 diff --git a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/compose/NekoComposeTheme.kt b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/compose/NekoComposeTheme.kt
 index 7fa2bbc..c5e115f 100644
 --- a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/compose/NekoComposeTheme.kt

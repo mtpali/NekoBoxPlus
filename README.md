@@ -17,6 +17,8 @@ The native workflow builds the original patched Go/Rust core for both ARM ABIs. 
 Upstream: https://github.com/IranTSR/NekoBoxPlus
 Original project: https://4pda.to/forum/index.php?showtopic=1121122
 
+See [DEVELOPMENT.md](DEVELOPMENT.md) for the feature contract, exact build commands and signing workflow.
+
 ## License
 
 The upstream GPL-3.0 license and third-party notices remain in the submodule. These customizations are also GPL-3.0-or-later.

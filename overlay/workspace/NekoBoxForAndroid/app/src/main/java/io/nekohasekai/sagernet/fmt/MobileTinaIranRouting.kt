@@ -20,19 +20,18 @@ internal object MobileTinaIranRouting {
         }
         val route = root.getAsJsonObject("route") ?: JsonObject().also { root.add("route", it) }
         val rules = route.getAsJsonArray("rules") ?: JsonArray().also { route.add("rules", it) }
-        if (rules.none { it.isJsonObject && it.asJsonObject.matchesSuffix() && it.asJsonObject.string("outbound") == direct }) {
-            val replacement = JsonArray()
-            var inserted = false
-            for (rule in rules) {
-                val action = if (rule.isJsonObject) rule.asJsonObject.string("action") else ""
-                if (!inserted && action !in setOf("sniff", "resolve", "hijack-dns")) {
-                    replacement.add(routeRule(direct)); inserted = true
-                }
-                replacement.add(rule)
+        val replacement = JsonArray()
+        var inserted = false
+        for (rule in rules) {
+            if (rule.isJsonObject && rule.asJsonObject.ownedRule("outbound", direct)) continue
+            val action = if (rule.isJsonObject) rule.asJsonObject.string("action") else ""
+            if (!inserted && action !in setOf("sniff", "resolve", "hijack-dns")) {
+                replacement.add(routeRule(direct)); inserted = true
             }
-            if (!inserted) replacement.add(routeRule(direct))
-            route.add("rules", replacement)
+            replacement.add(rule)
         }
+        if (!inserted) replacement.add(routeRule(direct))
+        route.add("rules", replacement)
         val inbounds = root.getAsJsonArray("inbounds")
         val sniffInbounds = inbounds?.filter { it.isJsonObject && it.asJsonObject.string("type") in setOf("tun", "mixed", "http", "socks") }
             ?.mapNotNull { it.asJsonObject.string("tag").takeIf(String::isNotBlank) }.orEmpty()
@@ -56,12 +55,11 @@ internal object MobileTinaIranRouting {
                     servers.add(JsonObject().apply { addProperty("type", "local"); addProperty("tag", tag) })
                 }
             val dnsRules = dns.getAsJsonArray("rules") ?: JsonArray()
-            if (dnsRules.none { it.isJsonObject && it.asJsonObject.matchesSuffix() && it.asJsonObject.string("server") == local }) {
-                val replacement = JsonArray()
-                replacement.add(JsonObject().apply { add("domain_suffix", suffix()); addProperty("server", local) })
-                dnsRules.forEach { replacement.add(it) }
-                dns.add("rules", replacement)
-            }
+            val replacementDns = JsonArray()
+            replacementDns.add(JsonObject().apply { add("domain_suffix", suffix()); addProperty("server", local) })
+            dnsRules.filterNot { it.isJsonObject && it.asJsonObject.ownedRule("server", local) }
+                .forEach { replacementDns.add(it) }
+            dns.add("rules", replacementDns)
         }
         return root.toString()
     }
@@ -70,9 +68,12 @@ internal object MobileTinaIranRouting {
         add("domain_suffix", suffix()); addProperty("outbound", tag)
     }
     private fun suffix() = JsonArray().apply { add("ir") }
-    private fun JsonObject.matchesSuffix(): Boolean = getAsJsonArray("domain_suffix")?.any {
-        it.isJsonPrimitive && it.asString in setOf("ir", ".ir")
-    } == true
+    private fun JsonObject.ownedRule(destination: String, tag: String): Boolean {
+        if (keySet() != setOf("domain_suffix", destination) || string(destination) != tag) return false
+        val value = get("domain_suffix") ?: return false
+        val suffixes = if (value.isJsonArray) value.asJsonArray.toList() else listOf(value)
+        return suffixes.size == 1 && suffixes[0].isJsonPrimitive && suffixes[0].asString in setOf("ir", ".ir")
+    }
     private fun JsonObject.string(key: String): String = get(key)?.takeIf { it.isJsonPrimitive }?.asString.orEmpty()
     private fun uniqueTag(array: JsonArray, base: String): String {
         val existing = array.filter { it.isJsonObject }.map { it.asJsonObject.string("tag") }.toSet()
