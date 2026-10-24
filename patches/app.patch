@@ -844,10 +844,10 @@ index cc5908d..c0b2051 100644
      // var enableTLSFragment by configurationStore.boolean(Key.ENABLE_TLS_FRAGMENT)
  
 diff --git a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/database/GroupManager.kt b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/database/GroupManager.kt
-index 93f7291..6f2fcb0 100644
+index 93f7291..a4750c3 100644
 --- a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/database/GroupManager.kt
 +++ b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/database/GroupManager.kt
-@@ -146,6 +146,24 @@ object GroupManager {
+@@ -146,6 +146,26 @@ object GroupManager {
          SubscriptionUpdater.reconfigureUpdater()
      }
  
@@ -855,10 +855,12 @@ index 93f7291..6f2fcb0 100644
 +        val previous = AppData.groups.allGroups()
 +        GroupUpdater.cancelUpdates(previous.map { it.id })
 +        val fallback = ProxyGroup(ungrouped = true, userOrder = 1L)
-+        AppData.transactions.run {
-+            AppData.profiles.reset()
-+            AppData.groups.reset()
-+            fallback.id = AppData.groups.createGroup(fallback)
++        io.nekohasekai.sagernet.ui.MobileTinaSubscriptionExpiry.clearConfigurations(previous.map { it.id }) {
++            AppData.transactions.run {
++                AppData.profiles.reset()
++                AppData.groups.reset()
++                fallback.id = AppData.groups.createGroup(fallback)
++            }
 +        }
 +        DataStore.selectedProxy = 0L
 +        DataStore.currentProfile = 0L

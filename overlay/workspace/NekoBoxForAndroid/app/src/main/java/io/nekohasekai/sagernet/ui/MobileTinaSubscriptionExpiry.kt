@@ -60,6 +60,19 @@ internal object MobileTinaSubscriptionExpiry {
 
     fun hasSchedules(): Boolean = prefs.all.keys.any { it.startsWith("expiry.") }
 
+    /** Serialize a full database cleanup with an already-running expiry worker. */
+    suspend fun clearConfigurations(groupIds: List<Long>, clearDatabase: () -> Unit) {
+        mutex.withLock {
+            val edit = prefs.edit()
+            groupIds.forEach { id ->
+                edit.remove("expiry.$id").remove("link.$id").remove("updated.$id")
+                WorkManager.getInstance(app).cancelUniqueWork("mobiletina.expiry.$id")
+            }
+            edit.apply()
+            clearDatabase()
+        }
+    }
+
     fun expiresAt(groupId: Long): Long? {
         val trigger = prefs.getLong("expiry.$groupId", 0).takeIf { it > 0 } ?: return null
         val group = AppData.groups.getById(groupId) ?: return null
