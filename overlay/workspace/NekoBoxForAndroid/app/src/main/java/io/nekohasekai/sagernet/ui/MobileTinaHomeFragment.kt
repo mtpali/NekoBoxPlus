@@ -84,6 +84,8 @@ class MobileTinaHomeFragment : ToolbarFragment(R.layout.mobiletina_home) {
             text = if (state.ping > 0) getString(R.string.mobiletina_ping_value, state.ping) else ""
         }
         root.findViewById<View>(R.id.subscription_card).isVisible = state.usage.visible && !state.expired
+        root.findViewById<TextView>(R.id.tv_subscription_name).text =
+            state.groupName.ifBlank { getString(R.string.mobiletina_usage_brand) }
         root.findViewById<ProgressBar>(R.id.subscription_progress).apply {
             isVisible = (state.usage.total ?: 0) > 0 && state.usage.used != null
             progress = (state.usage.fraction * 100).toInt().coerceIn(0, 100)
