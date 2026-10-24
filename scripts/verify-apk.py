@@ -20,6 +20,9 @@ with zipfile.ZipFile(apk) as z:
     for abi in abis:
         core = z.read(f'lib/{abi}/libgojni.so')
         assert b'amneziawg' in core.lower(), f'Missing Amnezia backend: {abi}'
+        assert core[:4] == b'\x7fELF'
+        assert core[4] == (1 if abi == 'armeabi-v7a' else 2), f'Incorrect ELF class: {abi}'
+        assert int.from_bytes(core[18:20], 'little') == (40 if abi == 'armeabi-v7a' else 183), f'Incorrect CPU: {abi}' 
     expected = {hashlib.sha256(p.read_bytes()).hexdigest() for p in (ROOT/'overlay/workspace/NekoBoxForAndroid/app/src/main/res/raw').glob('mt_auto_*.bin')}
     actual = {hashlib.sha256(z.read(p)).hexdigest() for p in z.namelist() if p.endswith('.bin') and z.getinfo(p).file_size < 500_000}
     assert expected and expected <= actual, 'Connection artwork was changed or removed'

@@ -1,8 +1,7 @@
 package io.nekohasekai.sagernet.utils
 
 import android.net.Uri
-import io.nekohasekai.sagernet.ktx.decodeBase64
-import io.nekohasekai.sagernet.ktx.isHTTPorHTTPSURL
+import io.nekohasekai.sagernet.ktx.decodeBase64UrlSafe
 
 /** Normalizes the server-side MobileTina wrapper used for Base64 subscriptions. */
 object MobileTinaImportNormalizer {
@@ -59,7 +58,7 @@ object MobileTinaImportNormalizer {
             }.filterNot(Char::isWhitespace)
 
             if (encodedBody.length >= 8 && base64Payload.matches(encodedBody)) {
-                runCatching { encodedBody.decodeBase64() }
+                runCatching { encodedBody.decodeBase64UrlSafe() }
                     .getOrNull()
                     ?.takeIf { it.isNotBlank() }
                     ?.let { queue.add(it to depth + 1) }
@@ -83,6 +82,11 @@ object MobileTinaImportNormalizer {
         }
         return result.toList()
     }
+
+    private fun isHTTPorHTTPSURL(value: String): Boolean = runCatching {
+        val uri = java.net.URI(value)
+        uri.scheme?.lowercase(java.util.Locale.ROOT) in setOf("http", "https") && !uri.host.isNullOrBlank()
+    }.getOrDefault(false)
 
     private fun directOrWrappedSubscriptionUrl(normalized: String): String? {
         if (normalized.isBlank() || normalized.contains('\n') || normalized.contains('\r')) return null

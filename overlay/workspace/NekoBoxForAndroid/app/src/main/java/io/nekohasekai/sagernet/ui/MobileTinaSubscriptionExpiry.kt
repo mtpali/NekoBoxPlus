@@ -28,6 +28,7 @@ import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
@@ -134,12 +135,13 @@ internal object MobileTinaSubscriptionExpiry {
         val initial = AppData.groups.getById(groupId) ?: return@withContext true
         if (digest(initial.subscription?.link.orEmpty()) != prefs.getString("link.$groupId", "")) return@withContext true
         val serverTime = fetchTime()
+        if (serverTime == null && trigger != 1L) return@withContext false
         if (serverTime != null) prefs.edit().putLong("clock.epoch", serverTime)
             .putLong("clock.elapsed", SystemClock.elapsedRealtime()).apply()
         if (nowMillis() < trigger) { schedule(groupId, trigger); return@withContext true }
 
         val activeGroup = AppData.profiles.getById(DataStore.currentProfile)?.groupId
-        if (activeGroup == groupId && !confirmStopped()) return@withContext false
+        if (activeGroup == groupId && !confirmStopped(groupId)) return@withContext false
         mutex.withLock {
             currentCoroutineContext().ensureActive()
             if (expiresAt(groupId) != trigger) return@withLock true
@@ -169,7 +171,7 @@ internal object MobileTinaSubscriptionExpiry {
         }
     }
 
-    private suspend fun confirmStopped(): Boolean = withContext(Dispatchers.Main) {
+    private suspend fun confirmStopped(groupId: Long): Boolean = withContext(Dispatchers.Main) {
         val stopped = CompletableDeferred<Boolean>()
         val connection = SagerConnection(SagerConnection.CONNECTION_ID_RESTART_BG)
         val callback = object : SagerConnection.Callback {
@@ -178,7 +180,10 @@ internal object MobileTinaSubscriptionExpiry {
             }
             override fun onServiceConnected(service: ISagerNetService) {
                 if (BaseService.State.values().getOrNull(service.state) == BaseService.State.Stopped) stopped.complete(true)
-                else SagerNet.stopService()
+                else launch {
+                    val activeGroup = withContext(Dispatchers.IO) { AppData.profiles.getById(DataStore.currentProfile)?.groupId }
+                    if (activeGroup != groupId) stopped.complete(true) else SagerNet.stopService()
+                }
             }
         }
         try {
@@ -187,14 +192,20 @@ internal object MobileTinaSubscriptionExpiry {
         } finally { connection.disconnect(app) }
     }
 
-    private fun fetchTime(): Long? = runCatching {
-        val connection = URL("https://www.gstatic.com/generate_204").openConnection() as HttpURLConnection
-        try {
-            connection.connectTimeout = 3_000; connection.readTimeout = 3_000; connection.requestMethod = "HEAD"
-            connection.connect()
-            connection.date.takeIf { it in 1_704_067_200_000L..4_102_444_800_000L }
-        } finally { connection.disconnect() }
-    }.getOrNull()
+    private fun fetchTime(): Long? {
+        for (source in listOf("https://www.gstatic.com/generate_204", "https://www.cloudflare.com/cdn-cgi/trace", "https://api.github.com/zen")) {
+            val date = runCatching {
+                val connection = URL(source).openConnection() as HttpURLConnection
+                try {
+                    connection.connectTimeout = 3_000; connection.readTimeout = 3_000; connection.requestMethod = "HEAD"
+                    connection.connect()
+                    connection.date.takeIf { it in 1_704_067_200_000L..4_102_444_800_000L }
+                } finally { connection.disconnect() }
+            }.getOrNull()
+            if (date != null) return date
+        }
+        return null
+    }
 
     private fun digest(value: String): String = MessageDigest.getInstance("SHA-256")
         .digest(value.toByteArray()).joinToString("") { "%02x".format(it) }
