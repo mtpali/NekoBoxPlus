@@ -2,5 +2,7 @@ dist/
 .cache/
 *.keystore
 *.jks
+*.p12
+password.txt
 local.properties
 __pycache__/
