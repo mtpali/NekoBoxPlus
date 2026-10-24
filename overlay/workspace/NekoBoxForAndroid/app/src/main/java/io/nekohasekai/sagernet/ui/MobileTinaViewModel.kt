@@ -8,6 +8,7 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import io.nekohasekai.sagernet.R
 import io.nekohasekai.sagernet.SagerNet
+import io.nekohasekai.sagernet.bg.SubscriptionUpdater
 import io.nekohasekai.sagernet.bg.BaseService
 import io.nekohasekai.sagernet.database.AppData
 import io.nekohasekai.sagernet.database.DataStore
@@ -52,6 +53,7 @@ internal class MobileTinaViewModel(application: Application) : AndroidViewModel(
     private var watchdog: Job? = null
     private var metadata: Job? = null
     private var foregroundUpdate: Job? = null
+    private var automaticUpdate: Job? = null
     private var generation = 0L
     private var permissionAccepted = false
     private var sawStarting = false
@@ -95,52 +97,52 @@ internal class MobileTinaViewModel(application: Application) : AndroidViewModel(
 
     fun refresh(foreground: Boolean = false) {
         viewModelScope.launch(Dispatchers.Main.immediate) {
-        metadata?.cancel()
-        metadata = viewModelScope.launch {
-            val snapshot = withContext(Dispatchers.IO) { load() }
-            mutable.value = mutable.value.copy(
-                groupId = snapshot.groupId, groupName = snapshot.groupName,
-                profileName = snapshot.selected?.displayName().orEmpty(),
-                ping = snapshot.selected?.ping ?: 0,
-                count = snapshot.profiles.count { !MobileTinaSubscriptionExpiry.isMarker(it) },
-                usage = snapshot.usage, expired = snapshot.expired,
-            )
-            if (foreground) refreshDueSubscription(snapshot.groupId)
-        }
+            metadata?.cancel()
+            metadata = viewModelScope.launch {
+                val snapshot = withContext(Dispatchers.IO) { load() }
+                mutable.value = mutable.value.copy(
+                    groupId = snapshot.groupId, groupName = snapshot.groupName,
+                    profileName = snapshot.selected?.displayName().orEmpty(),
+                    ping = snapshot.selected?.ping ?: 0,
+                    count = snapshot.profiles.count { !MobileTinaSubscriptionExpiry.isMarker(it) },
+                    usage = snapshot.usage, expired = snapshot.expired,
+                )
+                if (foreground) refreshDueSubscriptions()
+            }
         }
     }
 
-    fun refreshNow() {
-        if (foregroundUpdate?.isActive == true || !hasNetwork()) return
-        foregroundUpdate = viewModelScope.launch(Dispatchers.IO) {
+    fun refreshNow(byUser: Boolean = true): Job? {
+        foregroundUpdate?.takeIf { it.isActive }?.let { return it }
+        if (!hasNetwork()) return null
+        return viewModelScope.launch(Dispatchers.IO) {
             try {
                 val group = AppData.groups.getById(DataStore.currentGroupId()) ?: return@launch
-                if (group.subscription != null && group.id !in GroupUpdater.updating) GroupUpdater.executeUpdate(group, true)
-            } catch (cancelled: CancellationException) { throw cancelled } catch (_: Exception) { }
-            withContext(Dispatchers.Main) { refresh() }
+                if (group.subscription != null && group.id !in GroupUpdater.updating) {
+                    GroupUpdater.executeUpdate(group, byUser)
+                }
+            } catch (cancelled: CancellationException) { throw cancelled }
+            catch (_: Exception) { /* Existing profiles remain available after a failed refresh. */ }
+            finally { refresh() }
+        }.also { foregroundUpdate = it }
+    }
+
+    private fun refreshDueSubscriptions() {
+        if (automaticUpdate?.isActive == true || !hasNetwork()) return
+        if (SystemClock.elapsedRealtime() - lastForegroundUpdate < 60_000L) return
+        lastForegroundUpdate = SystemClock.elapsedRealtime()
+        automaticUpdate = viewModelScope.launch(Dispatchers.IO) {
+            try {
+                SubscriptionUpdater.refreshDueSubscriptions()
+            } catch (cancelled: CancellationException) { throw cancelled }
+            catch (_: Exception) { /* The updater reports errors without deleting cached profiles. */ }
+            finally { refresh() }
         }
     }
 
-    private fun refreshDueSubscription(groupId: Long) {
-        if (foregroundUpdate?.isActive == true || !hasNetwork()) return
-        if (SystemClock.elapsedRealtime() - lastForegroundUpdate < 60_000L) return
-        lastForegroundUpdate = SystemClock.elapsedRealtime()
-        foregroundUpdate = viewModelScope.launch(Dispatchers.IO) {
-            try {
-                val group = AppData.groups.getById(groupId) ?: return@launch
-                val subscription = group.subscription ?: return@launch
-                val due = System.currentTimeMillis() / 1000L - (subscription.lastUpdated ?: 0)
-                if (subscription.autoUpdate == true &&
-                    due >= (subscription.autoUpdateDelay ?: 60).coerceAtLeast(15) * 60L &&
-                    groupId !in GroupUpdater.updating
-                ) GroupUpdater.executeUpdate(group, false)
-            } catch (cancelled: CancellationException) {
-                throw cancelled
-            } catch (_: Exception) {
-                // The upstream updater reports its own errors and retains existing profiles.
-            }
-            withContext(Dispatchers.Main) { refresh() }
-        }
+    fun cancelSubscriptionUpdates() {
+        automaticUpdate?.cancel()
+        foregroundUpdate?.cancel()
     }
 
     fun toggle() {

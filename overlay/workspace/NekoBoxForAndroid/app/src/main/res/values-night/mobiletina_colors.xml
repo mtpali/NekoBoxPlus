@@ -23,4 +23,7 @@
     <color name="mobiletina_about_secondary">#A9ADB7</color>
     <color name="mobiletina_header_icon">#F4F5F7</color>
     <color name="mobiletina_primary_content">#F4F5F7</color>
+    <color name="mobiletina_usage_surface">#221D25</color>
+    <color name="mobiletina_usage_stroke">#49364B</color>
+    <color name="mobiletina_usage_accent">#F2A2D1</color>
 </resources>

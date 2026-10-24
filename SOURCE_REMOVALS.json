@@ -212,5 +212,8 @@
   "workspace/NekoBoxForAndroid/app/src/main/res/values-zh-rTW/arrays.xml",
   "workspace/NekoBoxForAndroid/app/src/main/res/values-zh-rTW/strings.xml",
   "workspace/NekoBoxForAndroid/app/src/main/res/values/ic_launcher_background.xml",
-  "workspace/NekoBoxForAndroid/app/src/test/java/io/nekohasekai/sagernet/AppIconStatePolicyTest.kt"
+  "workspace/NekoBoxForAndroid/app/src/test/java/io/nekohasekai/sagernet/AppIconStatePolicyTest.kt",
+  "workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/compose/MobileTinaProfileCard.kt",
+  "workspace/NekoBoxForAndroid/app/src/main/res/layout/mobiletina_profile.xml",
+  "workspace/NekoBoxForAndroid/app/src/main/res/layout/mobiletina_nav_header.xml"
 ]

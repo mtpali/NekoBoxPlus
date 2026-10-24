@@ -511,7 +511,7 @@ index 8437e1e..d543844 100644
                  pendingResult.finish()
              }
 diff --git a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/SagerNet.kt b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/SagerNet.kt
-index af78c50..bb46a46 100644
+index af78c50..0dbc8f2 100644
 --- a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/SagerNet.kt
 +++ b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/SagerNet.kt
 @@ -32,6 +32,9 @@ import io.nekohasekai.sagernet.ktx.isPreview
@@ -547,15 +547,18 @@ index af78c50..bb46a46 100644
              DynamicColors.applyToActivitiesIfAvailable(
                  this,
                  DynamicColorsOptions.Builder()
-@@ -119,6 +124,7 @@ class SagerNet : Application(),
+@@ -118,7 +123,9 @@ class SagerNet : Application(),
+                 }
  
                  runCatching {
-                     SubscriptionUpdater.reconfigureUpdater()
+-                    SubscriptionUpdater.reconfigureUpdater()
++                    io.nekohasekai.sagernet.ui.MobileTinaUiDefaults.applyStoredData()
++                    SubscriptionUpdater.initialize()
 +                    io.nekohasekai.sagernet.ui.MobileTinaSubscriptionExpiry.recover()
                  }.onFailure {
                      Logs.w("Unable to reconfigure subscription updater: ${it.message}")
                  }
-@@ -281,7 +287,26 @@ class SagerNet : Application(),
+@@ -281,7 +288,26 @@ class SagerNet : Application(),
              }
          }
  
@@ -582,7 +585,7 @@ index af78c50..bb46a46 100644
              CoreRecoveryService.updateStopWatchdog(
                  context = application,
                  serviceMode = DataStore.serviceMode,
-@@ -290,7 +315,7 @@ class SagerNet : Application(),
+@@ -290,7 +316,7 @@ class SagerNet : Application(),
              ContextCompat.startForegroundService(
                  application,
                  Intent(application, SagerConnection.serviceClass)
@@ -591,7 +594,7 @@ index af78c50..bb46a46 100644
                      .putExtra(Action.EXTRA_REQUEST_ID, SystemClock.elapsedRealtimeNanos()),
              )
          }
-@@ -311,6 +336,7 @@ class SagerNet : Application(),
+@@ -311,6 +337,7 @@ class SagerNet : Application(),
          }
  
          fun stopService() {
@@ -611,6 +614,153 @@ index fcac457..b7cd730 100644
              DataStore.serviceState = s
              if (s != State.Connected) binder.resetConnectionTestState()
              binder.stateChanged(s, msg)
+diff --git a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/bg/SubscriptionUpdater.kt b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/bg/SubscriptionUpdater.kt
+index 2793346..713cf83 100644
+--- a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/bg/SubscriptionUpdater.kt
++++ b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/bg/SubscriptionUpdater.kt
+@@ -3,6 +3,9 @@ package io.nekohasekai.sagernet.bg
+ import android.content.Context
+ import androidx.core.app.NotificationCompat
+ import androidx.core.app.NotificationManagerCompat
++import androidx.work.BackoffPolicy
++import androidx.work.Constraints
++import androidx.work.NetworkType
+ import androidx.work.CoroutineWorker
+ import androidx.work.ExistingPeriodicWorkPolicy.UPDATE
+ import androidx.work.PeriodicWorkRequest
+@@ -12,6 +15,7 @@ import io.nekohasekai.sagernet.BootReceiver
+ import io.nekohasekai.sagernet.R
+ import io.nekohasekai.sagernet.database.DataStore
+ import io.nekohasekai.sagernet.database.AppData
++import io.nekohasekai.sagernet.database.ProxyGroup
+ import io.nekohasekai.sagernet.group.GroupUpdater
+ import io.nekohasekai.sagernet.ktx.Logs
+ import io.nekohasekai.sagernet.ktx.app
+@@ -24,6 +28,45 @@ object SubscriptionUpdater {
+ 
+     private const val WORK_NAME = "SubscriptionUpdater"
+ 
++    data class UpdateSummary(val attempted: Int, val updated: Int) {
++        val failed: Int get() = attempted - updated
++    }
++
++    suspend fun initialize() {
++        val key = "mobiletinaSubscriptionAutoUpdateV2"
++        if (DataStore.configurationStore.getBoolean(key) != true) {
++            AppData.groups.subscriptions().forEach { group ->
++                val subscription = group.subscription ?: return@forEach
++                if (!subscription.link.isNullOrBlank() && subscription.autoUpdate != true) {
++                    subscription.autoUpdate = true
++                    subscription.autoUpdateDelay = MobileTinaSubscriptionRefreshPolicy.DEFAULT_INTERVAL_MINUTES
++                    AppData.groups.updateGroup(group)
++                }
++            }
++            DataStore.configurationStore.putBoolean(key, true)
++        }
++        reconfigureUpdater()
++    }
++
++    suspend fun refreshDueSubscriptions(beforeUpdate: (ProxyGroup) -> Unit = {}): UpdateSummary {
++        var attempted = 0
++        var updated = 0
++        val now = System.currentTimeMillis() / 1000L
++        val connected = DataStore.serviceState.connected
++        for (group in AppData.groups.subscriptions()) {
++            val subscription = group.subscription ?: continue
++            if (group.id in GroupUpdater.updating || !MobileTinaSubscriptionRefreshPolicy.isDue(
++                    subscription.autoUpdate == true, subscription.link,
++                    subscription.updateWhenConnectedOnly == true, connected,
++                    subscription.lastUpdated, subscription.autoUpdateDelay, now,
++                )) continue
++            beforeUpdate(group)
++            attempted++
++            if (GroupUpdater.executeUpdate(group, false)) updated++
++        }
++        return UpdateSummary(attempted, updated)
++    }
++
+     suspend fun reconfigureUpdater() {
+         val subscriptions = AppData.groups.subscriptions()
+             .filter {
+@@ -68,6 +111,8 @@ object SubscriptionUpdater {
+             WORK_NAME,
+             UPDATE,
+             PeriodicWorkRequest.Builder(UpdateTask::class.java, schedule.intervalMinutes, TimeUnit.MINUTES)
++                .setConstraints(Constraints.Builder().setRequiredNetworkType(NetworkType.CONNECTED).build())
++                .setBackoffCriteria(BackoffPolicy.EXPONENTIAL, 30L, TimeUnit.SECONDS)
+                 .apply {
+                     if (schedule.initialDelaySeconds > 0) {
+                         setInitialDelay(schedule.initialDelaySeconds, TimeUnit.SECONDS)
+@@ -114,46 +159,33 @@ object SubscriptionUpdater {
+             .setCategory(NotificationCompat.CATEGORY_SERVICE)
+ 
+         override suspend fun doWork(): Result {
+-            val subscriptions = AppData.groups.subscriptions()
+-
+-            if (subscriptions.isNotEmpty()) for (profile in subscriptions) {
+-                val subscription = profile.subscription!!
+-
+-                val now = System.currentTimeMillis() / 1000L
+-                val subscriptionDue =
+-                    subscription.autoUpdate &&
+-                        (DataStore.serviceState.connected || !subscription.updateWhenConnectedOnly) &&
+-                        now - subscription.lastUpdated >= subscription.autoUpdateDelay.toLong() * 60L
+-                if (subscriptionDue) {
+-                    Logs.d("work: updating " + profile.displayName())
+-                    notification.setContentText(
+-                        applicationContext.getString(
+-                            R.string.subscription_update_message,
+-                            profile.displayName(),
+-                        ),
+-                    )
+-                    nm.notify(2, notification.build())
+-                    GroupUpdater.executeUpdate(profile, false)
++            try {
++                val summary = refreshDueSubscriptions { group ->
++                    notification.setContentText(applicationContext.getString(
++                        R.string.subscription_update_message, group.displayName(),
++                    ))
++                    // Android 13+ may deny notifications; updates must still run.
++                    runCatching { nm.notify(2, notification.build()) }
+                 }
+-
+-                val routingDue =
+-                    subscription.routingEnabled &&
++                var failed = summary.failed > 0
++                for (profile in AppData.groups.subscriptions()) {
++                    val subscription = profile.subscription ?: continue
++                    val routingDue = subscription.routingEnabled &&
+                         subscription.autoRoutingUrl.isNotBlank() &&
+-                        now - subscription.routingLastUpdated >=
+-                        SubscriptionRoutingIntervals.normalize(subscription.routingUpdateInterval)
+-                if (routingDue) {
+-                    runCatching {
+-                        if (SubscriptionRoutingRepository.refreshAutoRouting(profile)) {
+-                            AppData.groups.updateGroup(profile)
+-                        }
+-                    }.onFailure(Logs::w)
++                        System.currentTimeMillis() / 1000L - subscription.routingLastUpdated >=
++                            SubscriptionRoutingIntervals.normalize(subscription.routingUpdateInterval)
++                    if (routingDue) {
++                        runCatching {
++                            if (SubscriptionRoutingRepository.refreshAutoRouting(profile)) {
++                                AppData.groups.updateGroup(profile)
++                            }
++                        }.onFailure { failed = true; Logs.w(it) }
++                    }
+                 }
++                return if (failed) Result.retry() else Result.success()
++            } finally {
++                runCatching { nm.cancel(2) }
+             }
+-
+-            nm.cancel(2)
+-
+-            return Result.success()
+         }
+     }
+-
+ }
 diff --git a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/bg/proto/UrlTest.kt b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/bg/proto/UrlTest.kt
 index b7a7e07..268f9d3 100644
 --- a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/bg/proto/UrlTest.kt
@@ -635,7 +785,7 @@ index b7a7e07..268f9d3 100644
          this.testType = testType
      }
 diff --git a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/database/DataStore.kt b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/database/DataStore.kt
-index cc5908d..16a12a0 100644
+index cc5908d..c0b2051 100644
 --- a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/database/DataStore.kt
 +++ b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/database/DataStore.kt
 @@ -1,5 +1,7 @@
@@ -684,6 +834,58 @@ index cc5908d..16a12a0 100644
      var resolveDestination by configurationStore.boolean(Key.RESOLVE_DESTINATION)
  
      var mtu by configurationStore.stringToInt(Key.MTU) { 9000 }
+@@ -641,7 +644,7 @@ object DataStore : OnPreferenceDataStoreChangeListener {
+ 
+     var rulesFirstCreate by profileCacheStore.boolean("rulesFirstCreate")
+     var proxyAppsFirstSetup by configurationStore.boolean("proxyAppsFirstSetup")
+-    var firstRunRoutingRegion by configurationStore.string("firstRunRoutingRegion")
++    var firstRunRoutingRegion by configurationStore.string("firstRunRoutingRegion") { "ir" }
+ 
+     // var enableTLSFragment by configurationStore.boolean(Key.ENABLE_TLS_FRAGMENT)
+ 
+diff --git a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/database/GroupManager.kt b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/database/GroupManager.kt
+index 93f7291..e2223bf 100644
+--- a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/database/GroupManager.kt
++++ b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/database/GroupManager.kt
+@@ -146,6 +146,25 @@ object GroupManager {
+         SubscriptionUpdater.reconfigureUpdater()
+     }
+ 
++    suspend fun clearAllConfigurations() {
++        val previous = AppData.groups.allGroups()
++        GroupUpdater.cancelUpdates(previous.map { it.id })
++        val fallback = ProxyGroup(ungrouped = true, userOrder = 1L)
++        AppData.transactions.run {
++            AppData.profiles.reset()
++            AppData.groups.reset()
++            fallback.id = AppData.groups.createGroup(fallback)
++        }
++        DataStore.selectedProxy = 0L
++        DataStore.currentProfile = 0L
++        DataStore.startedProfile = 0L
++        DataStore.selectedGroup = fallback.id
++        previous.forEach { SubscriptionRoutingRepository.deleteFiles(it.id) }
++        previous.forEach { old -> iterator { groupRemoved(old.id) } }
++        iterator { groupAdd(fallback) }
++        SubscriptionUpdater.reconfigureUpdater()
++    }
++
+     private suspend fun ensureFallbackGroup() {
+         val groups = AppData.groups.allGroups()
+         if (groups.isEmpty()) {
+diff --git a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/database/ProxyGroup.kt b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/database/ProxyGroup.kt
+index 22e46ba..051bb97 100644
+--- a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/database/ProxyGroup.kt
++++ b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/database/ProxyGroup.kt
+@@ -20,7 +20,7 @@ data class ProxyGroup(
+     var name: String? = null,
+     var type: Int = GroupType.BASIC,
+     var subscription: SubscriptionBean? = null,
+-    var order: Int = GroupOrder.ORIGIN,
++    var order: Int = GroupOrder.BY_DELAY,
+     var isSelector: Boolean = false,
+     var frontProxy: Long = -1L,
+     var landingProxy: Long = -1L,
 diff --git a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/database/SubscriptionBean.java b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/database/SubscriptionBean.java
 index c2d981b..0356a6b 100644
 --- a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/database/SubscriptionBean.java
@@ -967,7 +1169,7 @@ index c1325b2..0543165 100644
                      app.name.contains(query, ignoreCase = true) ||
                      app.packageName.contains(query, ignoreCase = true) ||
 diff --git a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/ConfigurationFragment.kt b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/ConfigurationFragment.kt
-index 936c057..257ad37 100644
+index 936c057..b4981c1 100644
 --- a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/ConfigurationFragment.kt
 +++ b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/ConfigurationFragment.kt
 @@ -45,6 +45,8 @@ import androidx.appcompat.widget.Toolbar
@@ -979,7 +1181,7 @@ index 936c057..257ad37 100644
  import androidx.core.view.children
  import androidx.core.view.doOnLayout
  import androidx.core.view.doOnNextLayout
-@@ -54,7 +56,9 @@ import androidx.core.view.isInvisible
+@@ -54,11 +56,14 @@ import androidx.core.view.isInvisible
  import androidx.core.view.isVisible
  import androidx.core.view.size
  import kotlinx.coroutines.delay
@@ -987,9 +1189,37 @@ index 936c057..257ad37 100644
  import androidx.fragment.app.Fragment
 +import androidx.lifecycle.lifecycleScope
  import androidx.preference.PreferenceDataStore
- import androidx.recyclerview.widget.ConcatAdapter
+-import androidx.recyclerview.widget.ConcatAdapter
  import androidx.recyclerview.widget.ItemTouchHelper
-@@ -344,6 +348,13 @@ class ConfigurationFragment @JvmOverloads constructor(
+ import androidx.recyclerview.widget.LinearLayoutManager
++import androidx.swiperefreshlayout.widget.SwipeRefreshLayout
++import androidx.recyclerview.widget.ConcatAdapter
+ import androidx.recyclerview.widget.RecyclerView
+ import androidx.viewpager2.adapter.FragmentStateAdapter
+ import androidx.viewpager2.widget.ViewPager2
+@@ -115,11 +120,11 @@ import io.nekohasekai.sagernet.ktx.tryToShow
+ import io.nekohasekai.sagernet.ktx.triggerFullRestart
+ import io.nekohasekai.sagernet.ui.profile.ChainSettingsActivity
+ import io.nekohasekai.sagernet.ui.compose.NekoComposeTheme
++import io.nekohasekai.sagernet.ui.compose.SubscriptionBannerCard
+ import io.nekohasekai.sagernet.ui.compose.ProfileCard
+ import io.nekohasekai.sagernet.ui.compose.ProfileCardLayout
+ import io.nekohasekai.sagernet.ui.compose.ProfileCardModel
+ import io.nekohasekai.sagernet.ui.compose.ProfileShareAction
+-import io.nekohasekai.sagernet.ui.compose.SubscriptionBannerCard
+ import io.nekohasekai.sagernet.ui.compose.doubleProfileMinimumHeightDp
+ import io.nekohasekai.sagernet.ui.compose.showComposeItemDialog
+ import io.nekohasekai.sagernet.ui.compose.showComposeMessageDialog
+@@ -155,6 +160,8 @@ import io.nekohasekai.sagernet.widget.QRCodeDialog
+ import io.nekohasekai.sagernet.widget.ProfileListRecyclerView
+ import io.nekohasekai.sagernet.widget.TvProfileFocusTarget
+ import io.nekohasekai.sagernet.widget.UndoSnackbarManager
++import kotlinx.coroutines.Dispatchers
++import kotlinx.coroutines.withContext
+ import kotlinx.coroutines.Job
+ import kotlinx.coroutines.isActive
+ import kotlinx.coroutines.sync.Mutex
+@@ -344,6 +351,13 @@ class ConfigurationFragment @JvmOverloads constructor(
      override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
          super.onViewCreated(view, savedInstanceState)
          setupQuickToolbar(view)
@@ -1003,7 +1233,7 @@ index 936c057..257ad37 100644
  
          if (!select) {
              if (profileSelectionMode) setupProfileSelectionToolbarMenu() else setupProfileToolbarMenu()
-@@ -953,6 +964,11 @@ class ConfigurationFragment @JvmOverloads constructor(
+@@ -953,6 +967,11 @@ class ConfigurationFragment @JvmOverloads constructor(
  
      override fun onMenuItemClick(item: MenuItem): Boolean {
          when (item.itemId) {
@@ -1015,24 +1245,152 @@ index 936c057..257ad37 100644
              R.id.action_select_profiles -> {
                  enterProfileSelectionMode()
                  return true
-@@ -3863,13 +3879,39 @@ class ConfigurationFragment @JvmOverloads constructor(
+@@ -2349,6 +2368,7 @@ class ConfigurationFragment @JvmOverloads constructor(
+             })
+             itemTouchHelper.attachToRecyclerView(configurationListView)
+         }
++        private var mobileTinaSwipeRefresh: SwipeRefreshLayout? = null
+         lateinit var configurationListView: RecyclerView
+         private var didInitialPositionList = false
+         private var lastGroupUpdateStamp: Int? = null
+@@ -2396,6 +2416,9 @@ class ConfigurationFragment @JvmOverloads constructor(
+         }
+ 
+         override fun onDestroyView() {
++            mobileTinaSwipeRefresh?.setOnRefreshListener(null)
++            mobileTinaSwipeRefresh?.isRefreshing = false
++            mobileTinaSwipeRefresh = null
+             lastGroupUpdateStamp = null
+             didInitialPositionList = false
+             if (::configurationListView.isInitialized) {
+@@ -2591,7 +2614,6 @@ class ConfigurationFragment @JvmOverloads constructor(
+         fun switchLayoutMode() {
+             setupLayoutManager()
+             configurationListView.layoutManager = layoutManager
+-            if (::bannerAdapter.isInitialized) bannerAdapter.refresh()
+ 
+             setupItemTouchHelper()
+ 
+@@ -2602,19 +2624,39 @@ class ConfigurationFragment @JvmOverloads constructor(
+             if (!::proxyGroup.isInitialized) return
+ 
+             configurationListView = view.findViewById(R.id.configuration_list)
++            mobileTinaSwipeRefresh = view.findViewById<SwipeRefreshLayout>(R.id.mobiletina_manual_refresh).apply {
++                setColorSchemeResources(R.color.mobiletina_about_accent)
++                setOnChildScrollUpCallback { _, _ -> configurationListView.canScrollVertically(-1) }
++                setOnRefreshListener {
++                    val parent = parentFragment as? ConfigurationFragment
++                    if (select || parent?.isProfileSelectionMode == true) {
++                        isRefreshing = false
++                    } else {
++                        viewLifecycleOwner.lifecycleScope.launch {
++                            try {
++                                withContext(Dispatchers.IO) {
++                                    if (proxyGroup.type == GroupType.SUBSCRIPTION && proxyGroup.subscription != null) {
++                                        if (proxyGroup.id !in GroupUpdater.updating) GroupUpdater.executeUpdate(proxyGroup, false)
++                                    } else adapter?.reloadProfiles()
++                                }
++                            } finally {
++                                mobileTinaSwipeRefresh?.isRefreshing = false
++                            }
++                        }
++                    }
++                }
++            }
+             configurationListView.isInvisible = true
+             setupLayoutManager()
+             configurationListView.layoutManager = layoutManager
+             adapter = ConfigurationAdapter()
+-            bannerAdapter = SubscriptionBannerAdapter()
+             ProfileManager.addListener(adapter!!)
+             GroupManager.addListener(adapter!!)
++            bannerAdapter = SubscriptionBannerAdapter()
+             combinedAdapter = ConcatAdapter(
+                 ConcatAdapter.Config.Builder()
+                     .setStableIdMode(ConcatAdapter.Config.StableIdMode.SHARED_STABLE_IDS)
+-                    .build(),
+-                bannerAdapter,
+-                adapter,
++                    .build(), bannerAdapter, adapter,
+             )
+             configurationListView.adapter = combinedAdapter
+             configurationListView.setItemViewCacheSize(20)
+@@ -3157,14 +3199,13 @@ class ConfigurationFragment @JvmOverloads constructor(
+                     }
+                 }
+                 proxyGroup = group
+-                configurationListView.post { bannerAdapter.refresh() }
++            if (::bannerAdapter.isInitialized) bannerAdapter.refresh()
+                 reloadProfiles(reloadReason)
+             }
+ 
+             override suspend fun groupUpdated(groupId: Long) {
+                 if (groupId != proxyGroup.id) return
+                 proxyGroup = SagerDatabase.groupDao.getById(groupId) ?: return
+-                configurationListView.post { bannerAdapter.refresh() }
+                 reloadProfiles(ProfileReloadReason.General)
+             }
+ 
+@@ -3174,7 +3215,6 @@ class ConfigurationFragment @JvmOverloads constructor(
+                     pendingManualOrderReload = false
+                 }
+                 proxyGroup = SagerDatabase.groupDao.getById(groupId) ?: return
+-                configurationListView.post { bannerAdapter.refresh() }
+                 reloadProfiles(
+                     when (reason) {
+                         GroupManager.ReloadReason.Manual -> ProfileReloadReason.Manual
+@@ -3377,7 +3417,9 @@ class ConfigurationFragment @JvmOverloads constructor(
+             RecyclerView.Adapter<SubscriptionBannerHolder>() {
+ 
+             private var presentation =
+-                proxyGroup.subscription?.let(::subscriptionBannerPresentation)
++                proxyGroup.subscription?.let { subscriptionBannerPresentation(it).copy(
++                    traffic = null, showTrafficText = false, showTrafficBar = false, expireAt = null,
++                ) }
+ 
+             init {
+                 setHasStableIds(true)
+@@ -3423,7 +3465,9 @@ class ConfigurationFragment @JvmOverloads constructor(
+             }
+ 
+             fun refresh() {
+-                presentation = proxyGroup.subscription?.let(::subscriptionBannerPresentation)
++                presentation = proxyGroup.subscription?.let { subscriptionBannerPresentation(it).copy(
++                    traffic = null, showTrafficText = false, showTrafficBar = false, expireAt = null,
++                ) }
+                 notifyDataSetChanged()
+                 (layoutManager as? FixedGridLayoutManager)
+                     ?.spanSizeLookup
+@@ -3863,13 +3907,51 @@ class ConfigurationFragment @JvmOverloads constructor(
          toolbarOrNull()?.post { focusTvToolbarAction() }
      }
  
++    val canSwipeMobileTinaMode: Boolean
++        get() = !select && !profileSelectionMode && !profileSearchExpanded && !quickSearchExpanded
++
++    fun selectMobileTinaGroup(id: Long) = syncSelectedGroup(id)
++
 +    fun dispatchMobileTinaAction(id: Int) {
-+        viewLifecycleOwner.lifecycleScope.launch {
-+            kotlinx.coroutines.withTimeoutOrNull(2_000L) {
-+                while (!::adapter.isInitialized || adapter.groupList.isEmpty() || getCurrentGroupFragment()?.view == null) kotlinx.coroutines.delay(25L)
-+            }
-+            if (!isAdded || view == null) return@launch
-+            if (id == R.id.action_mobiletina_search) {
-+                view?.findViewById<View>(R.id.appbar)?.isVisible = true
-+                view?.findViewById<View>(R.id.mobiletina_home_header)?.isGone = true
-+                toolbarOrNull()?.menu?.findItem(R.id.action_search)?.apply {
-+                    expandActionView()
-+                    (actionView as? SearchView)?.apply { isIconified = false; requestFocus() }
++        lifecycleScope.launch {
++            val ready = kotlinx.coroutines.withTimeoutOrNull(5_000L) {
++                while (!isAdded || view == null || !::adapter.isInitialized || adapter.groupList.isEmpty() ||
++                    getCurrentGroupFragment()?.view == null) kotlinx.coroutines.delay(25L)
++                true
++            } == true
++            if (!ready || !isAdded || view == null) return@launch
++            val owner = viewLifecycleOwner
++            owner.lifecycleScope.launchWhenStarted {
++                if (id == R.id.action_mobiletina_search) {
++                    view?.findViewById<View>(R.id.appbar)?.isVisible = true
++                    view?.findViewById<View>(R.id.mobiletina_home_header)?.isGone = true
++                    toolbarOrNull()?.menu?.findItem(R.id.action_search)?.apply {
++                        expandActionView()
++                        (actionView as? SearchView)?.apply { isIconified = false; requestFocus() }
++                    }
++                } else {
++                    toolbarOrNull()?.menu?.findItem(id)?.let(::onMenuItemClick)
 +                }
-+            } else toolbarOrNull()?.menu?.performIdentifierAction(id, 0)
++            }
 +        }
 +    }
 +
@@ -1056,7 +1414,7 @@ index 936c057..257ad37 100644
  
          activeToolbar.post {
              if (toolbarOrNull() !== activeToolbar ||
-@@ -4146,6 +4188,7 @@ class ConfigurationFragment @JvmOverloads constructor(
+@@ -4146,6 +4228,7 @@ class ConfigurationFragment @JvmOverloads constructor(
          activeToolbar.inflateMenu(R.menu.profile_selection_menu)
          activeToolbar.setOnMenuItemClickListener(this)
          updateSelectionMenuEnabledState()
@@ -1064,7 +1422,7 @@ index 936c057..257ad37 100644
      }
  
      private fun enterProfileSelectionMode() {
-@@ -4225,12 +4268,14 @@ class ConfigurationFragment @JvmOverloads constructor(
+@@ -4225,12 +4308,14 @@ class ConfigurationFragment @JvmOverloads constructor(
              object : MenuItem.OnActionExpandListener {
                  override fun onMenuItemActionExpand(item: MenuItem): Boolean {
                      profileSearchExpanded = true
@@ -1133,10 +1491,18 @@ index 8e69893..9a0e93d 100644
                  triggerFullRestart(context)
              },
 diff --git a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/MainActivity.kt b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/MainActivity.kt
-index c403caa..725ca8e 100644
+index c403caa..6293f25 100644
 --- a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/MainActivity.kt
 +++ b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/MainActivity.kt
-@@ -29,9 +29,12 @@ import androidx.core.content.ContextCompat
+@@ -12,6 +12,7 @@ import android.os.Build
+ import android.os.Bundle
+ import android.os.CountDownTimer
+ import android.os.RemoteException
++import android.view.MotionEvent
+ import android.view.KeyEvent
+ import android.view.View
+ import android.view.ViewGroup
+@@ -29,11 +30,19 @@ import androidx.core.content.ContextCompat
  import androidx.core.graphics.Insets
  import androidx.core.view.ViewCompat
  import androidx.core.view.WindowInsetsCompat
@@ -1148,8 +1514,15 @@ index c403caa..725ca8e 100644
 +import androidx.lifecycle.repeatOnLifecycle
  import androidx.lifecycle.lifecycleScope
  import androidx.preference.PreferenceDataStore
++import com.google.android.material.dialog.MaterialAlertDialogBuilder
++import io.nekohasekai.sagernet.database.AppData
++import kotlinx.coroutines.Job
++import kotlinx.coroutines.delay
++import kotlinx.coroutines.withTimeoutOrNull
  import com.google.android.material.snackbar.Snackbar
-@@ -115,6 +118,8 @@ class MainActivity :
+ import io.nekohasekai.sagernet.AppLogLevel
+ import io.nekohasekai.sagernet.BuildConfig
+@@ -115,6 +124,8 @@ class MainActivity :
          }
      }
  
@@ -1158,7 +1531,7 @@ index c403caa..725ca8e 100644
      lateinit var binding: LayoutMainBinding
      private val shellState = MainShellState()
      private var bottomControlsVisibleForCurrentFragment = false
-@@ -188,6 +193,20 @@ class MainActivity :
+@@ -188,6 +199,20 @@ class MainActivity :
          syncProxyAppsDrawerItem()
          // Keep the fragment host synchronously attached; Compose owns the drawer overlay.
          setContentView(binding.root)
@@ -1179,7 +1552,7 @@ index c403caa..725ca8e 100644
          val drawerOverlay = DrawerOverlayComposeView(this).apply {
              drawerActive = { shellState.drawerRequestedOpen || shellState.drawerIsOpen }
              setContent {
-@@ -208,28 +227,13 @@ class MainActivity :
+@@ -208,28 +233,13 @@ class MainActivity :
          )
  
          binding.fab.setOnClickListener {
@@ -1215,7 +1588,7 @@ index c403caa..725ca8e 100644
                  }
              }
          }
-@@ -244,8 +248,7 @@ class MainActivity :
+@@ -244,8 +254,7 @@ class MainActivity :
          }
  
          if (savedInstanceState == null && !openSettingsOnCreate) {
@@ -1225,7 +1598,7 @@ index c403caa..725ca8e 100644
          }
          onBackPressedDispatcher.addCallback {
              if (shellState.drawerIsOpen) {
-@@ -256,8 +259,10 @@ class MainActivity :
+@@ -256,8 +265,10 @@ class MainActivity :
              if ((fragment as? ToolbarFragment)?.onBackPressed() == true) {
                  return@addCallback
              }
@@ -1237,7 +1610,7 @@ index c403caa..725ca8e 100644
              } else {
                  displayFragmentWithId(R.id.nav_configuration)
              }
-@@ -317,6 +322,31 @@ class MainActivity :
+@@ -317,6 +328,31 @@ class MainActivity :
          }
      }
  
@@ -1269,7 +1642,7 @@ index c403caa..725ca8e 100644
      private fun setupLegacyNavigationBarInsets() {
          val coordinatorInitialLeft = binding.coordinator.paddingLeft
          val coordinatorInitialRight = binding.coordinator.paddingRight
-@@ -363,9 +393,10 @@ class MainActivity :
+@@ -363,26 +399,14 @@ class MainActivity :
      }
  
      private suspend fun performProxyAppsFirstSetup() {
@@ -1279,9 +1652,51 @@ index c403caa..725ca8e 100644
          DataStore.proxyAppsFirstSetup = true
 +        syncProxyAppsDrawerItem()
  
-         val dir = detectRoutingDir()
-         if (dir != null) {
-@@ -441,6 +472,19 @@ class MainActivity :
+-        val dir = detectRoutingDir()
+-        if (dir != null) {
+-            applyFirstRunSelection(dir)
+-        } else {
+-            showFirstRunRegionPicker()
+-        }
++        applyFirstRunSelection("ir")
+     }
+ 
+-    private fun detectRoutingDir(): String? =
+-        when (Locale.getDefault().country.uppercase()) {
+-            "RU" -> "ru"
+-            "CN" -> "cn"
+-            "IR" -> "ir"
+-            else -> null
+-        }
+-
+     private fun applyFirstRunSelection(routingDir: String) {
+         DataStore.firstRunRoutingRegion = routingDir
+         val service = RoutingRulesService(this, routingDir)
+@@ -390,23 +414,6 @@ class MainActivity :
+         DataStore.individual = selected.joinToString("\n")
+     }
+ 
+-    private fun showFirstRunRegionPicker() {
+-        val labels =
+-            arrayOf(
+-                getString(R.string.routing_region_russia),
+-                getString(R.string.routing_region_china),
+-                getString(R.string.routing_region_iran),
+-                getString(R.string.routing_region_other),
+-            )
+-        val dirs = arrayOf("ru", "cn", "ir", "other")
+-        showComposeItemDialog(
+-            title = getText(R.string.routing_select_region),
+-            items = labels.toList(),
+-            cancelable = false,
+-            onItemSelected = { i -> applyFirstRunSelection(dirs[i]) },
+-        )
+-    }
+-
+     private fun requestProxyAppsToggle(enabled: Boolean) {
+         if (enabled) {
+             DataStore.proxyApps = true
+@@ -441,10 +448,126 @@ class MainActivity :
  
      fun closeDrawer() = shellState.closeDrawer()
  
@@ -1291,17 +1706,124 @@ index c403caa..725ca8e 100644
 +        super.onPostResume()
 +        if (mobileTinaWelcome?.isShowing != true) {
 +            mobileTinaWelcome = MobileTinaFirstLaunchDialog.showOnce(this, DataStore.configurationStore,
-+                "mobileTinaExclaveWelcomeShownV1") { mobileTinaWelcome = null }
++                "mobileTinaExclaveWelcomeLinksV2") { mobileTinaWelcome = null }
 +        }
 +    }
 +
-+    fun showMobileTinaImport() = MobileTinaImportDialog.show(this, mobileTina)
-+    fun refreshMobileTinaSubscription() = mobileTina.refreshNow()
++    fun refreshMobileTinaSubscription() { mobileTina.refreshNow() }
++
++    val mobileTinaTrafficAvailable: Boolean get() = shellState.trafficVisible
++
++    fun dispatchMobileTinaConfigurationAction(id: Int) {
++        if (supportFragmentManager.isStateSaved) return
++        var target = supportFragmentManager.findFragmentById(R.id.fragment_holder) as? ConfigurationFragment
++        if (target == null) {
++            displayFragmentWithId(R.id.nav_configuration)
++            supportFragmentManager.executePendingTransactions()
++            target = supportFragmentManager.findFragmentById(R.id.fragment_holder) as? ConfigurationFragment
++        }
++        target?.dispatchMobileTinaAction(id)
++    }
++
++    fun chooseMobileTinaSubscription() {
++        lifecycleScope.launch {
++            val groups = withContext(Dispatchers.IO) { AppData.groups.subscriptions() }
++            if (isFinishing || isDestroyed) return@launch
++            if (groups.isEmpty()) {
++                displayFragmentWithId(R.id.nav_group)
++                return@launch
++            }
++            MaterialAlertDialogBuilder(this@MainActivity)
++                .setTitle(R.string.mobiletina_group)
++                .setSingleChoiceItems(groups.map { it.displayName() }.toTypedArray(),
++                    groups.indexOfFirst { it.id == DataStore.selectedGroup }) { dialog, index ->
++                    DataStore.selectedGroup = groups[index].id
++                    (supportFragmentManager.findFragmentById(R.id.fragment_holder) as? ConfigurationFragment)
++                        ?.selectMobileTinaGroup(groups[index].id)
++                    mobileTina.refresh()
++                    dialog.dismiss()
++                }.setNegativeButton(android.R.string.cancel, null).show()
++        }
++    }
++
++    private var clearAllJob: Job? = null
++
++    private fun confirmClearAllConfigurations() {
++        closeDrawer()
++        MaterialAlertDialogBuilder(this)
++            .setTitle(R.string.mobiletina_clear_all)
++            .setMessage(R.string.mobiletina_clear_all_message)
++            .setNegativeButton(android.R.string.cancel, null)
++            .setPositiveButton(R.string.mobiletina_clear_all_confirm) { _, _ ->
++                if (clearAllJob?.isActive == true) return@setPositiveButton
++                clearAllJob = lifecycleScope.launch {
++                    mobileTina.cancelPending(stop = true)
++                    mobileTina.cancelSubscriptionUpdates()
++                    val stopped = withTimeoutOrNull(5_000L) {
++                        while (DataStore.serviceState.canStop || DataStore.serviceState == BaseService.State.Stopping) delay(100L)
++                        true
++                    } == true
++                    if (!stopped) {
++                        snackbar(R.string.mobiletina_clear_stop_failed).show()
++                        return@launch
++                    }
++                    withContext(Dispatchers.IO) { GroupManager.clearAllConfigurations() }
++                    mobileTina.refresh()
++                    displayFragmentWithId(R.id.nav_mobiletina)
++                    snackbar(R.string.mobiletina_clear_all_done).show()
++                }
++            }.show()
++    }
++
++    private var modeSwipeStartX = 0f
++    private var modeSwipeStartY = 0f
++    private var modeSwipeEligible = false
++
++    override fun dispatchTouchEvent(event: MotionEvent): Boolean {
++        val fragment = supportFragmentManager.findFragmentById(R.id.fragment_holder)
++        val home = fragment is MobileTinaHomeFragment || fragment is ConfigurationFragment
++        val canSwipe = home && !SagerNet.isTv && !shellState.drawerIsOpen && !shellState.drawerRequestedOpen &&
++            (fragment !is ConfigurationFragment || fragment.canSwipeMobileTinaMode)
++        when (event.actionMasked) {
++            MotionEvent.ACTION_DOWN -> {
++                modeSwipeStartX = event.x
++                modeSwipeStartY = event.y
++                val edge = MobileTinaHomeChrome.dp(this, 24)
++                modeSwipeEligible = canSwipe && event.x > edge && event.x < resources.displayMetrics.widthPixels - edge
++            }
++            MotionEvent.ACTION_POINTER_DOWN, MotionEvent.ACTION_CANCEL -> modeSwipeEligible = false
++            MotionEvent.ACTION_UP -> {
++                val dx = event.x - modeSwipeStartX
++                val dy = event.y - modeSwipeStartY
++                if (modeSwipeEligible && canSwipe && kotlin.math.abs(dx) >= MobileTinaHomeChrome.dp(this, 84) &&
++                    kotlin.math.abs(dx) > kotlin.math.abs(dy) * 1.35f) {
++                    modeSwipeEligible = false
++                    val target = if (dx < 0) R.id.nav_mobiletina else R.id.nav_configuration
++                    val changesMode = (target == R.id.nav_mobiletina && fragment !is MobileTinaHomeFragment) ||
++                        (target == R.id.nav_configuration && fragment !is ConfigurationFragment)
++                    if (changesMode && !supportFragmentManager.isStateSaved) {
++                        val cancel = MotionEvent.obtain(event).apply { action = MotionEvent.ACTION_CANCEL }
++                        super.dispatchTouchEvent(cancel)
++                        cancel.recycle()
++                        displayFragmentWithId(target)
++                        return true
++                    }
++                }
++                modeSwipeEligible = false
++            }
++        }
++        return super.dispatchTouchEvent(event)
++    }
 +
      override fun onResume() {
          super.onResume()
          MessageStore.setCurrentActivity(this)
-@@ -477,6 +521,11 @@ class MainActivity :
+         syncProxyAppsDrawerItem()
++        mobileTina.refresh(foreground = true)
+ 
+         if (DataStore.hideFromRecentApps) {
+             applyHideFromRecentApps(DataStore.hideFromRecentApps)
+@@ -477,6 +600,11 @@ class MainActivity :
              return
          }
          val uri = intent.data ?: return
@@ -1313,7 +1835,7 @@ index c403caa..725ca8e 100644
  
          RoutingLinkProcessors.forLink(uri.toString())?.let { processor ->
              setIntent(Intent(intent).setAction(null).setData(null))
-@@ -916,8 +965,10 @@ class MainActivity :
+@@ -916,8 +1044,10 @@ class MainActivity :
          syncState: Boolean = true,
      ) {
          if (fragment == null) return
@@ -1325,10 +1847,14 @@ index c403caa..725ca8e 100644
              (fragment is SettingsFragment && DataStore.showBottomBarInSettings)
          binding.stats.useExternalScrollDriver =
              fragment is ConfigurationFragment || fragment is SettingsFragment
-@@ -959,6 +1010,10 @@ class MainActivity :
+@@ -959,6 +1089,14 @@ class MainActivity :
          @IdRes id: Int,
      ): Boolean {
          when (id) {
++            R.id.nav_mobiletina_clear_all -> {
++                confirmClearAllConfigurations()
++                return true
++            }
 +            R.id.nav_mobiletina -> {
 +                displayFragment(MobileTinaHomeFragment())
 +            }
@@ -1336,7 +1862,7 @@ index c403caa..725ca8e 100644
              R.id.nav_configuration -> {
                  displayFragment(ConfigurationFragment())
              }
-@@ -1018,6 +1073,7 @@ class MainActivity :
+@@ -1018,6 +1156,7 @@ class MainActivity :
          val previousState = renderedServiceState
          renderedServiceState = state
          DataStore.serviceState = state
@@ -1344,7 +1870,7 @@ index c403caa..725ca8e 100644
  
          if (bottomControlsVisibleForCurrentFragment) {
              binding.fab.changeState(state, previousState, animate)
-@@ -1141,6 +1197,12 @@ class MainActivity :
+@@ -1141,6 +1280,12 @@ class MainActivity :
          connection.connect(this, this)
      }
  
@@ -1357,7 +1883,7 @@ index c403caa..725ca8e 100644
      private val connect =
          registerForActivityResult(VpnRequestActivity.StartService()) {
              if (it) snackbar(R.string.vpn_permission_denied).show()
-@@ -1227,6 +1289,9 @@ class MainActivity :
+@@ -1227,6 +1372,9 @@ class MainActivity :
      }
  
      override fun onDestroy() {
@@ -1517,7 +2043,7 @@ index b6c495f..102db94 100644
          list("tunUnrecognizedTraffic", R.drawable.ic_baseline_add_road_24, R.string.title_tun_unrecognized_traffic, R.array.tun_unrecognized_traffic_mode, R.array.tun_unrecognized_traffic_mode_values, R.string.summary_tun_unrecognized_traffic),
          list("tunSystemDnsTraffic", R.drawable.ic_baseline_add_road_24, R.string.title_tun_system_dns_traffic, R.array.tun_system_dns_traffic_mode, R.array.tun_system_dns_traffic_mode_values, R.string.summary_tun_system_dns_traffic),
 diff --git a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/compose/MainComposeShell.kt b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/compose/MainComposeShell.kt
-index 26620ca..b8c98e3 100644
+index 26620ca..8a228c6 100644
 --- a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/compose/MainComposeShell.kt
 +++ b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/compose/MainComposeShell.kt
 @@ -3,9 +3,16 @@ package io.nekohasekai.sagernet.ui.compose
@@ -1546,29 +2072,34 @@ index 26620ca..b8c98e3 100644
      var trafficVisible by mutableStateOf(false)
      var proxyAppsEnabled by mutableStateOf(false)
  
-@@ -62,11 +69,12 @@ private data class DrawerDestination(
+@@ -62,16 +69,9 @@ private data class DrawerDestination(
  )
  
  private val primaryDestinations = listOf(
 -    DrawerDestination(R.id.nav_configuration, R.string.menu_configuration, R.drawable.ic_action_description),
 -    DrawerDestination(R.id.nav_group, R.string.menu_group, R.drawable.ic_baseline_view_list_24),
-+    DrawerDestination(R.id.nav_mobiletina, R.string.mobiletina_menu_home, R.drawable.ic_service_idle),
-+    DrawerDestination(R.id.nav_configuration, R.string.mobiletina_mode_manual, R.drawable.ic_action_description),
-+    DrawerDestination(R.id.nav_group, R.string.mobiletina_menu_subscriptions, R.drawable.ic_baseline_view_list_24),
-     DrawerDestination(R.id.nav_route, R.string.menu_route, R.drawable.ic_maps_directions),
-     DrawerDestination(R.id.nav_adblock, R.string.adblock, R.drawable.ic_baseline_filter_list_24),
+-    DrawerDestination(R.id.nav_route, R.string.menu_route, R.drawable.ic_maps_directions),
+-    DrawerDestination(R.id.nav_adblock, R.string.adblock, R.drawable.ic_baseline_filter_list_24),
 -    DrawerDestination(R.id.nav_settings, R.string.settings, R.drawable.ic_action_settings),
+-)
+-
+-private val utilityDestinations = listOf(
+-    DrawerDestination(R.id.nav_logcat, R.string.menu_log, R.drawable.ic_baseline_bug_report_24),
+-    DrawerDestination(R.id.nav_tools, R.string.menu_tools, R.drawable.baseline_construction_24),
++    DrawerDestination(R.id.nav_mobiletina, R.string.mobiletina_menu_home, R.drawable.ic_baseline_home_24),
++    DrawerDestination(R.id.nav_group, R.string.mobiletina_menu_subscriptions, R.drawable.ic_baseline_view_list_24),
 +    DrawerDestination(R.id.nav_settings, R.string.mobiletina_menu_settings, R.drawable.ic_action_settings),
  )
  
- private val utilityDestinations = listOf(
-@@ -113,25 +121,24 @@ internal fun MainComposeDrawer(
+ @Composable
+@@ -113,25 +113,24 @@ internal fun MainComposeDrawer(
          drawerState = drawerState,
          drawerContent = {
              ModalDrawerSheet(
 +                drawerContainerColor = MaterialTheme.colorScheme.surface,
                  modifier = Modifier
-                     .width(320.dp)
+-                    .width(320.dp)
++                    .width(288.dp)
                      .fillMaxHeight()
                      .focusGroup()
                      .verticalScroll(rememberScrollState()),
@@ -1581,7 +2112,7 @@ index 26620ca..b8c98e3 100644
 -                )
 +                Image(painterResource(R.drawable.mt_nav), contentDescription = null,
 +                    contentScale = androidx.compose.ui.layout.ContentScale.Fit,
-+                    modifier = Modifier.fillMaxWidth().height(168.dp)
++                    modifier = Modifier.fillMaxWidth().height(142.dp)
 +                        .padding(start = 20.dp, top = 30.dp, end = 20.dp, bottom = 10.dp))
                  DrawerItems(
                      primaryDestinations,
@@ -1594,7 +2125,7 @@ index 26620ca..b8c98e3 100644
                      icon = { Icon(painterResource(R.drawable.ic_navigation_apps), contentDescription = null) },
                      badge = {
                          Switch(
-@@ -141,6 +148,7 @@ internal fun MainComposeDrawer(
+@@ -141,24 +140,20 @@ internal fun MainComposeDrawer(
                          )
                      },
                      selected = false,
@@ -1602,14 +2133,62 @@ index 26620ca..b8c98e3 100644
                      onClick = { onOpenApps(); state.closeDrawer() },
                      modifier = Modifier
                          .tvFocusTarget()
-@@ -191,6 +199,7 @@ private fun DrawerItem(
+                         .padding(NavigationDrawerItemDefaults.ItemPadding),
+                 )
+-                HorizontalDivider(Modifier.padding(vertical = 8.dp))
+-                Column {
+-                    if (state.trafficVisible) {
+-                        DrawerItem(
+-                            DrawerDestination(R.id.nav_traffic, R.string.menu_dashboard, R.drawable.ic_baseline_transform_24),
+-                            state.selectedItemId,
+-                        ) { onNavigate(it); state.closeDrawer() }
+-                    }
+-                    DrawerItems(utilityDestinations, state.selectedItemId) { onNavigate(it); state.closeDrawer() }
+-                }
+-                HorizontalDivider(Modifier.padding(vertical = 8.dp))
++                DrawerDivider()
++                DrawerItem(
++                    DrawerDestination(R.id.nav_about, R.string.mobiletina_menu_about, R.drawable.ic_baseline_info_24),
++                    state.selectedItemId,
++                ) { onNavigate(it); state.closeDrawer() }
++                DrawerDivider()
+                 DrawerItem(
+-                    DrawerDestination(R.id.nav_about, R.string.menu_about, R.drawable.ic_baseline_info_24),
++                    DrawerDestination(R.id.nav_mobiletina_clear_all, R.string.mobiletina_clear_all, R.drawable.baseline_delete_sweep_24),
+                     state.selectedItemId,
+                 ) { onNavigate(it); state.closeDrawer() }
+             }
+@@ -177,6 +172,7 @@ private fun DrawerItems(
+ ) {
+     items.forEachIndexed { index, item ->
+         DrawerItem(item, selectedId, initialFocusRequester.takeIf { index == 0 }, onClick)
++        DrawerDivider()
+     }
+ }
+ 
+@@ -190,7 +186,9 @@ private fun DrawerItem(
+     NavigationDrawerItem(
          label = { Text(stringResource(item.title)) },
          icon = { Icon(painterResource(item.icon), contentDescription = null) },
-         selected = item.id == selectedId,
+-        selected = item.id == selectedId,
++        selected = item.id == selectedId ||
++            (item.id == R.id.nav_mobiletina && selectedId == R.id.nav_configuration),
 +        shape = androidx.compose.foundation.shape.RoundedCornerShape(12.dp),
          onClick = { onClick(item.id) },
          modifier = Modifier
              .then(focusRequester?.let { Modifier.focusRequester(it) } ?: Modifier)
+@@ -198,3 +196,11 @@ private fun DrawerItem(
+             .padding(NavigationDrawerItemDefaults.ItemPadding),
+     )
+ }
++
++@Composable
++private fun DrawerDivider() {
++    HorizontalDivider(
++        modifier = Modifier.padding(horizontal = 20.dp, vertical = 2.dp),
++        color = MaterialTheme.colorScheme.outlineVariant,
++    )
++}
 diff --git a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/compose/NekoComposeTheme.kt b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/compose/NekoComposeTheme.kt
 index 7fa2bbc..c5e115f 100644
 --- a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/compose/NekoComposeTheme.kt
@@ -1655,21 +2234,111 @@ index 7fa2bbc..c5e115f 100644
              CompositionLocalProvider(
                  LocalIndication provides remember(colors.primary) {
 diff --git a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/compose/ProfileCard.kt b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/compose/ProfileCard.kt
-index 15e789c..92b67ef 100644
+index 15e789c..21126bc 100644
 --- a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/compose/ProfileCard.kt
 +++ b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/compose/ProfileCard.kt
-@@ -152,6 +152,11 @@ fun ProfileCard(
-     onDelete: () -> Unit,
-     onSelectionChange: () -> Unit,
+@@ -756,12 +756,6 @@ private fun ProfileOverflowMenu(
+     }
+ }
+ 
+-private enum class ProfileShareSection(val title: Int) {
+-    QR(R.string.share_qr_nfc),
+-    CLIPBOARD(R.string.action_export_clipboard),
+-    CONFIGURATION(R.string.menu_configuration),
+-}
+-
+ @Composable
+ private fun ProfileShareMenu(
+     model: ProfileCardModel,
+@@ -796,10 +790,10 @@ private fun ProfileShareDropdown(
+     onDismissRequest: () -> Unit,
+     onShare: (ProfileShareAction) -> Unit,
  ) {
-+    if (!isTelevisionUi() && !io.nekohasekai.sagernet.database.DataStore.legacyMainView &&
-+        model.layout == ProfileCardLayout.SINGLE && !model.batchSelection) {
-+        MobileTinaProfileCard(model, onClick, onStatusClick, onEdit, onUrlTest, onShare, onDelete)
-+        return
-+    }
-     val televisionUi = isTelevisionUi()
-     val focusHandles = remember(model.entity.id) { ProfileCardFocusHandles() }
-     var bodyFocused by remember(model.entity.id) { mutableStateOf(false) }
+-    var section by remember(model.entity.id) { mutableStateOf<ProfileShareSection?>(null) }
++    var configurationExpanded by remember(model.entity.id) { mutableStateOf(false) }
+     val capabilities = ProfileShareCapabilities.from(model.entity)
+     val dismiss = {
+-        section = null
++        configurationExpanded = false
+         onDismissRequest()
+     }
+     val select: (ProfileShareAction) -> Unit = { action ->
+@@ -807,61 +801,31 @@ private fun ProfileShareDropdown(
+         onShare(action)
+     }
+     DropdownMenu(expanded = expanded, onDismissRequest = dismiss) {
+-        val currentSection = section
+-        if (currentSection == null) {
++        if (!configurationExpanded) {
+             if (capabilities.links) {
+                 ProfileMenuItem(R.string.share_qr_nfc, true) {
+-                    section = ProfileShareSection.QR
++                    select(if (capabilities.standardLinks) ProfileShareAction.STANDARD_QR
++                        else ProfileShareAction.UNIVERSAL_QR)
+                 }
+                 ProfileMenuItem(R.string.action_export_clipboard, true) {
+-                    section = ProfileShareSection.CLIPBOARD
++                    select(if (capabilities.standardLinks) ProfileShareAction.STANDARD_CLIPBOARD
++                        else ProfileShareAction.UNIVERSAL_CLIPBOARD)
+                 }
+             }
+             if (capabilities.configuration) {
+-                ProfileMenuItem(R.string.menu_configuration, true) {
+-                    section = ProfileShareSection.CONFIGURATION
+-                }
++                ProfileMenuItem(R.string.menu_configuration, true) { configurationExpanded = true }
+             }
+         } else {
+             DropdownMenuItem(
+-                text = { Text(stringResource(currentSection.title)) },
+-                leadingIcon = {
+-                    Icon(
+-                        painterResource(R.drawable.baseline_arrow_back_24),
+-                        contentDescription = null,
+-                    )
+-                },
+-                onClick = { section = null },
++                text = { Text(stringResource(R.string.menu_configuration)) },
++                leadingIcon = { Icon(painterResource(R.drawable.baseline_arrow_back_24), null) },
++                onClick = { configurationExpanded = false },
+             )
+-            when (currentSection) {
+-                ProfileShareSection.QR -> {
+-                    if (capabilities.standardLinks) {
+-                        ProfileMenuItem(R.string.standard, true) {
+-                            select(ProfileShareAction.STANDARD_QR)
+-                        }
+-                    }
+-                    ProfileMenuItem(R.string.sn_link, true) {
+-                        select(ProfileShareAction.UNIVERSAL_QR)
+-                    }
+-                }
+-                ProfileShareSection.CLIPBOARD -> {
+-                    if (capabilities.standardLinks) {
+-                        ProfileMenuItem(R.string.standard, true) {
+-                            select(ProfileShareAction.STANDARD_CLIPBOARD)
+-                        }
+-                    }
+-                    ProfileMenuItem(R.string.sn_link, true) {
+-                        select(ProfileShareAction.UNIVERSAL_CLIPBOARD)
+-                    }
+-                }
+-                ProfileShareSection.CONFIGURATION -> {
+-                    ProfileMenuItem(R.string.action_export_clipboard, true) {
+-                        select(ProfileShareAction.CONFIGURATION_CLIPBOARD)
+-                    }
+-                    ProfileMenuItem(R.string.action_export_file, true) {
+-                        select(ProfileShareAction.CONFIGURATION_FILE)
+-                    }
+-                }
++            ProfileMenuItem(R.string.action_export_clipboard, true) {
++                select(ProfileShareAction.CONFIGURATION_CLIPBOARD)
++            }
++            ProfileMenuItem(R.string.action_export_file, true) {
++                select(ProfileShareAction.CONFIGURATION_FILE)
+             }
+         }
+     }
 diff --git a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/compose/ThemePickerDialog.kt b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/compose/ThemePickerDialog.kt
 index 3120b47..a3140d5 100644
 --- a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/compose/ThemePickerDialog.kt
@@ -2093,6 +2762,25 @@ index c511cbb..42e592b 100644
 +    </io.nekohasekai.sagernet.widget.FabCluster>
 +    <include layout="@layout/mobiletina_manual_dock" />
  </androidx.coordinatorlayout.widget.CoordinatorLayout>
+diff --git a/workspace/NekoBoxForAndroid/app/src/main/res/layout/layout_profile_list.xml b/workspace/NekoBoxForAndroid/app/src/main/res/layout/layout_profile_list.xml
+index d331eab..959888f 100644
+--- a/workspace/NekoBoxForAndroid/app/src/main/res/layout/layout_profile_list.xml
++++ b/workspace/NekoBoxForAndroid/app/src/main/res/layout/layout_profile_list.xml
+@@ -1,4 +1,8 @@
+ <?xml version="1.0" encoding="utf-8"?>
++<androidx.swiperefreshlayout.widget.SwipeRefreshLayout xmlns:android="http://schemas.android.com/apk/res/android"
++    android:id="@+id/mobiletina_manual_refresh"
++    android:layout_width="match_parent"
++    android:layout_height="match_parent">
+ <io.nekohasekai.sagernet.widget.ProfileListRecyclerView xmlns:android="http://schemas.android.com/apk/res/android"
+     xmlns:app="http://schemas.android.com/apk/res-auto"
+     android:id="@+id/configuration_list"
+@@ -13,3 +17,5 @@
+     app:fastScrollAutoHide="true"
+     app:fastScrollThumbColor="?colorPrimary"
+     app:fastScrollThumbInactiveColor="?colorPrimary" />
++
++</androidx.swiperefreshlayout.widget.SwipeRefreshLayout>
 diff --git a/workspace/NekoBoxForAndroid/app/src/main/res/menu/add_profile_menu.xml b/workspace/NekoBoxForAndroid/app/src/main/res/menu/add_profile_menu.xml
 index 09e6e0d..efad7c0 100644
 --- a/workspace/NekoBoxForAndroid/app/src/main/res/menu/add_profile_menu.xml
@@ -2383,14 +3071,14 @@ index fde311a..1891a31 100644
              val originalFileName = output.outputFileName.get()
              output.outputFileName.set(
 diff --git a/workspace/NekoBoxForAndroid/nb4a.properties b/workspace/NekoBoxForAndroid/nb4a.properties
-index b5f787d..cd1b873 100644
+index b5f787d..4b84e43 100644
 --- a/workspace/NekoBoxForAndroid/nb4a.properties
 +++ b/workspace/NekoBoxForAndroid/nb4a.properties
 @@ -1,4 +1,4 @@
 -PACKAGE_NAME=com.nb4a.plus
 -VERSION_NAME=1.4.2-97
 +PACKAGE_NAME=com.nb4a.mobiletina
-+VERSION_NAME=1.4.2-99
++VERSION_NAME=1.4.2-100
  PRE_VERSION_NAME=pre-1.4.2-20260214-1
 -VERSION_CODE=84
-+VERSION_CODE=86
++VERSION_CODE=87

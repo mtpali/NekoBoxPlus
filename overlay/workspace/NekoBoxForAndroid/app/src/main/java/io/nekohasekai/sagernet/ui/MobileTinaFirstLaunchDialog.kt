@@ -1,10 +1,16 @@
 package io.nekohasekai.sagernet.ui
 
 import android.app.Dialog
+import android.content.ActivityNotFoundException
+import android.content.Intent
 import android.content.res.ColorStateList
 import android.graphics.Color
 import android.graphics.Typeface
 import android.graphics.drawable.GradientDrawable
+import android.net.Uri
+import android.text.SpannableString
+import android.text.Spanned
+import android.text.style.UnderlineSpan
 import android.view.Gravity
 import android.view.View
 import android.view.ViewGroup
@@ -72,8 +78,13 @@ internal object MobileTinaFirstLaunchDialog {
         })
 
         lines.forEach { value ->
+            val handle = value.substringAfter(':', "").trim()
+                .takeIf { it in setOf("mobile.tina", "mobile.tina2", "mobile.tinaa") }
             root.addView(TextView(activity).apply {
-                text = value
+                text = if (handle == null) value else SpannableString(value).apply {
+                    val start = value.indexOf(handle)
+                    setSpan(UnderlineSpan(), start, start + handle.length, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+                }
                 setTextColor(Color.WHITE)
                 textSize = 15f
                 gravity = Gravity.CENTER
@@ -87,6 +98,20 @@ internal object MobileTinaFirstLaunchDialog {
                     cornerRadius = dp(activity, 14).toFloat()
                     setColor(Color.rgb(18, 18, 20))
                     setStroke(dp(activity, 1), Color.WHITE)
+                }
+                if (handle != null) {
+                    isFocusable = true
+                    setOnClickListener {
+                        try {
+                            activity.startActivity(Intent(Intent.ACTION_VIEW,
+                                Uri.parse("instagram://user?username=$handle")))
+                        } catch (_: ActivityNotFoundException) {
+                            runCatching {
+                                activity.startActivity(Intent(Intent.ACTION_VIEW,
+                                    Uri.parse("https://www.instagram.com/$handle/")))
+                            }
+                        }
+                    }
                 }
             }, LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT,

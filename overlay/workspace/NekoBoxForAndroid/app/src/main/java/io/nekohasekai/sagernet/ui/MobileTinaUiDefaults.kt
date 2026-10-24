@@ -4,12 +4,26 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import io.nekohasekai.sagernet.AppIconManager
+import io.nekohasekai.sagernet.GroupOrder
+import io.nekohasekai.sagernet.database.AppData
+import io.nekohasekai.sagernet.database.GroupManager
 import io.nekohasekai.sagernet.database.DataStore
 import io.nekohasekai.sagernet.utils.Theme
 
 /** Apply the requested defaults once on upgrade; subsequent user choices remain untouched. */
 object MobileTinaUiDefaults {
     private const val MIGRATED = "mobiletinaPlainUiDefaultsV2"
+
+    suspend fun applyStoredData() {
+        val key = "mobiletinaDelayOrderV1"
+        if (DataStore.configurationStore.getBoolean(key, false)) return
+        AppData.groups.allGroups().filter { it.order == GroupOrder.ORIGIN }.forEach {
+            it.order = GroupOrder.BY_DELAY
+            AppData.groups.updateGroup(it)
+            GroupManager.postUpdate(it)
+        }
+        DataStore.configurationStore.putBoolean(key, true)
+    }
 
     fun apply() {
         if (DataStore.configurationStore.getBoolean(MIGRATED, false)) return
