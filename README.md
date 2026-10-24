@@ -5,10 +5,11 @@ Android VPN client based on NekoBox+ with MobileTina additions.
 - Application name: `VPN`
 - Application ID: `com.nb4a.mobiletina`
 - Supported ABIs: `armeabi-v7a`, `arm64-v8a`
-- All upstream protocols, settings, menus and actions are retained.
+- Upstream protocols and menu destinations are retained. The requested UI exceptions are the original About screen, alternate launcher icons/icon selector, translated languages, and branded startup artwork.
+- The default interface uses the owner's Exclave font and a plain light/dark palette. Per-app routing starts disabled; WhatsApp, Instagram, Telegram, Chrome and Google Search are prioritized when installed.
 - AmneziaWG is supplied by the original NekoBox+ core.
 
-The complete upstream source is pinned as the `upstream` Git submodule. Custom source files live in `overlay` and build adaptation scripts in `scripts`. Run `git clone --recurse-submodules` to obtain both.
+The complete upstream source is pinned as the `upstream` Git submodule. Custom source files live in `overlay`, changes to existing files in `patches/app.patch`, requested file removals in `SOURCE_REMOVALS.json`, and build adaptation scripts in `scripts`. Run `git clone --recurse-submodules` to obtain both.
 
 ## Build
 

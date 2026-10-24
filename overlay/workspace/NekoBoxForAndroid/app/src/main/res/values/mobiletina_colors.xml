@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="mobiletina_primary">#17181C</color>
+    <color name="mobiletina_on_primary">#FFFFFF</color>
+    <color name="mobiletina_surface">#FFFFFF</color>
+    <color name="mobiletina_container">#F5F6F8</color>
+    <color name="mobiletina_text">#17181C</color>
+    <color name="mobiletina_secondary">#60646F</color>
+    <color name="mobiletina_stroke">#DDE0E7</color>
+    <color name="mobiletina_instagram">#E91E63</color>
+    <color name="mobiletina_telegram">#229ED9</color>
+</resources>

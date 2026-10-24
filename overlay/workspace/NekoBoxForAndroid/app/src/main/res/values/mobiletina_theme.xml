@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Neutral palette and font taken from the owner's Exclave UI. -->
+    <style name="Theme.SagerNet.MobileTina" parent="Theme.SagerNet">
+        <item name="colorPrimary">@color/mobiletina_primary</item>
+        <item name="colorOnPrimary">@color/mobiletina_on_primary</item>
+        <item name="colorPrimaryContainer">@color/mobiletina_container</item>
+        <item name="colorOnPrimaryContainer">@color/mobiletina_text</item>
+        <item name="colorSecondary">@color/mobiletina_secondary</item>
+        <item name="colorOnSecondary">@color/mobiletina_on_primary</item>
+        <item name="colorSecondaryContainer">@color/mobiletina_container</item>
+        <item name="colorOnSecondaryContainer">@color/mobiletina_text</item>
+        <item name="colorSurface">@color/mobiletina_surface</item>
+        <item name="colorOnSurface">@color/mobiletina_text</item>
+        <item name="colorSurfaceVariant">@color/mobiletina_stroke</item>
+        <item name="colorOnSurfaceVariant">@color/mobiletina_secondary</item>
+        <item name="colorSurfaceContainer">@color/mobiletina_container</item>
+        <item name="colorSurfaceContainerHigh">@color/mobiletina_container</item>
+        <item name="colorOutline">@color/mobiletina_secondary</item>
+        <item name="colorOutlineVariant">@color/mobiletina_stroke</item>
+    </style>
+    <style name="Theme.SagerNet.Dialog.MobileTina" parent="Theme.SagerNet.Dialog">
+        <item name="colorPrimary">@color/mobiletina_primary</item>
+        <item name="colorOnPrimary">@color/mobiletina_on_primary</item>
+        <item name="colorPrimaryContainer">@color/mobiletina_container</item>
+        <item name="colorOnPrimaryContainer">@color/mobiletina_text</item>
+        <item name="colorSecondary">@color/mobiletina_secondary</item>
+        <item name="colorOnSecondary">@color/mobiletina_on_primary</item>
+        <item name="colorSecondaryContainer">@color/mobiletina_container</item>
+        <item name="colorOnSecondaryContainer">@color/mobiletina_text</item>
+        <item name="colorSurface">@color/mobiletina_surface</item>
+        <item name="colorOnSurface">@color/mobiletina_text</item>
+        <item name="colorSurfaceVariant">@color/mobiletina_stroke</item>
+        <item name="colorOnSurfaceVariant">@color/mobiletina_secondary</item>
+        <item name="colorSurfaceContainer">@color/mobiletina_container</item>
+        <item name="colorSurfaceContainerHigh">@color/mobiletina_container</item>
+        <item name="colorOutline">@color/mobiletina_secondary</item>
+        <item name="colorOutlineVariant">@color/mobiletina_stroke</item>
+    </style>
+</resources>

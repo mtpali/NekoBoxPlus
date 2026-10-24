@@ -12,7 +12,18 @@ apk, aapt = map(Path, sys.argv[1:3])
 badging = subprocess.check_output([str(aapt), "dump", "badging", str(apk)], text=True)
 package = re.search(r"package: name='([^']+)' versionCode='([^']+)' versionName='([^']+)'", badging)
 assert package and package[1] == 'com.nb4a.mobiletina', badging[:200]
+properties = dict(line.split('=',1) for line in (ROOT/'upstream/workspace/NekoBoxForAndroid/nb4a.properties').read_text().splitlines() if '=' in line)
+assert package[2] == str(int(properties['VERSION_CODE']) * 5)
+assert package[3] == properties['VERSION_NAME']
 assert 'application-debuggable' not in badging
+resources = subprocess.check_output([str(aapt), 'dump', 'resources', str(apk)], text=True)
+assert 'mipmap/ic_launcher_light' not in resources and 'mipmap/ic_launcher_dark' not in resources
+assert 'drawable/splash_screen' not in resources
+configurations = subprocess.check_output([str(aapt), 'dump', 'configurations', str(apk)], text=True)
+removed_locales = {match[1] for relative in json.loads((ROOT/'SOURCE_REMOVALS.json').read_text())
+                  if (match := re.search(r'/res/values-([a-z]{2,3})(?:-r[A-Z]{2})?/', relative))}
+for language in removed_locales:
+    assert not re.search(r'(?m)^\s*(?:b\+)?' + language + r'(?:-|\+|\s*$)', configurations), 'Unexpected APK translation: ' + language
 expected_abis = {'armeabi-v7a', 'arm64-v8a'} if 'universal' in apk.name else ({'armeabi-v7a'} if 'armeabi-v7a' in apk.name else {'arm64-v8a'})
 with zipfile.ZipFile(apk) as z:
     abis = {name.split('/')[1] for name in z.namelist() if name.startswith('lib/') and name.endswith('.so')}
@@ -26,6 +37,9 @@ with zipfile.ZipFile(apk) as z:
     expected = {hashlib.sha256(p.read_bytes()).hexdigest() for p in (ROOT/'overlay/workspace/NekoBoxForAndroid/app/src/main/res/raw').glob('mt_auto_*.bin')}
     actual = {hashlib.sha256(z.read(p)).hexdigest() for p in z.namelist() if p.endswith('.bin') and z.getinfo(p).file_size < 500_000}
     assert expected and expected <= actual, 'Connection artwork was changed or removed'
+    font_digest = (ROOT/'REFERENCE_EXCLAVE_FONT_SHA256').read_text().strip()
+    assert any(hashlib.sha256(z.read(name)).hexdigest() == font_digest
+               for name in z.namelist() if name.endswith('.ttf')), 'Missing Exclave font'
 report = {'file': apk.name, 'bytes': apk.stat().st_size, 'sha256': hashlib.sha256(apk.read_bytes()).hexdigest(),
           'package': package[1], 'versionCode': package[2], 'versionName': package[3], 'abis': sorted(abis),
           'native_source': (ROOT/'UPSTREAM_COMMIT').read_text().strip(), 'debuggable': False}

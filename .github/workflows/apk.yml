@@ -67,6 +67,7 @@ jobs:
           cp -r upstream/workspace/NekoBoxForAndroid/app/build/test-results/testPlusDebugUnitTest dist/validation/
           cp "$ANDROID_HOME/build-tools/36.0.0/lib/apksigner.jar" dist/signing-tools/
           cp RELEASE_CERT_SHA256 UPSTREAM_COMMIT dist/validation/
+          printf '%s\n' "$GITHUB_SHA" > dist/validation/SOURCE_COMMIT
       - uses: actions/upload-artifact@v4
         if: success()
         with:

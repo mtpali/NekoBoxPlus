@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Apply reviewable application changes to the pinned upstream checkout."""
+import json
 import re
 import shutil
 import subprocess
@@ -22,10 +23,16 @@ for source in sorted((ROOT / "overlay").rglob("*")):
         target = UPSTREAM / source.relative_to(ROOT / "overlay")
         target.parent.mkdir(parents=True, exist_ok=True)
         shutil.copyfile(source, target)
+# Keep user-authorized removals explicit and reproducible without changing the upstream pin.
+for relative in json.loads((ROOT / "SOURCE_REMOVALS.json").read_text()):
+    target = UPSTREAM / relative
+    if not relative.startswith("workspace/NekoBoxForAndroid/app/src/") or not target.resolve().is_relative_to(UPSTREAM.resolve()):
+        raise SystemExit(f"Invalid removal path: {relative}")
+    target.unlink(missing_ok=True)
 res = UPSTREAM / "workspace/NekoBoxForAndroid/app/src/main/res"
 for source in res.glob("values*/**/*.xml"):
     text = source.read_text()
     changed = re.sub(r'(<string\s+[^>]*name="app_name(?:_long)?"[^>]*>).*?(</string>)', r'\g<1>VPN\2', text, flags=re.S)
     if changed != text:
         source.write_text(changed)
-print("Prepared VPN application source; all upstream menu destinations retained.")
+print("Prepared VPN source: original core/menu destinations retained, requested UI removals applied.")

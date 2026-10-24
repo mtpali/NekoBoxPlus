@@ -31,4 +31,7 @@
     <string name="mobiletina_welcome_body">Auto checks the profiles in your selected group. Manual opens the full NekoBox+ interface with all protocols and settings.</string>
     <string name="mobiletina_ir_bypass">Bypass .ir domains</string>
     <string name="mobiletina_ir_bypass_summary">Route .ir domains directly; keep all other routing rules.</string>
+    <string name="mobiletina_simple_theme">Simple</string>
+    <string name="mobiletina_about" translatable="false">درباره موبایل تینا</string>
+    <string name="mobiletina_back_home">Back to home</string>
 </resources>

@@ -10,10 +10,12 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -21,11 +23,14 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.ComposeView
 import androidx.compose.ui.platform.ViewCompositionStrategy
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -217,6 +222,8 @@ private fun MobileTinaHomeScreen(
         else -> R.string.mobiletina_status_disconnected
     }
     Scaffold(
+        contentWindowInsets = WindowInsets(0, 0, 0, 0),
+        containerColor = MaterialTheme.colorScheme.surface,
         topBar = {
             TopAppBar(
                 title = { Text(stringResource(R.string.app_name)) },
@@ -230,30 +237,50 @@ private fun MobileTinaHomeScreen(
         },
     ) { padding ->
         Column(Modifier.fillMaxSize().padding(padding)) {
-            PrimaryTabRow(selectedTabIndex = 0) {
-                Tab(selected = true, onClick = {}, text = { Text(stringResource(R.string.mobiletina_auto)) })
-                Tab(selected = false, onClick = onManual, text = { Text(stringResource(R.string.mobiletina_manual)) })
-            }
-            Column(
-                Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 24.dp, vertical = 24.dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(18.dp),
+            Surface(
+                modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp).fillMaxWidth(),
+                shape = RoundedCornerShape(18.dp),
+                color = MaterialTheme.colorScheme.surfaceContainer,
             ) {
-                TextButton(onClick = onGroups) {
-                    Text(state.groupName.ifBlank { stringResource(R.string.mobiletina_add_subscription) },
-                        maxLines = 2, overflow = TextOverflow.Ellipsis, textAlign = TextAlign.Center)
+                Row(Modifier.padding(4.dp), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Button(
+                        onClick = {},
+                        modifier = Modifier.weight(1f).heightIn(min = 48.dp).semantics { selected = true },
+                        shape = RoundedCornerShape(14.dp),
+                    ) { Text(stringResource(R.string.mobiletina_auto)) }
+                    TextButton(onClick = onManual, modifier = Modifier.weight(1f).heightIn(min = 48.dp)) {
+                        Text(stringResource(R.string.mobiletina_manual))
+                    }
                 }
+            }
+            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
+            Column(
+                Modifier.widthIn(max = 440.dp).fillMaxWidth().navigationBarsPadding().verticalScroll(rememberScrollState())
+                    .padding(horizontal = 20.dp, vertical = 12.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                OutlinedButton(onClick = onGroups, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
+                    shape = RoundedCornerShape(16.dp), border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)) {
+                    Icon(painterResource(R.drawable.ic_baseline_view_list_24), null, Modifier.size(20.dp))
+                    Spacer(Modifier.width(10.dp))
+                    Text(state.groupName.ifBlank { stringResource(R.string.mobiletina_add_subscription) },
+                        maxLines = 2, overflow = TextOverflow.Ellipsis, textAlign = TextAlign.Center,
+                        modifier = Modifier.weight(1f))
+                }
+                Spacer(Modifier.height(4.dp))
                 Box(
-                    Modifier.sizeIn(maxWidth = 226.dp, maxHeight = 226.dp).fillMaxWidth().aspectRatio(1f)
+                    Modifier.sizeIn(maxWidth = 196.dp, maxHeight = 196.dp).fillMaxWidth().aspectRatio(1f)
                         .clip(CircleShape).clickable(role = Role.Button, onClickLabel = stringResource(
                             if (active || busy) R.string.mobiletina_disconnect else R.string.mobiletina_connect,
                         ), onClick = onConnect),
                     contentAlignment = Alignment.Center,
                 ) {
-                    bitmap?.let { Image(it.asImageBitmap(), stringResource(status), Modifier.fillMaxSize()) }
+                    bitmap?.let { Image(it.asImageBitmap(), stringResource(status), Modifier.fillMaxSize(), contentScale = ContentScale.Fit) }
                         ?: CircularProgressIndicator()
                 }
                 Text(stringResource(status), style = MaterialTheme.typography.titleLarge,
+                    textAlign = TextAlign.Center,
                     color = if (state.expired || state.failed) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface)
                 if (state.message.isNotBlank()) Text(state.message, textAlign = TextAlign.Center,
                     style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.error)
@@ -264,8 +291,10 @@ private fun MobileTinaHomeScreen(
                 if (state.ping > 0) Text(stringResource(R.string.mobiletina_ping_value, state.ping),
                     style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
                 if (state.usage.visible) {
-                    Card(onClick = onSubscriptionTap, modifier = Modifier.fillMaxWidth()) {
-                        Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Card(onClick = onSubscriptionTap, modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(18.dp),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer)) {
+                        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                             Text(stringResource(R.string.mobiletina_subscription), style = MaterialTheme.typography.titleMedium)
                             state.usage.used?.let { used ->
                                 val total = state.usage.total?.takeIf { it > 0 }?.let(::formatBytes)
@@ -282,17 +311,30 @@ private fun MobileTinaHomeScreen(
                         }
                     }
                 }
-                FilledTonalButton(onClick = onImport, modifier = Modifier.fillMaxWidth()) {
-                    Icon(painterResource(R.drawable.ic_action_description), null)
+                Button(onClick = onImport, modifier = Modifier.fillMaxWidth().heightIn(min = 50.dp),
+                    shape = RoundedCornerShape(16.dp)) {
+                    Icon(painterResource(R.drawable.ic_action_note_add), null, Modifier.size(20.dp))
                     Spacer(Modifier.width(8.dp))
                     Text(stringResource(R.string.mobiletina_import))
                 }
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
-                    TextButton(onClick = onRefresh) { Text(stringResource(R.string.mobiletina_refresh)) }
-                    TextButton(onClick = onManual) { Text(stringResource(R.string.mobiletina_manual)) }
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    OutlinedButton(onClick = onRefresh, modifier = Modifier.weight(1f).heightIn(min = 48.dp),
+                        shape = RoundedCornerShape(14.dp), contentPadding = PaddingValues(horizontal = 10.dp, vertical = 10.dp)) {
+                        Icon(painterResource(R.drawable.ic_baseline_refresh_24), null, Modifier.size(18.dp))
+                        Spacer(Modifier.width(6.dp))
+                        Text(stringResource(R.string.mobiletina_refresh), textAlign = TextAlign.Center)
+                    }
+                    OutlinedButton(onClick = onManual, modifier = Modifier.weight(1f).heightIn(min = 48.dp),
+                        shape = RoundedCornerShape(14.dp), contentPadding = PaddingValues(horizontal = 10.dp, vertical = 10.dp)) {
+                        Icon(painterResource(R.drawable.ic_action_description), null, Modifier.size(18.dp))
+                        Spacer(Modifier.width(6.dp))
+                        Text(stringResource(R.string.mobiletina_manual))
+                    }
                 }
                 Text(stringResource(R.string.mobiletina_profile_count, state.count), style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Spacer(Modifier.height(12.dp))
+            }
             }
         }
     }
