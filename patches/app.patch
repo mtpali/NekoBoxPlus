@@ -844,10 +844,10 @@ index cc5908d..c0b2051 100644
      // var enableTLSFragment by configurationStore.boolean(Key.ENABLE_TLS_FRAGMENT)
  
 diff --git a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/database/GroupManager.kt b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/database/GroupManager.kt
-index 93f7291..e2223bf 100644
+index 93f7291..6f2fcb0 100644
 --- a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/database/GroupManager.kt
 +++ b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/database/GroupManager.kt
-@@ -146,6 +146,25 @@ object GroupManager {
+@@ -146,6 +146,24 @@ object GroupManager {
          SubscriptionUpdater.reconfigureUpdater()
      }
  
@@ -862,7 +862,6 @@ index 93f7291..e2223bf 100644
 +        }
 +        DataStore.selectedProxy = 0L
 +        DataStore.currentProfile = 0L
-+        DataStore.startedProfile = 0L
 +        DataStore.selectedGroup = fallback.id
 +        previous.forEach { SubscriptionRoutingRepository.deleteFiles(it.id) }
 +        previous.forEach { old -> iterator { groupRemoved(old.id) } }
@@ -1169,7 +1168,7 @@ index c1325b2..0543165 100644
                      app.name.contains(query, ignoreCase = true) ||
                      app.packageName.contains(query, ignoreCase = true) ||
 diff --git a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/ConfigurationFragment.kt b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/ConfigurationFragment.kt
-index 936c057..b4981c1 100644
+index 936c057..12dfd0d 100644
 --- a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/ConfigurationFragment.kt
 +++ b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/ConfigurationFragment.kt
 @@ -45,6 +45,8 @@ import androidx.appcompat.widget.Toolbar
@@ -1263,15 +1262,7 @@ index 936c057..b4981c1 100644
              lastGroupUpdateStamp = null
              didInitialPositionList = false
              if (::configurationListView.isInitialized) {
-@@ -2591,7 +2614,6 @@ class ConfigurationFragment @JvmOverloads constructor(
-         fun switchLayoutMode() {
-             setupLayoutManager()
-             configurationListView.layoutManager = layoutManager
--            if (::bannerAdapter.isInitialized) bannerAdapter.refresh()
- 
-             setupItemTouchHelper()
- 
-@@ -2602,19 +2624,39 @@ class ConfigurationFragment @JvmOverloads constructor(
+@@ -2602,19 +2625,39 @@ class ConfigurationFragment @JvmOverloads constructor(
              if (!::proxyGroup.isInitialized) return
  
              configurationListView = view.findViewById(R.id.configuration_list)
@@ -1315,31 +1306,7 @@ index 936c057..b4981c1 100644
              )
              configurationListView.adapter = combinedAdapter
              configurationListView.setItemViewCacheSize(20)
-@@ -3157,14 +3199,13 @@ class ConfigurationFragment @JvmOverloads constructor(
-                     }
-                 }
-                 proxyGroup = group
--                configurationListView.post { bannerAdapter.refresh() }
-+            if (::bannerAdapter.isInitialized) bannerAdapter.refresh()
-                 reloadProfiles(reloadReason)
-             }
- 
-             override suspend fun groupUpdated(groupId: Long) {
-                 if (groupId != proxyGroup.id) return
-                 proxyGroup = SagerDatabase.groupDao.getById(groupId) ?: return
--                configurationListView.post { bannerAdapter.refresh() }
-                 reloadProfiles(ProfileReloadReason.General)
-             }
- 
-@@ -3174,7 +3215,6 @@ class ConfigurationFragment @JvmOverloads constructor(
-                     pendingManualOrderReload = false
-                 }
-                 proxyGroup = SagerDatabase.groupDao.getById(groupId) ?: return
--                configurationListView.post { bannerAdapter.refresh() }
-                 reloadProfiles(
-                     when (reason) {
-                         GroupManager.ReloadReason.Manual -> ProfileReloadReason.Manual
-@@ -3377,7 +3417,9 @@ class ConfigurationFragment @JvmOverloads constructor(
+@@ -3377,7 +3420,9 @@ class ConfigurationFragment @JvmOverloads constructor(
              RecyclerView.Adapter<SubscriptionBannerHolder>() {
  
              private var presentation =
@@ -1350,7 +1317,7 @@ index 936c057..b4981c1 100644
  
              init {
                  setHasStableIds(true)
-@@ -3423,7 +3465,9 @@ class ConfigurationFragment @JvmOverloads constructor(
+@@ -3423,7 +3468,9 @@ class ConfigurationFragment @JvmOverloads constructor(
              }
  
              fun refresh() {
@@ -1361,7 +1328,7 @@ index 936c057..b4981c1 100644
                  notifyDataSetChanged()
                  (layoutManager as? FixedGridLayoutManager)
                      ?.spanSizeLookup
-@@ -3863,13 +3907,51 @@ class ConfigurationFragment @JvmOverloads constructor(
+@@ -3863,13 +3910,51 @@ class ConfigurationFragment @JvmOverloads constructor(
          toolbarOrNull()?.post { focusTvToolbarAction() }
      }
  
@@ -1414,7 +1381,7 @@ index 936c057..b4981c1 100644
  
          activeToolbar.post {
              if (toolbarOrNull() !== activeToolbar ||
-@@ -4146,6 +4228,7 @@ class ConfigurationFragment @JvmOverloads constructor(
+@@ -4146,6 +4231,7 @@ class ConfigurationFragment @JvmOverloads constructor(
          activeToolbar.inflateMenu(R.menu.profile_selection_menu)
          activeToolbar.setOnMenuItemClickListener(this)
          updateSelectionMenuEnabledState()
@@ -1422,7 +1389,7 @@ index 936c057..b4981c1 100644
      }
  
      private fun enterProfileSelectionMode() {
-@@ -4225,12 +4308,14 @@ class ConfigurationFragment @JvmOverloads constructor(
+@@ -4225,12 +4311,14 @@ class ConfigurationFragment @JvmOverloads constructor(
              object : MenuItem.OnActionExpandListener {
                  override fun onMenuItemActionExpand(item: MenuItem): Boolean {
                      profileSearchExpanded = true
