@@ -1,4 +1,3 @@
-<?xml version="1.0" encoding="utf-8"?>
 <resources>
     <color name="mobiletina_primary">#17181C</color>
     <color name="mobiletina_on_primary">#FFFFFF</color>
@@ -9,4 +8,21 @@
     <color name="mobiletina_stroke">#DDE0E7</color>
     <color name="mobiletina_instagram">#E91E63</color>
     <color name="mobiletina_telegram">#229ED9</color>
+    <color name="mobiletina_mode_surface">#F1F2F6</color>
+    <color name="mobiletina_mode_selected">#17181C</color>
+    <color name="mobiletina_mode_unselected">#F1F2F6</color>
+    <color name="mobiletina_mode_text_selected">#FFFFFF</color>
+    <color name="mobiletina_mode_text_unselected">#343740</color>
+    <color name="mobiletina_mode_stroke">#DDE0E7</color>
+    <color name="mobiletina_status_secondary">#343740</color>
+    <color name="mobiletina_manual_dock_bg">#FFFFFF</color>
+    <color name="mobiletina_manual_dock_text">#343740</color>
+    <color name="mobiletina_about_accent">#E91E63</color>
+    <color name="mobiletina_about_telegram">#229ED9</color>
+    <color name="mobiletina_about_card">#F5F6F8</color>
+    <color name="mobiletina_about_stroke">#DDE0E7</color>
+    <color name="mobiletina_about_text">#17181C</color>
+    <color name="mobiletina_about_secondary">#60646F</color>
+    <color name="mobiletina_header_icon">#111214</color>
+    <color name="mobiletina_primary_content">#111214</color>
 </resources>

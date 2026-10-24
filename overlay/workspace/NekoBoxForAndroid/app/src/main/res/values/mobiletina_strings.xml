@@ -1,4 +1,3 @@
-<?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="mobiletina_auto">Auto</string>
     <string name="mobiletina_manual">Manual</string>
@@ -18,20 +17,51 @@
     <string name="mobiletina_refresh">Refresh subscription</string>
     <string name="mobiletina_profile_count">%1$d available profiles</string>
     <string name="mobiletina_no_internet">Please turn on your internet connection.</string>
-    <string name="mobiletina_no_working_server">No reachable server was found. Try again or choose a profile manually.</string>
+    <string name="mobiletina_no_working_server">سرور فعالی پیدا نشد</string>
     <string name="mobiletina_start_timeout">The service did not start. Check the selected profile and try again.</string>
-    <string name="mobiletina_expired">Your subscription has expired.</string>
-    <string name="mobiletina_testing">Finding a reachable server…</string>
-    <string name="mobiletina_status_connected">Connected</string>
-    <string name="mobiletina_status_connecting">Connecting…</string>
-    <string name="mobiletina_status_failed">Connection unsuccessful</string>
-    <string name="mobiletina_status_disconnected">Tap to connect</string>
-    <string name="mobiletina_ping_value">%1$d ms</string>
-    <string name="mobiletina_welcome_title">Welcome to VPN</string>
-    <string name="mobiletina_welcome_body">Auto checks the profiles in your selected group. Manual opens the full NekoBox+ interface with all protocols and settings.</string>
+    <string name="mobiletina_expired">اشتراک شما منقضی شد</string>
+    <string name="mobiletina_testing">در حال بررسی سرورها…</string>
+    <string name="mobiletina_status_connected">متصل شد</string>
+    <string name="mobiletina_status_connecting">در حال اتصال…</string>
+    <string name="mobiletina_status_failed">اتصال ناموفق بود</string>
+    <string name="mobiletina_status_disconnected">فیلترشکن خاموش است</string>
+    <string name="mobiletina_ping_value">پینگ : %1$d</string>
     <string name="mobiletina_ir_bypass">Bypass .ir domains</string>
     <string name="mobiletina_ir_bypass_summary">Route .ir domains directly; keep all other routing rules.</string>
     <string name="mobiletina_simple_theme">Simple</string>
     <string name="mobiletina_about" translatable="false">درباره موبایل تینا</string>
-    <string name="mobiletina_back_home">Back to home</string>
+    <string name="mobiletina_back_home">بازگشت به صفحه اصلی</string>
+    <string name="mobiletina_mode_auto" translatable="false">حالت خودکار</string>
+    <string name="mobiletina_mode_manual" translatable="false">حالت دستی</string>
+    <string name="mobiletina_connect_action" translatable="false">اتصال</string>
+    <string name="mobiletina_open_menu" translatable="false">باز کردن منو</string>
+    <string name="mobiletina_menu_home" translatable="false">‎صفحه اصلی</string>
+    <string name="mobiletina_menu_subscriptions" translatable="false">‎اشتراک‌ها</string>
+    <string name="mobiletina_menu_per_app" translatable="false">‎تفکیک برنامه‌ها</string>
+    <string name="mobiletina_menu_about" translatable="false">‎درباره موبایل تینا</string>
+    <string name="mobiletina_app_title" translatable="false">فیلترشکن</string>
+    <string name="mobiletina_scan" translatable="false">اسکن کد</string>
+    <string name="mobiletina_add" translatable="false">افزودن سرور</string>
+    <string name="mobiletina_days_remaining" translatable="false">%1$d روز باقی‌مانده</string>
+    <string name="mobiletina_traffic_summary" translatable="false">%1$.1f GB / %2$.1f GB</string>
+    <string name="mobiletina_menu_settings" translatable="false">‎تنظیمات</string>
+    <string name="mobiletina_ping_testing" translatable="false">در حال بررسی پینگ…</string>
+    <string name="mobiletina_ping_tap" translatable="false">بررسی پینگ</string>
+    <string name="mobiletina_refreshing_subscription" translatable="false">در حال بروزرسانی اشتراک…</string>
+    <string name="mobiletina_inactive" translatable="false">غیرفعال</string>
+    <string name="mobiletina_more_update" translatable="false">بروزرسانی اشتراک</string>
+    <string name="mobiletina_more_speed_test" translatable="false">تست سرعت</string>
+    <string name="mobiletina_more_sort" translatable="false">مرتب سازی</string>
+    <string name="mobiletina_sort_latency" translatable="false">بر اساس پینگ</string>
+    <string name="mobiletina_sort_name" translatable="false">بر اساس نام</string>
+    <string name="mobiletina_sort_original" translatable="false">ترتیب اصلی</string>
+    <string name="mobiletina_subscriptions_unlocked" translatable="false">بخش اشتراک‌ها تا زمان بستن برنامه فعال شد</string>
+    <string name="mobiletina_copy_subscription_link" translatable="false">کپی لینک اشتراک</string>
+    <string name="mobiletina_all_configs_copied" translatable="false">تمام کانفیگ‌ها کپی شدند</string>
+    <string name="mobiletina_cancel" translatable="false">بیخیال</string>
+    <string name="mobiletina_enable_internet" translatable="false">لطفا اینترنت خود را روشن کنید</string>
+    <string name="mobiletina_dialog_close" translatable="false">باشه</string>
+    <string name="mobiletina_search" translatable="false">جستجوی سرور</string>
+    <string name="mobiletina_more_tools" translatable="false">سایر ابزارها</string>
+    <string name="mobiletina_group" translatable="false">انتخاب اشتراک / گروه</string>
 </resources>

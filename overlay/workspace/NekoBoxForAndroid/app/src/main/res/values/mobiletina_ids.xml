@@ -1,2 +1,2 @@
 <?xml version="1.0" encoding="utf-8"?>
-<resources><item type="id" name="nav_mobiletina"/><item type="id" name="action_mobiletina_auto"/></resources>
+<resources><item type="id" name="nav_mobiletina"/><item type="id" name="action_mobiletina_auto"/><item type="id" name="action_mobiletina_import"/><item type="id" name="action_mobiletina_search"/><item type="id" name="action_mobiletina_group"/></resources>

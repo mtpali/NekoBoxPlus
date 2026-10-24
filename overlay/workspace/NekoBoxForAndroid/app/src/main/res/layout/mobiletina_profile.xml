@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<com.google.android.material.card.MaterialCardView xmlns:ns0="http://schemas.android.com/apk/res/android" xmlns:ns1="http://schemas.android.com/apk/res-auto" xmlns:ns2="http://schemas.android.com/tools" ns0:id="@+id/content" ns0:layout_width="match_parent" ns0:layout_height="wrap_content" ns0:layout_marginStart="10dp" ns0:layout_marginTop="2dp" ns0:layout_marginEnd="10dp" ns0:layout_marginBottom="2dp" ns0:clickable="true" ns0:focusable="true" ns0:minHeight="46dp" ns1:cardCornerRadius="11dp" ns1:cardElevation="0dp" ns1:strokeColor="@color/mobiletina_mode_stroke" ns1:strokeWidth="1dp">
+    <LinearLayout ns0:id="@+id/content_lin" ns0:layout_width="match_parent" ns0:layout_height="wrap_content" ns0:focusable="true" ns0:orientation="horizontal">
+        <LinearLayout ns0:id="@+id/selected_view" ns0:layout_width="3dp" ns0:layout_height="match_parent" ns0:background="?selectedColorPrimary" ns0:orientation="horizontal" ns0:visibility="invisible" ns2:visibility="visible" />
+        <LinearLayout ns0:layout_width="match_parent" ns0:layout_height="match_parent" ns0:nextFocusRight="@+id/edit" ns0:orientation="vertical">
+            <LinearLayout ns0:id="@+id/container" ns0:layout_width="match_parent" ns0:layout_height="wrap_content" ns0:orientation="horizontal">
+                <LinearLayout ns0:layout_width="0dp" ns0:layout_height="wrap_content" ns0:layout_gravity="center_vertical" ns0:layout_weight="1" ns0:gravity="center_vertical" ns0:paddingStart="12dp" ns0:paddingTop="7dp" ns0:paddingBottom="4dp">
+                    <TextView ns0:id="@+id/profile_name" ns0:layout_width="wrap_content" ns0:layout_height="wrap_content" ns0:textColor="?android:attr/textColorPrimary" ns0:textSize="17sp" ns0:textStyle="bold" ns2:text="@string/profile_name" ns0:maxLines="2" ns0:ellipsize="end" />
+                </LinearLayout>
+                <androidx.appcompat.widget.AppCompatImageView ns0:id="@+id/edit" ns0:layout_width="wrap_content" ns0:layout_height="wrap_content" ns0:layout_gravity="top" ns0:background="?attr/selectableItemBackgroundBorderless" ns0:contentDescription="@string/edit" ns0:focusable="false" ns0:visibility="gone" ns0:padding="12dp" ns1:srcCompat="@drawable/ic_image_edit" />
+                <androidx.appcompat.widget.AppCompatImageView ns0:id="@+id/deleteIcon" ns0:layout_width="wrap_content" ns0:layout_height="wrap_content" ns0:layout_gravity="top" ns0:background="?attr/selectableItemBackgroundBorderless" ns0:contentDescription="@string/delete" ns0:focusable="false" ns0:visibility="gone" ns0:padding="12dp" ns1:srcCompat="@drawable/ic_action_delete" />
+                <androidx.appcompat.widget.AppCompatImageView ns0:id="@+id/mobiletina_profile_more" ns0:layout_width="48dp" ns0:layout_height="48dp" ns0:layout_gravity="center_vertical" ns0:padding="12dp" ns0:background="?attr/selectableItemBackgroundBorderless" ns0:contentDescription="@string/toolbar_more_actions" ns0:src="@drawable/ic_baseline_more_vert_24" />
+            </LinearLayout>
+            <LinearLayout ns0:layout_width="match_parent" ns0:layout_height="wrap_content" ns0:orientation="horizontal" ns0:paddingStart="12dp" ns0:paddingEnd="8dp" ns0:paddingBottom="4dp" ns0:visibility="gone" ns2:visibility="visible">
+                <TextView ns0:id="@+id/profile_address" ns0:layout_width="0dp" ns0:layout_height="wrap_content" ns0:layout_weight="1" ns0:textAppearance="?android:attr/textAppearanceSmall" ns0:textColor="?android:attr/textColorSecondary" ns0:textDirection="locale" ns2:text="@string/server_address" />
+                <TextView ns0:id="@+id/traffic_text" ns0:layout_width="wrap_content" ns0:layout_height="wrap_content" ns0:layout_marginStart="8dp" ns0:textAppearance="?android:attr/textAppearanceSmall" ns0:textColor="?android:attr/textColorSecondary" ns0:textDirection="locale" ns2:text="@string/traffic" />
+            </LinearLayout>
+            <LinearLayout ns0:layout_width="match_parent" ns0:layout_height="wrap_content" ns0:orientation="horizontal" ns0:paddingStart="12dp" ns0:paddingEnd="8dp" ns0:paddingBottom="5dp">
+                <TextView ns0:id="@+id/profile_type" ns0:layout_width="0dp" ns0:layout_height="wrap_content" ns0:layout_weight="1" ns0:textColor="?colorAccent" ns0:textDirection="locale" ns0:textSize="13sp" ns0:visibility="gone" ns2:text="Protocol" />
+                <TextView ns0:id="@+id/profile_status" ns0:layout_width="wrap_content" ns0:layout_height="wrap_content" ns0:layout_marginStart="8dp" ns0:textAppearance="?android:attr/textAppearanceSmall" ns0:textColor="?colorAccent" ns0:textDirection="locale" ns2:text="1 ms" ns2:textColor="@color/material_green_500" />
+            </LinearLayout>
+        </LinearLayout>
+    </LinearLayout>
+</com.google.android.material.card.MaterialCardView>

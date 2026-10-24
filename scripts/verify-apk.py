@@ -37,6 +37,10 @@ with zipfile.ZipFile(apk) as z:
     expected = {hashlib.sha256(p.read_bytes()).hexdigest() for p in (ROOT/'overlay/workspace/NekoBoxForAndroid/app/src/main/res/raw').glob('mt_auto_*.bin')}
     actual = {hashlib.sha256(z.read(p)).hexdigest() for p in z.namelist() if p.endswith('.bin') and z.getinfo(p).file_size < 500_000}
     assert expected and expected <= actual, 'Connection artwork was changed or removed'
+    reference_art = set(json.loads((ROOT/'EXCLAVE_UI_ASSETS_SHA256.json').read_text()).values())
+    packaged_art = {hashlib.sha256(z.read(name)).hexdigest() for name in z.namelist()
+                    if name.endswith('.webp') and z.getinfo(name).file_size < 500_000}
+    assert reference_art <= packaged_art, 'Exclave interface artwork is missing or changed'
     font_digest = (ROOT/'REFERENCE_EXCLAVE_FONT_SHA256').read_text().strip()
     assert any(hashlib.sha256(z.read(name)).hexdigest() == font_digest
                for name in z.namelist() if name.endswith('.ttf')), 'Missing Exclave font'

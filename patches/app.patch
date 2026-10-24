@@ -635,7 +635,7 @@ index b7a7e07..268f9d3 100644
          this.testType = testType
      }
 diff --git a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/database/DataStore.kt b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/database/DataStore.kt
-index cc5908d..e87cfb4 100644
+index cc5908d..16a12a0 100644
 --- a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/database/DataStore.kt
 +++ b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/database/DataStore.kt
 @@ -1,5 +1,7 @@
@@ -665,6 +665,15 @@ index cc5908d..e87cfb4 100644
      var useToolbar by configurationStore.boolean(Key.USE_TOOLBAR)
      var toolbarLayout by configurationStore.string(Key.TOOLBAR_LAYOUT) { "" }
      var showProfileCountOnTabs by configurationStore.boolean(Key.SHOW_PROFILE_COUNT_ON_TABS)
+@@ -232,7 +234,7 @@ object DataStore : OnPreferenceDataStoreChangeListener {
+     var showBottomBarInSettings by configurationStore.boolean(Key.SHOW_BOTTOM_BAR_IN_SETTINGS)
+     var compactStatsBar by configurationStore.boolean(Key.COMPACT_STATS_BAR)
+     var legacyMainView by configurationStore.boolean(Key.LEGACY_MAIN_VIEW) {
+-        LegacyMainViewPolicy.defaultEnabled()
++        false
+     }
+     var automaticConnectionCheck by configurationStore.boolean(Key.AUTOMATIC_CONNECTION_CHECK) { true }
+     var enableGroupUpdateDialog by configurationStore.boolean(Key.ENABLE_GROUP_UPDATE_DIALOG) { true }
 @@ -242,7 +244,8 @@ object DataStore : OnPreferenceDataStoreChangeListener {
      var udpNatFiltering by configurationStore.string(Key.UDP_NAT_FILTERING) { "" }
      var udpNatMax by configurationStore.string(Key.UDP_NAT_MAX) { "" }
@@ -729,58 +738,70 @@ index f2c562e..a276c59 100644
              proxyGroup,
              syncResult.changed,
 diff --git a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/AboutFragment.kt b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/AboutFragment.kt
-index 99bb60a..adbc88f 100644
+index 99bb60a..107a508 100644
 --- a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/AboutFragment.kt
 +++ b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/AboutFragment.kt
-@@ -1,137 +1,28 @@
+@@ -1,137 +1,70 @@
  package io.nekohasekai.sagernet.ui
  
 -import android.content.Context
--import android.content.Intent
+ import android.content.Intent
 -import android.net.Uri
  import android.os.Bundle
 -import android.os.PowerManager
 -import android.provider.Settings
- import android.view.LayoutInflater
+-import android.view.LayoutInflater
  import android.view.View
- import android.view.ViewGroup
+-import android.view.ViewGroup
 -import androidx.activity.result.contract.ActivityResultContracts
 -import androidx.compose.runtime.getValue
 -import androidx.compose.runtime.mutableStateOf
 -import androidx.compose.runtime.setValue
- import androidx.compose.ui.platform.ComposeView
- import androidx.compose.ui.platform.ViewCompositionStrategy
+-import androidx.compose.ui.platform.ComposeView
+-import androidx.compose.ui.platform.ViewCompositionStrategy
 -import androidx.lifecycle.lifecycleScope
 -import io.nekohasekai.sagernet.BatteryOptimization
++import android.widget.TextView
++import androidx.core.net.toUri
++import androidx.core.view.ViewCompat
++import androidx.core.view.WindowInsetsCompat
++import androidx.core.view.updatePadding
  import io.nekohasekai.sagernet.R
 -import io.nekohasekai.sagernet.SagerNet
 -import io.nekohasekai.sagernet.database.DataStore
 -import io.nekohasekai.sagernet.ktx.Logs
- import io.nekohasekai.sagernet.ktx.launchCustomTab
+-import io.nekohasekai.sagernet.ktx.launchCustomTab
 -import io.nekohasekai.sagernet.plugin.PluginManager.loadString
 -import io.nekohasekai.sagernet.ui.compose.AboutPluginItem
 -import io.nekohasekai.sagernet.ui.compose.AboutScreen
 -import io.nekohasekai.sagernet.ui.compose.AboutScreenData
-+import io.nekohasekai.sagernet.ui.compose.MobileTinaAboutScreen
- import io.nekohasekai.sagernet.ui.compose.NekoComposeTheme
+-import io.nekohasekai.sagernet.ui.compose.NekoComposeTheme
 -import io.nekohasekai.sagernet.utils.PackageCache
 -import kotlinx.coroutines.Dispatchers
 -import kotlinx.coroutines.launch
 -import kotlinx.coroutines.withContext
 -import libcore.Libcore
 -import moe.matsuri.nb4a.plugin.Plugins
++import io.nekohasekai.sagernet.ktx.dp2px
++import io.nekohasekai.sagernet.utils.MobileTinaAboutContent
  
- class AboutFragment : ToolbarFragment() {
--
+-class AboutFragment : ToolbarFragment() {
++class AboutFragment : ToolbarFragment(R.layout.layout_about) {
+ 
 -    private var screenData by mutableStateOf<AboutScreenData?>(null)
 -    private var showBatteryOptimization by mutableStateOf(false)
--
++    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
++        super.onViewCreated(view, savedInstanceState)
+ 
 -    private val requestIgnoreBatteryOptimizations = registerForActivityResult(
 -        ActivityResultContracts.StartActivityForResult(),
 -    ) {
 -        showBatteryOptimization = !BatteryOptimization.isIgnoringOptimizations(requireContext())
 -    }
--
++        view.findViewById<View>(R.id.appbar).visibility = View.GONE
++        view.layoutDirection = View.LAYOUT_DIRECTION_RTL
++        view.textDirection = View.TEXT_DIRECTION_RTL
+ 
 -    override fun onCreateView(
 -        inflater: LayoutInflater,
 -        container: ViewGroup?,
@@ -805,15 +826,36 @@ index 99bb60a..adbc88f 100644
 -                    },
 -                )
 -            }
--        }
++        ViewCompat.setOnApplyWindowInsetsListener(view.findViewById(R.id.layout_about)) { content, insets ->
++            content.layoutDirection = View.LAYOUT_DIRECTION_RTL
++            content.textDirection = View.TEXT_DIRECTION_RTL
++            val bars = insets.getInsets(
++                WindowInsetsCompat.Type.systemBars() or WindowInsetsCompat.Type.displayCutout()
++            )
++            content.updatePadding(
++                left = bars.left,
++                right = bars.right,
++                bottom = bars.bottom + dp2px(32),
++            )
++            insets
+         }
 -    }
--
+ 
 -    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
 -        super.onViewCreated(view, savedInstanceState)
 -        showBatteryOptimization = shouldShowBatteryOptimization()
 -        loadAboutData()
 -    }
--
++        view.findViewById<TextView>(R.id.about_title).text = MobileTinaAboutContent.aboutTitle()
++        view.findViewById<TextView>(R.id.about_subtitle).text = MobileTinaAboutContent.aboutSubtitle()
++        view.findViewById<TextView>(R.id.about_branch_one_label).text = MobileTinaAboutContent.branchOne()
++        view.findViewById<TextView>(R.id.about_branch_two_label).text = MobileTinaAboutContent.branchTwo()
++        view.findViewById<TextView>(R.id.about_page_three_label).text = MobileTinaAboutContent.pageThree()
++        view.findViewById<TextView>(R.id.about_developer_label).text = MobileTinaAboutContent.developer()
++        view.findViewById<TextView>(R.id.about_stores_title).text = MobileTinaAboutContent.storesTitle()
++        view.findViewById<TextView>(R.id.about_store_one).text = MobileTinaAboutContent.storeOne()
++        view.findViewById<TextView>(R.id.about_store_two).text = MobileTinaAboutContent.storeTwo()
+ 
 -    private fun loadAboutData() {
 -        val context = requireContext()
 -        viewLifecycleOwner.lifecycleScope.launch {
@@ -839,17 +881,7 @@ index 99bb60a..adbc88f 100644
 -                            Logs.w(error)
 -                        }
 -                    }
-+    override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View =
-+        ComposeView(requireContext()).apply {
-+            setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnViewTreeLifecycleDestroyed)
-+            setContent {
-+                NekoComposeTheme {
-+                    MobileTinaAboutScreen(
-+                        onBack = { (activity as? MainActivity)?.displayFragmentWithId(R.id.nav_mobiletina) },
-+                        onOpenDrawer = { (activity as? MainActivity)?.openDrawer() },
-+                        onOpenLink = { link -> context.launchCustomTab(link) },
-+                    )
-                 }
+-                }
 -                AboutScreenData(
 -                    appVersion = SagerNet.appVersionNameForDisplay,
 -                    singBoxVersion = Libcore.versionBox(),
@@ -859,7 +891,15 @@ index 99bb60a..adbc88f 100644
 -                        it.readText()
 -                    },
 -                )
-             }
+-            }
++        view.findViewById<View>(R.id.about_back).setOnClickListener {
++            (requireActivity() as MainActivity).displayFragmentWithId(R.id.nav_mobiletina)
++        }
++        bindInstagram(view, R.id.about_instagram_one, MobileTinaAboutContent.instagramOne())
++        bindInstagram(view, R.id.about_instagram_two, MobileTinaAboutContent.instagramTwo())
++        bindInstagram(view, R.id.about_instagram_three, MobileTinaAboutContent.instagramThree())
++        view.findViewById<View>(R.id.about_developer).setOnClickListener {
++            startActivity(Intent(Intent.ACTION_VIEW, MobileTinaAboutContent.telegram().toUri()))
          }
 -    }
 -
@@ -867,19 +907,28 @@ index 99bb60a..adbc88f 100644
 -        val powerManager = requireContext().getSystemService(Context.POWER_SERVICE) as PowerManager
 -        return !powerManager.isIgnoringBatteryOptimizations(requireContext().packageName)
 -    }
--
+ 
 -    private fun requestBatteryOptimization() {
 -        DataStore.batteryOptimizationPromptAsked = true
 -        requestIgnoreBatteryOptimizations.launch(
 -            BatteryOptimization.requestIntent(requireContext()),
 -        )
--    }
--
++        ViewCompat.setOnApplyWindowInsetsListener(view) { content, insets ->
++            val bars = insets.getInsets(WindowInsetsCompat.Type.statusBars() or WindowInsetsCompat.Type.displayCutout())
++            content.updatePadding(top = bars.top)
++            insets
++        }
+     }
+ 
 -    private fun openPluginDetails(packageName: String) {
 -        startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
 -            data = Uri.fromParts("package", packageName, null)
 -        })
--    }
++    private fun bindInstagram(root: View, viewId: Int, url: String) {
++        root.findViewById<View>(viewId).setOnClickListener {
++            startActivity(Intent(Intent.ACTION_VIEW, url.toUri()))
++        }
+     }
  }
 diff --git a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/AppSelectionModel.kt b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/AppSelectionModel.kt
 index c1325b2..0543165 100644
@@ -918,10 +967,33 @@ index c1325b2..0543165 100644
                      app.name.contains(query, ignoreCase = true) ||
                      app.packageName.contains(query, ignoreCase = true) ||
 diff --git a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/ConfigurationFragment.kt b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/ConfigurationFragment.kt
-index 936c057..7738c3a 100644
+index 936c057..c2bcb20 100644
 --- a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/ConfigurationFragment.kt
 +++ b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/ConfigurationFragment.kt
-@@ -953,6 +953,11 @@ class ConfigurationFragment @JvmOverloads constructor(
+@@ -45,6 +45,8 @@ import androidx.appcompat.widget.Toolbar
+ import androidx.appcompat.widget.TooltipCompat
+ import androidx.core.content.withStyledAttributes
+ import androidx.core.net.toUri
++import androidx.core.view.ViewCompat
++import androidx.core.view.WindowInsetsCompat
+ import androidx.core.view.children
+ import androidx.core.view.doOnLayout
+ import androidx.core.view.doOnNextLayout
+@@ -344,6 +346,13 @@ class ConfigurationFragment @JvmOverloads constructor(
+     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
+         super.onViewCreated(view, savedInstanceState)
+         setupQuickToolbar(view)
++        (activity as? MainActivity)?.let { MobileTinaHomeChrome.bind(view, it, auto = false) }
++        ViewCompat.setOnApplyWindowInsetsListener(view) { content, insets ->
++            val reserve = !select && !DataStore.legacyMainView && !SagerNet.isTv
++            content.setPadding(content.paddingLeft, content.paddingTop, content.paddingRight,
++                if (reserve) dp2px(170) + insets.getInsets(WindowInsetsCompat.Type.navigationBars()).bottom else 0)
++            insets
++        }
+ 
+         if (!select) {
+             if (profileSelectionMode) setupProfileSelectionToolbarMenu() else setupProfileToolbarMenu()
+@@ -953,6 +962,11 @@ class ConfigurationFragment @JvmOverloads constructor(
  
      override fun onMenuItemClick(item: MenuItem): Boolean {
          when (item.itemId) {
@@ -933,7 +1005,39 @@ index 936c057..7738c3a 100644
              R.id.action_select_profiles -> {
                  enterProfileSelectionMode()
                  return true
-@@ -3869,7 +3874,7 @@ class ConfigurationFragment @JvmOverloads constructor(
+@@ -3863,13 +3877,39 @@ class ConfigurationFragment @JvmOverloads constructor(
+         toolbarOrNull()?.post { focusTvToolbarAction() }
+     }
+ 
++    fun dispatchMobileTinaAction(id: Int) {
++        viewLifecycleOwner.lifecycleScope.launch {
++            kotlinx.coroutines.withTimeoutOrNull(2_000L) {
++                while (!::adapter.isInitialized || adapter.groupList.isEmpty() || getCurrentGroupFragment()?.view == null) kotlinx.coroutines.delay(25L)
++            }
++            if (!isAdded || view == null) return@launch
++            if (id == R.id.action_mobiletina_search) {
++                view?.findViewById<View>(R.id.appbar)?.isVisible = true
++                view?.findViewById<View>(R.id.mobiletina_home_header)?.isGone = true
++                toolbarOrNull()?.menu?.findItem(R.id.action_search)?.apply {
++                    expandActionView()
++                    (actionView as? SearchView)?.apply { isIconified = false; requestFocus() }
++                }
++            } else toolbarOrNull()?.menu?.performIdentifierAction(id, 0)
++        }
++    }
++
++    private fun syncMobileTinaHeader() {
++        val root = view ?: return
++        val reference = !select && !DataStore.legacyMainView && !SagerNet.isTv
++        val showHeader = reference && !profileSelectionMode && !profileSearchExpanded && !quickSearchExpanded
++        root.findViewById<View>(R.id.mobiletina_home_header)?.isVisible = showHeader
++        root.findViewById<View>(R.id.appbar)?.isVisible = !showHeader
++    }
++
+     private fun syncToolbarMode() {
++        syncMobileTinaHeader()
+         if (select || profileSelectionMode) return
+         val activeToolbar = toolbarOrNull() ?: return
  
          val useToolbar = DataStore.useToolbar
          val menu = activeToolbar.menu
@@ -942,6 +1046,29 @@ index 936c057..7738c3a 100644
  
          activeToolbar.post {
              if (toolbarOrNull() !== activeToolbar ||
+@@ -4146,6 +4186,7 @@ class ConfigurationFragment @JvmOverloads constructor(
+         activeToolbar.inflateMenu(R.menu.profile_selection_menu)
+         activeToolbar.setOnMenuItemClickListener(this)
+         updateSelectionMenuEnabledState()
++        syncMobileTinaHeader()
+     }
+ 
+     private fun enterProfileSelectionMode() {
+@@ -4225,12 +4266,14 @@ class ConfigurationFragment @JvmOverloads constructor(
+             object : MenuItem.OnActionExpandListener {
+                 override fun onMenuItemActionExpand(item: MenuItem): Boolean {
+                     profileSearchExpanded = true
++                    syncMobileTinaHeader()
+                     selectionBackCallback?.isEnabled = true
+                     return true
+                 }
+ 
+                 override fun onMenuItemActionCollapse(item: MenuItem): Boolean {
+                     profileSearchExpanded = false
++                    syncMobileTinaHeader()
+                     selectionBackCallback?.isEnabled = profileSelectionMode
+                     return true
+                 }
 diff --git a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/GlobalSettingsController.kt b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/GlobalSettingsController.kt
 index 48e90b0..1c6dabf 100644
 --- a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/GlobalSettingsController.kt
@@ -996,10 +1123,14 @@ index 8e69893..9a0e93d 100644
                  triggerFullRestart(context)
              },
 diff --git a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/MainActivity.kt b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/MainActivity.kt
-index c403caa..6010148 100644
+index c403caa..725ca8e 100644
 --- a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/MainActivity.kt
 +++ b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/MainActivity.kt
-@@ -32,6 +32,8 @@ import androidx.core.view.WindowInsetsCompat
+@@ -29,9 +29,12 @@ import androidx.core.content.ContextCompat
+ import androidx.core.graphics.Insets
+ import androidx.core.view.ViewCompat
+ import androidx.core.view.WindowInsetsCompat
++import androidx.core.view.isVisible
  import androidx.core.view.updatePadding
  import androidx.fragment.app.Fragment
  import androidx.fragment.app.FragmentManager
@@ -1008,7 +1139,7 @@ index c403caa..6010148 100644
  import androidx.lifecycle.lifecycleScope
  import androidx.preference.PreferenceDataStore
  import com.google.android.material.snackbar.Snackbar
-@@ -115,6 +117,8 @@ class MainActivity :
+@@ -115,6 +118,8 @@ class MainActivity :
          }
      }
  
@@ -1017,7 +1148,28 @@ index c403caa..6010148 100644
      lateinit var binding: LayoutMainBinding
      private val shellState = MainShellState()
      private var bottomControlsVisibleForCurrentFragment = false
-@@ -208,28 +212,13 @@ class MainActivity :
+@@ -188,6 +193,20 @@ class MainActivity :
+         syncProxyAppsDrawerItem()
+         // Keep the fragment host synchronously attached; Compose owns the drawer overlay.
+         setContentView(binding.root)
++        binding.root.findViewById<View>(R.id.fab_manual).setOnClickListener { binding.fab.performClick() }
++        binding.root.findViewById<View>(R.id.btn_smart_connect).setOnClickListener { mobileTina.toggle() }
++        val manualDock = binding.root.findViewById<View>(R.id.manual_dock)
++        ViewCompat.setOnApplyWindowInsetsListener(manualDock) { dock, insets ->
++            val bottom = insets.getInsets(WindowInsetsCompat.Type.navigationBars()).bottom
++            dock.setPadding(0, 0, 0, bottom)
++            dock.layoutParams = dock.layoutParams.apply { height = MobileTinaHomeChrome.dp(this@MainActivity, 142) + bottom }
++            insets
++        }
++        lifecycleScope.launch {
++            repeatOnLifecycle(androidx.lifecycle.Lifecycle.State.STARTED) {
++                mobileTina.state.collect { MobileTinaHomeChrome.renderDock(binding.root, it) }
++            }
++        }
+         val drawerOverlay = DrawerOverlayComposeView(this).apply {
+             drawerActive = { shellState.drawerRequestedOpen || shellState.drawerIsOpen }
+             setContent {
+@@ -208,28 +227,13 @@ class MainActivity :
          )
  
          binding.fab.setOnClickListener {
@@ -1053,7 +1205,7 @@ index c403caa..6010148 100644
                  }
              }
          }
-@@ -244,8 +233,7 @@ class MainActivity :
+@@ -244,8 +248,7 @@ class MainActivity :
          }
  
          if (savedInstanceState == null && !openSettingsOnCreate) {
@@ -1063,7 +1215,7 @@ index c403caa..6010148 100644
          }
          onBackPressedDispatcher.addCallback {
              if (shellState.drawerIsOpen) {
-@@ -256,8 +244,10 @@ class MainActivity :
+@@ -256,8 +259,10 @@ class MainActivity :
              if ((fragment as? ToolbarFragment)?.onBackPressed() == true) {
                  return@addCallback
              }
@@ -1075,7 +1227,7 @@ index c403caa..6010148 100644
              } else {
                  displayFragmentWithId(R.id.nav_configuration)
              }
-@@ -317,6 +307,31 @@ class MainActivity :
+@@ -317,6 +322,31 @@ class MainActivity :
          }
      }
  
@@ -1107,7 +1259,7 @@ index c403caa..6010148 100644
      private fun setupLegacyNavigationBarInsets() {
          val coordinatorInitialLeft = binding.coordinator.paddingLeft
          val coordinatorInitialRight = binding.coordinator.paddingRight
-@@ -363,9 +378,10 @@ class MainActivity :
+@@ -363,9 +393,10 @@ class MainActivity :
      }
  
      private suspend fun performProxyAppsFirstSetup() {
@@ -1119,7 +1271,27 @@ index c403caa..6010148 100644
  
          val dir = detectRoutingDir()
          if (dir != null) {
-@@ -477,6 +493,11 @@ class MainActivity :
+@@ -441,6 +472,19 @@ class MainActivity :
+ 
+     fun closeDrawer() = shellState.closeDrawer()
+ 
++    private var mobileTinaWelcome: android.app.Dialog? = null
++
++    override fun onPostResume() {
++        super.onPostResume()
++        if (mobileTinaWelcome?.isShowing != true) {
++            mobileTinaWelcome = MobileTinaFirstLaunchDialog.showOnce(this, DataStore.configurationStore,
++                "mobileTinaExclaveWelcomeShownV1") { mobileTinaWelcome = null }
++        }
++    }
++
++    fun showMobileTinaImport() = MobileTinaImportDialog.show(this, mobileTina)
++    fun refreshMobileTinaSubscription() = mobileTina.refreshNow()
++
+     override fun onResume() {
+         super.onResume()
+         MessageStore.setCurrentActivity(this)
+@@ -477,6 +521,11 @@ class MainActivity :
              return
          }
          val uri = intent.data ?: return
@@ -1131,7 +1303,19 @@ index c403caa..6010148 100644
  
          RoutingLinkProcessors.forLink(uri.toString())?.let { processor ->
              setIntent(Intent(intent).setAction(null).setData(null))
-@@ -959,6 +980,10 @@ class MainActivity :
+@@ -916,8 +965,10 @@ class MainActivity :
+         syncState: Boolean = true,
+     ) {
+         if (fragment == null) return
++        val referenceManual = fragment is ConfigurationFragment && !DataStore.legacyMainView && !SagerNet.isTv
++        binding.root.findViewById<View>(R.id.manual_dock).isVisible = referenceManual
+         bottomControlsVisibleForCurrentFragment =
+-            fragment is ConfigurationFragment ||
++            (fragment is ConfigurationFragment && !referenceManual) ||
+             (fragment is SettingsFragment && DataStore.showBottomBarInSettings)
+         binding.stats.useExternalScrollDriver =
+             fragment is ConfigurationFragment || fragment is SettingsFragment
+@@ -959,6 +1010,10 @@ class MainActivity :
          @IdRes id: Int,
      ): Boolean {
          when (id) {
@@ -1142,7 +1326,7 @@ index c403caa..6010148 100644
              R.id.nav_configuration -> {
                  displayFragment(ConfigurationFragment())
              }
-@@ -1018,6 +1043,7 @@ class MainActivity :
+@@ -1018,6 +1073,7 @@ class MainActivity :
          val previousState = renderedServiceState
          renderedServiceState = state
          DataStore.serviceState = state
@@ -1150,7 +1334,7 @@ index c403caa..6010148 100644
  
          if (bottomControlsVisibleForCurrentFragment) {
              binding.fab.changeState(state, previousState, animate)
-@@ -1141,6 +1167,12 @@ class MainActivity :
+@@ -1141,6 +1197,12 @@ class MainActivity :
          connection.connect(this, this)
      }
  
@@ -1163,6 +1347,16 @@ index c403caa..6010148 100644
      private val connect =
          registerForActivityResult(VpnRequestActivity.StartService()) {
              if (it) snackbar(R.string.vpn_permission_denied).show()
+@@ -1227,6 +1289,9 @@ class MainActivity :
+     }
+ 
+     override fun onDestroy() {
++        mobileTinaWelcome?.setOnDismissListener(null)
++        mobileTinaWelcome?.dismiss()
++        mobileTinaWelcome = null
+         binding.root.removeCallbacks(initialDrawTimeout)
+         initialDrawListener?.let { listener ->
+             binding.root.viewTreeObserver.takeIf { it.isAlive }
 diff --git a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/VpnRequestActivity.kt b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/VpnRequestActivity.kt
 index eb316ba..ae1d813 100644
 --- a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/VpnRequestActivity.kt
@@ -1313,10 +1507,10 @@ index b6c495f..102db94 100644
          list("tunUnrecognizedTraffic", R.drawable.ic_baseline_add_road_24, R.string.title_tun_unrecognized_traffic, R.array.tun_unrecognized_traffic_mode, R.array.tun_unrecognized_traffic_mode_values, R.string.summary_tun_unrecognized_traffic),
          list("tunSystemDnsTraffic", R.drawable.ic_baseline_add_road_24, R.string.title_tun_system_dns_traffic, R.array.tun_system_dns_traffic_mode, R.array.tun_system_dns_traffic_mode_values, R.string.summary_tun_system_dns_traffic),
 diff --git a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/compose/MainComposeShell.kt b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/compose/MainComposeShell.kt
-index 26620ca..ba4df91 100644
+index 26620ca..b8c98e3 100644
 --- a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/compose/MainComposeShell.kt
 +++ b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/compose/MainComposeShell.kt
-@@ -3,6 +3,12 @@ package io.nekohasekai.sagernet.ui.compose
+@@ -3,9 +3,16 @@ package io.nekohasekai.sagernet.ui.compose
  import androidx.annotation.DrawableRes
  import androidx.annotation.IdRes
  import androidx.annotation.StringRes
@@ -1329,7 +1523,11 @@ index 26620ca..ba4df91 100644
  import androidx.compose.foundation.focusGroup
  import androidx.compose.foundation.layout.Column
  import androidx.compose.foundation.layout.Spacer
-@@ -42,7 +48,7 @@ import io.nekohasekai.sagernet.R
++import androidx.compose.foundation.layout.fillMaxWidth
+ import androidx.compose.foundation.layout.fillMaxSize
+ import androidx.compose.foundation.layout.fillMaxHeight
+ import androidx.compose.foundation.layout.height
+@@ -42,7 +49,7 @@ import io.nekohasekai.sagernet.R
  internal class MainShellState {
      var drawerRequestedOpen by mutableStateOf(false)
      var drawerIsOpen by mutableStateOf(false)
@@ -1338,34 +1536,70 @@ index 26620ca..ba4df91 100644
      var trafficVisible by mutableStateOf(false)
      var proxyAppsEnabled by mutableStateOf(false)
  
-@@ -62,6 +68,7 @@ private data class DrawerDestination(
+@@ -62,11 +69,12 @@ private data class DrawerDestination(
  )
  
  private val primaryDestinations = listOf(
-+    DrawerDestination(R.id.nav_mobiletina, R.string.mobiletina_auto, R.drawable.ic_service_idle),
-     DrawerDestination(R.id.nav_configuration, R.string.menu_configuration, R.drawable.ic_action_description),
-     DrawerDestination(R.id.nav_group, R.string.menu_group, R.drawable.ic_baseline_view_list_24),
+-    DrawerDestination(R.id.nav_configuration, R.string.menu_configuration, R.drawable.ic_action_description),
+-    DrawerDestination(R.id.nav_group, R.string.menu_group, R.drawable.ic_baseline_view_list_24),
++    DrawerDestination(R.id.nav_mobiletina, R.string.mobiletina_menu_home, R.drawable.ic_service_idle),
++    DrawerDestination(R.id.nav_configuration, R.string.mobiletina_mode_manual, R.drawable.ic_action_description),
++    DrawerDestination(R.id.nav_group, R.string.mobiletina_menu_subscriptions, R.drawable.ic_baseline_view_list_24),
      DrawerDestination(R.id.nav_route, R.string.menu_route, R.drawable.ic_maps_directions),
-@@ -120,11 +127,15 @@ internal fun MainComposeDrawer(
+     DrawerDestination(R.id.nav_adblock, R.string.adblock, R.drawable.ic_baseline_filter_list_24),
+-    DrawerDestination(R.id.nav_settings, R.string.settings, R.drawable.ic_action_settings),
++    DrawerDestination(R.id.nav_settings, R.string.mobiletina_menu_settings, R.drawable.ic_action_settings),
+ )
+ 
+ private val utilityDestinations = listOf(
+@@ -113,25 +121,24 @@ internal fun MainComposeDrawer(
+         drawerState = drawerState,
+         drawerContent = {
+             ModalDrawerSheet(
++                drawerContainerColor = MaterialTheme.colorScheme.surface,
+                 modifier = Modifier
+                     .width(320.dp)
+                     .fillMaxHeight()
+                     .focusGroup()
                      .verticalScroll(rememberScrollState()),
              ) {
-                 Spacer(Modifier.height(20.dp))
+-                Spacer(Modifier.height(20.dp))
 -                Text(
 -                    text = stringResource(R.string.app_name),
 -                    style = MaterialTheme.typography.titleLarge,
-+                Row(
-                     modifier = Modifier.padding(horizontal = 28.dp, vertical = 16.dp),
+-                    modifier = Modifier.padding(horizontal = 28.dp, vertical = 16.dp),
 -                )
-+                    verticalAlignment = Alignment.CenterVertically,
-+                ) {
-+                    Image(painterResource(R.drawable.mobiletina_launcher), contentDescription = null,
-+                        modifier = Modifier.size(56.dp).clip(CircleShape))
-+                    Spacer(Modifier.width(16.dp))
-+                    Text(stringResource(R.string.app_name), style = MaterialTheme.typography.titleLarge)
-+                }
++                Image(painterResource(R.drawable.mt_nav), contentDescription = null,
++                    contentScale = androidx.compose.ui.layout.ContentScale.Fit,
++                    modifier = Modifier.fillMaxWidth().height(168.dp)
++                        .padding(start = 20.dp, top = 30.dp, end = 20.dp, bottom = 10.dp))
                  DrawerItems(
                      primaryDestinations,
                      state.selectedItemId,
+                     drawerFocusRequester,
+                 ) { onNavigate(it); state.closeDrawer() }
+                 NavigationDrawerItem(
+-                    label = { Text(stringResource(R.string.apps)) },
++                    label = { Text(stringResource(R.string.mobiletina_menu_per_app)) },
+                     icon = { Icon(painterResource(R.drawable.ic_navigation_apps), contentDescription = null) },
+                     badge = {
+                         Switch(
+@@ -141,6 +148,7 @@ internal fun MainComposeDrawer(
+                         )
+                     },
+                     selected = false,
++                    shape = androidx.compose.foundation.shape.RoundedCornerShape(12.dp),
+                     onClick = { onOpenApps(); state.closeDrawer() },
+                     modifier = Modifier
+                         .tvFocusTarget()
+@@ -191,6 +199,7 @@ private fun DrawerItem(
+         label = { Text(stringResource(item.title)) },
+         icon = { Icon(painterResource(item.icon), contentDescription = null) },
+         selected = item.id == selectedId,
++        shape = androidx.compose.foundation.shape.RoundedCornerShape(12.dp),
+         onClick = { onClick(item.id) },
+         modifier = Modifier
+             .then(focusRequester?.let { Modifier.focusRequester(it) } ?: Modifier)
 diff --git a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/compose/NekoComposeTheme.kt b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/compose/NekoComposeTheme.kt
 index 7fa2bbc..c5e115f 100644
 --- a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/compose/NekoComposeTheme.kt
@@ -1410,6 +1644,22 @@ index 7fa2bbc..c5e115f 100644
          if (isTelevisionUi()) {
              CompositionLocalProvider(
                  LocalIndication provides remember(colors.primary) {
+diff --git a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/compose/ProfileCard.kt b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/compose/ProfileCard.kt
+index 15e789c..92b67ef 100644
+--- a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/compose/ProfileCard.kt
++++ b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/compose/ProfileCard.kt
+@@ -152,6 +152,11 @@ fun ProfileCard(
+     onDelete: () -> Unit,
+     onSelectionChange: () -> Unit,
+ ) {
++    if (!isTelevisionUi() && !io.nekohasekai.sagernet.database.DataStore.legacyMainView &&
++        model.layout == ProfileCardLayout.SINGLE && !model.batchSelection) {
++        MobileTinaProfileCard(model, onClick, onStatusClick, onEdit, onUrlTest, onShare, onDelete)
++        return
++    }
+     val televisionUi = isTelevisionUi()
+     val focusHandles = remember(model.entity.id) { ProfileCardFocusHandles() }
+     var bodyFocused by remember(model.entity.id) { mutableStateOf(false) }
 diff --git a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/compose/ThemePickerDialog.kt b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/compose/ThemePickerDialog.kt
 index 3120b47..a3140d5 100644
 --- a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/compose/ThemePickerDialog.kt
@@ -1504,6 +1754,335 @@ index 32e7084..de0744e 100644
 -        android:drawable="@mipmap/ic_launcher_foreground" />
 +        android:drawable="@drawable/mobiletina_launcher_safe" />
  </layer-list>
+diff --git a/workspace/NekoBoxForAndroid/app/src/main/res/layout/layout_group_list.xml b/workspace/NekoBoxForAndroid/app/src/main/res/layout/layout_group_list.xml
+index ac25953..a448332 100644
+--- a/workspace/NekoBoxForAndroid/app/src/main/res/layout/layout_group_list.xml
++++ b/workspace/NekoBoxForAndroid/app/src/main/res/layout/layout_group_list.xml
+@@ -1,36 +1,7 @@
+ <?xml version="1.0" encoding="utf-8"?>
+-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+-    xmlns:app="http://schemas.android.com/apk/res-auto"
+-    xmlns:tools="http://schemas.android.com/tools"
+-    android:layout_width="match_parent"
+-    android:layout_height="match_parent"
+-    android:orientation="vertical"
+-    tools:context=".ui.ConfigurationFragment">
+-
+-    <include
+-        layout="@layout/layout_profile_appbar"
+-        android:layout_width="match_parent"
+-        android:layout_height="wrap_content" />
+-
+-    <com.google.android.material.tabs.TabLayout
+-        android:id="@+id/group_tab"
+-        android:layout_width="match_parent"
+-        android:layout_height="wrap_content"
+-        android:background="?attr/colorSurfaceContainer"
+-        android:elevation="4dp"
+-        android:visibility="gone"
+-        app:tabIndicatorColor="?tabIndicatorColor"
+-        app:tabIndicatorFullWidth="false"
+-        app:tabMode="scrollable"
+-        app:tabPaddingStart="16dp"
+-        app:tabRippleColor="?tabRippleColor"
+-        app:tabSelectedTextColor="?tabSelectedTextColor"
+-        app:tabTextColor="?tabTextColor"
+-        app:tabUnboundedRipple="false" />
+-
+-    <androidx.viewpager2.widget.ViewPager2
+-        android:id="@+id/group_pager"
+-        android:layout_width="match_parent"
+-        android:layout_height="match_parent" />
+-
++<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android" xmlns:app="http://schemas.android.com/apk/res-auto" xmlns:tools="http://schemas.android.com/tools" android:layout_width="match_parent" android:layout_height="match_parent" android:orientation="vertical" tools:context=".ui.ConfigurationFragment">
++    <include layout="@layout/mobiletina_home_header" />
++    <include layout="@layout/layout_profile_appbar" android:layout_width="match_parent" android:layout_height="wrap_content" />
++    <com.google.android.material.tabs.TabLayout android:id="@+id/group_tab" android:layout_width="match_parent" android:layout_height="wrap_content" android:background="?attr/colorSurfaceContainer" android:elevation="4dp" android:visibility="gone" app:tabIndicatorColor="?tabIndicatorColor" app:tabIndicatorFullWidth="false" app:tabMode="scrollable" app:tabPaddingStart="16dp" app:tabRippleColor="?tabRippleColor" app:tabSelectedTextColor="?tabSelectedTextColor" app:tabTextColor="?tabTextColor" app:tabUnboundedRipple="false" />
++    <androidx.viewpager2.widget.ViewPager2 android:id="@+id/group_pager" android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="1" />
+ </LinearLayout>
+diff --git a/workspace/NekoBoxForAndroid/app/src/main/res/layout/layout_main.xml b/workspace/NekoBoxForAndroid/app/src/main/res/layout/layout_main.xml
+index c511cbb..42e592b 100644
+--- a/workspace/NekoBoxForAndroid/app/src/main/res/layout/layout_main.xml
++++ b/workspace/NekoBoxForAndroid/app/src/main/res/layout/layout_main.xml
+@@ -1,250 +1,31 @@
+ <?xml version="1.0" encoding="utf-8"?>
+-<androidx.coordinatorlayout.widget.CoordinatorLayout xmlns:android="http://schemas.android.com/apk/res/android"
+-    xmlns:app="http://schemas.android.com/apk/res-auto"
+-    xmlns:tools="http://schemas.android.com/tools"
+-    android:id="@+id/coordinator"
+-    android:layout_width="match_parent"
+-    android:layout_height="match_parent"
+-    android:clipChildren="false">
+-
+-        <androidx.coordinatorlayout.widget.CoordinatorLayout
+-            android:id="@+id/fragment_holder"
+-            android:layout_width="match_parent"
+-            android:layout_height="match_parent" />
+-
+-        <io.nekohasekai.sagernet.widget.StatsBar
+-            android:id="@+id/stats"
+-            android:layout_width="match_parent"
+-            android:layout_height="wrap_content"
+-            android:layout_gravity="bottom"
+-            android:nextFocusUp="@+id/fab"
+-            app:backgroundTint="?colorSurfaceContainerHigh"
+-            app:contentInsetStart="0dp"
+-            app:fabAlignmentMode="center"
+-            app:fabAnchorMode="cradle"
+-            app:fabCradleMargin="8dp"
+-            app:fabCradleRoundedCornerRadius="24dp"
+-            app:fabCradleVerticalOffset="0dp"
+-            app:hideOnScroll="true"
+-            app:layout_scrollFlags="enterAlways|scroll"
+-            app:shapeAppearance="@style/ShapeAppearance.SagerNet.Material3.BottomAppBar">
+-
+-            <FrameLayout
+-                android:layout_width="match_parent"
+-                android:layout_height="wrap_content"
+-                android:background="?android:attr/selectableItemBackground">
+-
+-                <LinearLayout
+-                    android:id="@+id/stats_regular_content"
+-                    android:layout_width="match_parent"
+-                    android:layout_height="wrap_content"
+-                    android:orientation="vertical"
+-                    android:paddingStart="16dp"
+-                    android:paddingTop="24dp"
+-                    android:paddingEnd="16dp"
+-                    android:paddingBottom="24dp">
+-
+-                    <TextView
+-                        android:id="@+id/tx"
+-                        android:layout_width="wrap_content"
+-                        android:layout_height="wrap_content"
+-                        android:layout_columnWeight="1"
+-                        android:layout_gravity="fill_horizontal"
+-                        android:ellipsize="marquee"
+-                        android:singleLine="true"
+-                        android:textColor="?attr/colorOnSurface"
+-                        android:textSize="14sp" />
+-
+-                    <TextView
+-                        android:id="@+id/rx"
+-                        android:layout_width="wrap_content"
+-                        android:layout_height="wrap_content"
+-                        android:layout_columnWeight="1"
+-                        android:layout_gravity="fill_horizontal"
+-                        android:ellipsize="marquee"
+-                        android:singleLine="true"
+-                        android:textColor="?attr/colorOnSurface"
+-                        android:textSize="14sp" />
+-
+-                    <TextView
+-                        android:id="@+id/ip"
+-                        android:layout_width="wrap_content"
+-                        android:layout_height="wrap_content"
+-                        android:layout_gravity="fill_horizontal"
+-                        android:ellipsize="end"
+-                        android:maxLines="1"
+-                        android:textColor="?attr/colorOnSurface"
+-                        android:textSize="16sp" />
+-
+-                    <TextView
+-                        android:id="@+id/status"
+-                        android:layout_width="wrap_content"
+-                        android:layout_height="wrap_content"
+-                        android:layout_gravity="fill_horizontal"
+-                        android:ellipsize="end"
+-                        android:maxLines="1"
+-                        android:textColor="?attr/colorOnSurface"
+-                        android:textSize="16sp"
+-                        tools:text="@string/connection_test_available" />
+-
++<androidx.coordinatorlayout.widget.CoordinatorLayout xmlns:android="http://schemas.android.com/apk/res/android" xmlns:app="http://schemas.android.com/apk/res-auto" xmlns:tools="http://schemas.android.com/tools" android:id="@+id/coordinator" android:layout_width="match_parent" android:layout_height="match_parent" android:clipChildren="false">
++    <androidx.coordinatorlayout.widget.CoordinatorLayout android:id="@+id/fragment_holder" android:layout_width="match_parent" android:layout_height="match_parent" />
++    <io.nekohasekai.sagernet.widget.StatsBar android:id="@+id/stats" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_gravity="bottom" android:nextFocusUp="@+id/fab" app:backgroundTint="?colorSurfaceContainerHigh" app:contentInsetStart="0dp" app:fabAlignmentMode="center" app:fabAnchorMode="cradle" app:fabCradleMargin="8dp" app:fabCradleRoundedCornerRadius="24dp" app:fabCradleVerticalOffset="0dp" app:hideOnScroll="true" app:layout_scrollFlags="enterAlways|scroll" app:shapeAppearance="@style/ShapeAppearance.SagerNet.Material3.BottomAppBar">
++        <FrameLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:background="?android:attr/selectableItemBackground">
++            <LinearLayout android:id="@+id/stats_regular_content" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:paddingStart="16dp" android:paddingTop="24dp" android:paddingEnd="16dp" android:paddingBottom="24dp">
++                <TextView android:id="@+id/tx" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_columnWeight="1" android:layout_gravity="fill_horizontal" android:ellipsize="marquee" android:singleLine="true" android:textColor="?attr/colorOnSurface" android:textSize="14sp" />
++                <TextView android:id="@+id/rx" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_columnWeight="1" android:layout_gravity="fill_horizontal" android:ellipsize="marquee" android:singleLine="true" android:textColor="?attr/colorOnSurface" android:textSize="14sp" />
++                <TextView android:id="@+id/ip" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_gravity="fill_horizontal" android:ellipsize="end" android:maxLines="1" android:textColor="?attr/colorOnSurface" android:textSize="16sp" />
++                <TextView android:id="@+id/status" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_gravity="fill_horizontal" android:ellipsize="end" android:maxLines="1" android:textColor="?attr/colorOnSurface" android:textSize="16sp" tools:text="@string/connection_test_available" />
++            </LinearLayout>
++            <androidx.constraintlayout.widget.ConstraintLayout android:id="@+id/stats_compact_content" android:layout_width="match_parent" android:layout_height="72dp" android:visibility="gone">
++                <LinearLayout android:id="@+id/compact_info_group" android:layout_width="0dp" android:layout_height="0dp" android:gravity="center_vertical" android:orientation="vertical" app:layout_constraintBottom_toBottomOf="parent" app:layout_constraintEnd_toStartOf="@id/compact_section_divider" app:layout_constraintStart_toStartOf="parent" app:layout_constraintTop_toTopOf="parent" android:paddingStart="16dp" android:paddingTop="18dp" android:paddingEnd="8dp" android:paddingBottom="10dp">
++                    <TextView android:id="@+id/compact_ip" android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="1" android:ellipsize="end" android:gravity="center_vertical" android:includeFontPadding="false" android:maxLines="1" android:textColor="?attr/colorOnSurface" android:textSize="14sp" tools:text="🇳🇱 121.17.03.17 NL, North Holland" />
++                    <androidx.appcompat.widget.AppCompatTextView android:id="@+id/compact_status" android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="1" android:drawablePadding="6dp" android:ellipsize="end" android:gravity="center_vertical" android:includeFontPadding="false" android:maxLines="1" android:textColor="?attr/colorOnSurface" android:textSize="14sp" app:drawableStartCompat="@drawable/ic_baseline_lock_24" app:drawableTint="?attr/colorOnSurface" tools:text="HTTPS: 75 ms" />
+                 </LinearLayout>
+-
+-                <androidx.constraintlayout.widget.ConstraintLayout
+-                    android:id="@+id/stats_compact_content"
+-                    android:layout_width="match_parent"
+-                    android:layout_height="72dp"
+-                    android:visibility="gone">
+-
+-                    <LinearLayout
+-                        android:id="@+id/compact_info_group"
+-                        android:layout_width="0dp"
+-                        android:layout_height="0dp"
+-                        android:gravity="center_vertical"
+-                        android:orientation="vertical"
+-                        app:layout_constraintBottom_toBottomOf="parent"
+-                        app:layout_constraintEnd_toStartOf="@id/compact_section_divider"
+-                        app:layout_constraintStart_toStartOf="parent"
+-                        app:layout_constraintTop_toTopOf="parent"
+-                        android:paddingStart="16dp"
+-                        android:paddingTop="18dp"
+-                        android:paddingEnd="8dp"
+-                        android:paddingBottom="10dp">
+-
+-                        <TextView
+-                            android:id="@+id/compact_ip"
+-                            android:layout_width="match_parent"
+-                            android:layout_height="0dp"
+-                            android:layout_weight="1"
+-                            android:ellipsize="end"
+-                            android:gravity="center_vertical"
+-                            android:includeFontPadding="false"
+-                            android:maxLines="1"
+-                            android:textColor="?attr/colorOnSurface"
+-                            android:textSize="14sp"
+-                            tools:text="🇳🇱 121.17.03.17 NL, North Holland" />
+-
+-                        <androidx.appcompat.widget.AppCompatTextView
+-                            android:id="@+id/compact_status"
+-                            android:layout_width="match_parent"
+-                            android:layout_height="0dp"
+-                            android:layout_weight="1"
+-                            android:drawablePadding="6dp"
+-                            android:ellipsize="end"
+-                            android:gravity="center_vertical"
+-                            android:includeFontPadding="false"
+-                            android:maxLines="1"
+-                            android:textColor="?attr/colorOnSurface"
+-                            android:textSize="14sp"
+-                            app:drawableStartCompat="@drawable/ic_baseline_lock_24"
+-                            app:drawableTint="?attr/colorOnSurface"
+-                            tools:text="HTTPS: 75 ms" />
+-
+-                    </LinearLayout>
+-
+-                    <View
+-                        android:id="@+id/compact_section_divider"
+-                        android:layout_width="1dp"
+-                        android:layout_height="32dp"
+-                        android:background="?attr/colorOutlineVariant"
+-                        app:layout_constraintBottom_toBottomOf="parent"
+-                        app:layout_constraintEnd_toStartOf="@id/compact_speed_group"
+-                        app:layout_constraintTop_toTopOf="parent" />
+-
+-                    <LinearLayout
+-                        android:id="@+id/compact_speed_group"
+-                        android:layout_width="168dp"
+-                        android:layout_height="0dp"
+-                        android:gravity="center_vertical"
+-                        android:orientation="horizontal"
+-                        android:paddingStart="8dp"
+-                        android:paddingTop="18dp"
+-                        android:paddingEnd="8dp"
+-                        android:paddingBottom="10dp"
+-                        app:layout_constraintBottom_toBottomOf="parent"
+-                        app:layout_constraintEnd_toEndOf="parent"
+-                        app:layout_constraintTop_toTopOf="parent">
+-
+-                        <androidx.appcompat.widget.AppCompatTextView
+-                            android:id="@+id/compact_tx"
+-                            android:layout_width="0dp"
+-                            android:layout_height="match_parent"
+-                            android:layout_weight="1"
+-                            android:drawablePadding="3dp"
+-                            android:ellipsize="end"
+-                            android:gravity="center"
+-                            android:includeFontPadding="false"
+-                            android:maxLines="1"
+-                            android:textColor="?attr/colorOnSurface"
+-                            android:textSize="13sp"
+-                            app:drawableStartCompat="@drawable/ic_baseline_upload_24"
+-                            app:drawableTint="?attr/colorOnSurface"
+-                            tools:text="0 B/s" />
+-
+-                        <View
+-                            android:id="@+id/compact_speed_divider"
+-                            android:layout_width="1dp"
+-                            android:layout_height="32dp"
+-                            android:background="?attr/colorOutlineVariant" />
+-
+-                        <androidx.appcompat.widget.AppCompatTextView
+-                            android:id="@+id/compact_rx"
+-                            android:layout_width="0dp"
+-                            android:layout_height="match_parent"
+-                            android:layout_weight="1"
+-                            android:drawablePadding="3dp"
+-                            android:ellipsize="end"
+-                            android:gravity="center"
+-                            android:includeFontPadding="false"
+-                            android:maxLines="1"
+-                            android:textColor="?attr/colorOnSurface"
+-                            android:textSize="13sp"
+-                            app:drawableStartCompat="@drawable/ic_baseline_download_24"
+-                            app:drawableTint="?attr/colorOnSurface"
+-                            tools:text="0 B/s" />
+-
+-                    </LinearLayout>
+-
+-                </androidx.constraintlayout.widget.ConstraintLayout>
+-
+-            </FrameLayout>
+-
+-        </io.nekohasekai.sagernet.widget.StatsBar>
+-
+-        <io.nekohasekai.sagernet.widget.FabCluster
+-            android:id="@+id/fabCluster"
+-            android:layout_width="wrap_content"
+-            android:layout_height="wrap_content"
+-            android:clipChildren="false"
+-            android:clipToPadding="false"
+-            android:translationZ="12dp"
+-            app:layout_anchor="@id/stats"
+-            app:layout_anchorGravity="top|center_horizontal">
+-
+-            <io.nekohasekai.sagernet.widget.ServiceButton
+-                android:id="@+id/fab"
+-                android:layout_width="wrap_content"
+-                android:layout_height="wrap_content"
+-                android:layout_gravity="center"
+-                android:elevation="6dp"
+-                android:nextFocusDown="@+id/stats"
+-                app:backgroundTint="?attr/colorPrimary"
+-                app:pressedTranslationZ="6dp"
+-                app:srcCompat="@drawable/ic_service_idle"
+-                app:tint="?attr/colorOnPrimary" />
+-
+-            <!-- We double trackThickness as half of it will be invisible -->
+-            <com.google.android.material.progressindicator.CircularProgressIndicator
+-                android:id="@+id/fabProgress"
+-                android:layout_width="wrap_content"
+-                android:layout_height="wrap_content"
+-                android:layout_gravity="center"
+-                android:max="1"
+-                android:translationZ="13dp"
+-                android:visibility="invisible"
+-                app:indicatorColor="?attr/colorPrimary"
+-                app:trackCornerRadius="@dimen/mtrl_progress_track_thickness"
+-                app:trackThickness="8dp" />
+-
+-        </io.nekohasekai.sagernet.widget.FabCluster>
+-
++                <View android:id="@+id/compact_section_divider" android:layout_width="1dp" android:layout_height="32dp" android:background="?attr/colorOutlineVariant" app:layout_constraintBottom_toBottomOf="parent" app:layout_constraintEnd_toStartOf="@id/compact_speed_group" app:layout_constraintTop_toTopOf="parent" />
++                <LinearLayout android:id="@+id/compact_speed_group" android:layout_width="168dp" android:layout_height="0dp" android:gravity="center_vertical" android:orientation="horizontal" android:paddingStart="8dp" android:paddingTop="18dp" android:paddingEnd="8dp" android:paddingBottom="10dp" app:layout_constraintBottom_toBottomOf="parent" app:layout_constraintEnd_toEndOf="parent" app:layout_constraintTop_toTopOf="parent">
++                    <androidx.appcompat.widget.AppCompatTextView android:id="@+id/compact_tx" android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1" android:drawablePadding="3dp" android:ellipsize="end" android:gravity="center" android:includeFontPadding="false" android:maxLines="1" android:textColor="?attr/colorOnSurface" android:textSize="13sp" app:drawableStartCompat="@drawable/ic_baseline_upload_24" app:drawableTint="?attr/colorOnSurface" tools:text="0 B/s" />
++                    <View android:id="@+id/compact_speed_divider" android:layout_width="1dp" android:layout_height="32dp" android:background="?attr/colorOutlineVariant" />
++                    <androidx.appcompat.widget.AppCompatTextView android:id="@+id/compact_rx" android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1" android:drawablePadding="3dp" android:ellipsize="end" android:gravity="center" android:includeFontPadding="false" android:maxLines="1" android:textColor="?attr/colorOnSurface" android:textSize="13sp" app:drawableStartCompat="@drawable/ic_baseline_download_24" app:drawableTint="?attr/colorOnSurface" tools:text="0 B/s" />
++                </LinearLayout>
++            </androidx.constraintlayout.widget.ConstraintLayout>
++        </FrameLayout>
++    </io.nekohasekai.sagernet.widget.StatsBar>
++    <io.nekohasekai.sagernet.widget.FabCluster android:id="@+id/fabCluster" android:layout_width="wrap_content" android:layout_height="wrap_content" android:clipChildren="false" android:clipToPadding="false" android:translationZ="12dp" app:layout_anchor="@id/stats" app:layout_anchorGravity="top|center_horizontal">
++        <io.nekohasekai.sagernet.widget.ServiceButton android:id="@+id/fab" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_gravity="center" android:elevation="6dp" android:nextFocusDown="@+id/stats" app:backgroundTint="?attr/colorPrimary" app:pressedTranslationZ="6dp" app:srcCompat="@drawable/ic_service_idle" app:tint="?attr/colorOnPrimary" />
++        <com.google.android.material.progressindicator.CircularProgressIndicator android:id="@+id/fabProgress" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_gravity="center" android:max="1" android:translationZ="13dp" android:visibility="invisible" app:indicatorColor="?attr/colorPrimary" app:trackCornerRadius="@dimen/mtrl_progress_track_thickness" app:trackThickness="8dp" />
++    </io.nekohasekai.sagernet.widget.FabCluster>
++    <include layout="@layout/mobiletina_manual_dock" />
+ </androidx.coordinatorlayout.widget.CoordinatorLayout>
 diff --git a/workspace/NekoBoxForAndroid/app/src/main/res/menu/add_profile_menu.xml b/workspace/NekoBoxForAndroid/app/src/main/res/menu/add_profile_menu.xml
 index 09e6e0d..1532815 100644
 --- a/workspace/NekoBoxForAndroid/app/src/main/res/menu/add_profile_menu.xml
@@ -1794,14 +2373,14 @@ index fde311a..1891a31 100644
              val originalFileName = output.outputFileName.get()
              output.outputFileName.set(
 diff --git a/workspace/NekoBoxForAndroid/nb4a.properties b/workspace/NekoBoxForAndroid/nb4a.properties
-index b5f787d..533e19b 100644
+index b5f787d..cd1b873 100644
 --- a/workspace/NekoBoxForAndroid/nb4a.properties
 +++ b/workspace/NekoBoxForAndroid/nb4a.properties
 @@ -1,4 +1,4 @@
 -PACKAGE_NAME=com.nb4a.plus
 -VERSION_NAME=1.4.2-97
 +PACKAGE_NAME=com.nb4a.mobiletina
-+VERSION_NAME=1.4.2-98
++VERSION_NAME=1.4.2-99
  PRE_VERSION_NAME=pre-1.4.2-20260214-1
 -VERSION_CODE=84
-+VERSION_CODE=85
++VERSION_CODE=86

@@ -49,13 +49,25 @@ locales = ET.parse(res/'xml/locales_config.xml').getroot()
 assert [locale.get(android+'name') for locale in locales] == ['en']
 assert not (res/'drawable/splash_screen.xml').exists()
 assert '@android:color/transparent' in (res/'values-v31/themes.xml').read_text()
-assert 'android:inset="24%"' in (res/'drawable/mobiletina_launcher_safe.xml').read_text()
+assert 'android:inset="22%"' in (res/'drawable/mobiletina_launcher_safe.xml').read_text()
 font = res/'font/mobiletina.ttf'
 assert hashlib.sha256(font.read_bytes()).hexdigest() == (ROOT/'REFERENCE_EXCLAVE_FONT_SHA256').read_text().strip()
 assert 'name="fontFamily">@font/mobiletina' in (res/'values/themes.xml').read_text()
 main = (NBA/'app/src/main/java/io/nekohasekai/sagernet/ui/MainActivity.kt').read_text()
 setup = main.split('private suspend fun performProxyAppsFirstSetup() {',1)[1].split('\n    }',1)[0]
 assert 'DataStore.proxyApps = false' in setup and 'DataStore.proxyApps = true' not in setup
-assert 'MobileTinaAboutScreen' in (NBA/'app/src/main/java/io/nekohasekai/sagernet/ui/AboutFragment.kt').read_text()
+assert 'R.layout.layout_about' in (NBA/'app/src/main/java/io/nekohasekai/sagernet/ui/AboutFragment.kt').read_text()
 assert (NBA/'app/src/main/assets/LICENSE').stat().st_size > 100
 print('Verified XML, identity, ARM ABIs, original menu/actions, authorized removals, single language/icon, startup defaults, Exclave font, artwork, and license.')
+
+# The reference layouts/assets and actual welcome replace the former approximation.
+for name, digest in json.loads((ROOT/'EXCLAVE_UI_ASSETS_SHA256.json').read_text()).items():
+    assert hashlib.sha256((res/'drawable-nodpi'/name).read_bytes()).hexdigest() == digest
+home = (NBA/'app/src/main/java/io/nekohasekai/sagernet/ui/MobileTinaHomeFragment.kt').read_text()
+assert 'R.layout.mobiletina_home' in home and 'welcomeSeen' not in home
+assert 'mobiletina_welcome_title' not in (res/'values/mobiletina_strings.xml').read_text()
+assert 'MobileTinaFirstLaunchDialog.showOnce' in main
+header = ET.parse(res/'layout/mobiletina_home_header.xml').getroot()
+header_ids = {n.get(android+'id') for n in header.iter()}
+assert {'@+id/mobiletina_scan','@+id/mobiletina_add','@+id/mobiletina_more','@+id/btn_mode_manual','@+id/btn_mode_auto'} <= header_ids
+assert (res/'layout/mobiletina_manual_dock.xml').is_file()
