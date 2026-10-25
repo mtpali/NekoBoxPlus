@@ -118,3 +118,6 @@ activity_names = lambda doc: {a.get(android+'name') for a in doc.findall('applic
 removed_activities = {'GitBackupSettingsActivity','WebDAVSettingsActivity','CellularNetworkActivity','ConnectionTestNotificationActionActivity','QuickDisableShortcut','QuickEnableShortcut','RuleSetMatchActivity','SpeedTestActivity','StunActivity','ToolbarLayoutActivity'}
 assert {name for name in activity_names(original_manifest) if name.rsplit('.',1)[-1] not in removed_activities} <= activity_names(manifest)
 print('Verified GitHub-first trusted clock, no device-date expiration fallback and preserved application activities.')
+
+assert 'MobileTinaSubscriptionExpiry.deferVerification(group, trigger, revision!!)' in expiry_source
+assert 'private fun scheduleFallback(record: Record, wait: Long)' in expiry_source

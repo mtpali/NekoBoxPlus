@@ -75,7 +75,7 @@ internal object MobileTinaSubscriptionExpiry {
     @Volatile private var clock: Clock? = null
     private data class Record(val group: Long, val trigger: Long, val link: String, val updated: Int) {
         val revision: String get() = digest("$group|$trigger|$link|$updated")
-        val tag: String get() = "mobiletina.expiry.v104.$group.$revision"
+        val tag: String get() = "mobiletina.expiry.v105.$group.$revision"
     }
     private fun bootCount(): Int = if (Build.VERSION.SDK_INT >= 24)
         android.provider.Settings.Global.getInt(app.contentResolver, android.provider.Settings.Global.BOOT_COUNT, -1) else -1
@@ -121,7 +121,9 @@ internal object MobileTinaSubscriptionExpiry {
         time
     }
 
-    suspend fun refreshClock() = withContext(Dispatchers.IO) { verifiedTime() }
+    suspend fun refreshClock() = withContext(Dispatchers.IO) {
+        verifiedTime()?.also { recover() }
+    }
 
     private fun readRecord(groupId: Long): Record? = prefs.record(groupId)?.let {
         Record(groupId, it.first, it.second, it.third)
@@ -189,6 +191,9 @@ internal object MobileTinaSubscriptionExpiry {
     private fun cancelLegacy(groupId: Long, trigger: Long) {
         cancelAlarm(groupId, trigger)
         // Old 102/103 work must be cancelled once on upgrade, not allowed to revive a retry loop.
+        readRecord(groupId)?.let { old ->
+            workManager().cancelAllWorkByTag("mobiletina.expiry.v104.$groupId.${old.revision}").get(5, TimeUnit.SECONDS)
+        }
         workManager().cancelAllWorkByTag("mobiletina.expiry.$groupId").get(5, TimeUnit.SECONDS)
         workManager().cancelUniqueWork("mobiletina.expiry.$groupId").get(5, TimeUnit.SECONDS)
     }
@@ -202,10 +207,10 @@ internal object MobileTinaSubscriptionExpiry {
         val requireNetwork = record.trigger != 1L && trustedNow() == null
         val builder = OneTimeWorkRequestBuilder<MobileTinaExpiryWorker>()
             .addTag(record.tag)
-            .setInputData(workDataOf("group" to record.group, "trigger" to record.trigger, "revision" to record.revision))
+            .setInputData(workDataOf("group" to record.group, "trigger" to record.trigger, "revision" to record.revision, "scheduler" to MobileTinaExpirySchedulePolicy.CURRENT_SCHEDULER))
             .setBackoffCriteria(BackoffPolicy.EXPONENTIAL, MobileTinaExpirySchedulePolicy.RETRY_DELAY_MILLIS, TimeUnit.MILLISECONDS)
         if (requireNetwork) builder.setConstraints(Constraints.Builder().setRequiredNetworkType(NetworkType.CONNECTED).build())
-        workManager().enqueueUniqueWork("mobiletina.expiry.v104.verify.${record.group}.${record.revision}",
+        workManager().enqueueUniqueWork("mobiletina.expiry.v105.verify.${record.group}.${record.revision}",
             ExistingWorkPolicy.KEEP, listOf(builder.build())).get(5, TimeUnit.SECONDS)
     }
     private fun scheduleDeadline(record: Record, trustedEpoch: Long) {
@@ -218,13 +223,24 @@ internal object MobileTinaSubscriptionExpiry {
                 manager.setExactAndAllowWhileIdle(AlarmManager.ELAPSED_REALTIME_WAKEUP, at, alarmIntent(record.group, record.trigger)!!)
             else manager.setAndAllowWhileIdle(AlarmManager.ELAPSED_REALTIME_WAKEUP, at, alarmIntent(record.group, record.trigger)!!)
         }.onFailure(Logs::w)
-        // Only a verification worker schedules this lightweight fallback, never itself.
+        scheduleFallback(record, wait)
+    }
+
+    private fun scheduleFallback(record: Record, wait: Long) {
+        if (readRecord(record.group) != record) return
+        // This lightweight request can be replaced without cancelling a retirement worker.
         val fallback = OneTimeWorkRequestBuilder<MobileTinaExpiryWorker>().addTag(record.tag)
             .setInputData(workDataOf("group" to record.group, "trigger" to record.trigger,
-                "revision" to record.revision, "deadline" to true))
+                "revision" to record.revision, "deadline" to true, "scheduler" to MobileTinaExpirySchedulePolicy.CURRENT_SCHEDULER))
             .setInitialDelay(wait, TimeUnit.MILLISECONDS).build()
-        workManager().enqueueUniqueWork("mobiletina.expiry.v104.deadline.${record.group}.${record.revision}",
+        workManager().enqueueUniqueWork("mobiletina.expiry.v105.deadline.${record.group}.${record.revision}",
             ExistingWorkPolicy.REPLACE, listOf(fallback)).get(5, TimeUnit.SECONDS)
+    }
+
+    suspend fun deferVerification(groupId: Long, trigger: Long, revision: String) = withContext(Dispatchers.IO) {
+        validRecord(groupId)?.takeIf { it.trigger == trigger && it.revision == revision }?.let {
+            scheduleFallback(it, MobileTinaExpirySchedulePolicy.RETRY_DELAY_MILLIS)
+        }
     }
 
     suspend fun syncImportedPayloads(groupId: Long, payloads: List<String>) {
@@ -283,7 +299,7 @@ internal object MobileTinaSubscriptionExpiry {
                 }
                 prefs.edit().putInt("payload-recovery.v105", 1).apply()
             }
-            val legacy = prefs.getInt("scheduler.v104", 0) != 1
+            val legacy = prefs.getInt("scheduler.v105", 0) != 1
             val ids = prefs.all.keys.filter { it.startsWith("expiry.") }.mapNotNull { it.substringAfter('.').toLongOrNull() }
             for (id in ids) {
                 val record = readRecord(id) ?: continue
@@ -300,7 +316,7 @@ internal object MobileTinaSubscriptionExpiry {
                 if (now != null && now < record.trigger) scheduleDeadline(record, now)
                 else requestVerification(record)
             }
-            prefs.edit().putInt("scheduler.v104", 1).apply()
+            prefs.edit().putInt("scheduler.v105", 1).apply()
           } finally {
             recovering.set(false)
           }
@@ -340,7 +356,7 @@ internal object MobileTinaSubscriptionExpiry {
         // Compare-and-remove cannot erase a renewed revision; do not cancel this running worker.
         if (prefs.forget(groupId, record.trigger, record.link, record.updated)) {
             cancelAlarm(groupId, trigger)
-            workManager().cancelUniqueWork("mobiletina.expiry.v104.deadline.$groupId.$revision")
+            workManager().cancelUniqueWork("mobiletina.expiry.v105.deadline.$groupId.$revision")
         }
         if (replacement == null) return@withContext true
         if (DataStore.selectedGroup == groupId) DataStore.selectedProxy = replacement.id
@@ -388,9 +404,17 @@ class MobileTinaExpiryWorker(context: Context, params: WorkerParameters) : Corou
     override suspend fun doWork(): Result = try {
         val revision = inputData.getString("revision")
         // Persisted 102/103 requests are inert, even if cancellation races with their execution.
-        if (revision.isNullOrBlank()) Result.success()
-        else if (MobileTinaSubscriptionExpiry.verify(inputData.getLong("group", 0), inputData.getLong("trigger", 0),
-                revision, inputData.getBoolean("deadline", false))) Result.success() else Result.retry()
+        if (!MobileTinaExpirySchedulePolicy.acceptsWork(inputData.getInt("scheduler", 0), revision)) Result.success()
+        else {
+            val group = inputData.getLong("group", 0)
+            val trigger = inputData.getLong("trigger", 0)
+            if (!MobileTinaSubscriptionExpiry.verify(group, trigger, revision!!, inputData.getBoolean("deadline", false))) {
+                // Finish this verification. A durable delayed request retries later, while resume
+                // or a newly verified clock may enqueue fresh work immediately using KEEP.
+                MobileTinaSubscriptionExpiry.deferVerification(group, trigger, revision!!)
+            }
+            Result.success()
+        }
     } catch (e: CancellationException) { throw e }
       catch (e: Exception) { Logs.w(e); Result.retry() }
 }

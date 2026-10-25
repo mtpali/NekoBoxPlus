@@ -36,4 +36,13 @@ class MobileTinaExpirySchedulePolicyTest {
         assertFalse(MobileTinaExpirySchedulePolicy.isTerminalMarker(true, 1, false))
         assertFalse(MobileTinaExpirySchedulePolicy.isTerminalMarker(true, 0, false))
     }
+
+    @org.junit.Test fun previousSchedulersCannotExecuteAnExpiryAfterUpgrade() {
+        for (version in listOf(0, 102, 103, 104)) {
+            org.junit.Assert.assertFalse(MobileTinaExpirySchedulePolicy.acceptsWork(version, "valid-old-revision"))
+        }
+        org.junit.Assert.assertFalse(MobileTinaExpirySchedulePolicy.acceptsWork(105, null))
+        org.junit.Assert.assertFalse(MobileTinaExpirySchedulePolicy.acceptsWork(105, ""))
+        org.junit.Assert.assertTrue(MobileTinaExpirySchedulePolicy.acceptsWork(105, "current-revision"))
+    }
 }

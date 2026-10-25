@@ -74,6 +74,8 @@ internal class MobileTinaExpiryStore(context: Context) {
 }
 
 internal object MobileTinaExpirySchedulePolicy {
+    const val CURRENT_SCHEDULER = 105
+    fun acceptsWork(version: Int, revision: String?): Boolean = version == CURRENT_SCHEDULER && !revision.isNullOrBlank()
     const val RETRY_DELAY_MILLIS = 15 * 60_000L
     fun mayFetchTime(elapsed: Long, lastFailure: Long, sameBoot: Boolean): Boolean =
         !sameBoot || lastFailure < 0L || elapsed < lastFailure || elapsed - lastFailure >= RETRY_DELAY_MILLIS
