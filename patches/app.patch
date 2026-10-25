@@ -949,7 +949,7 @@ index a412021..07a9c80 100644
 -            android:process=":bg"
 -            tools:ignore="ForegroundServicePermission"
 -            tools:targetApi="n">
-+        <service android:name="io.nekohasekai.sagernet.bg.TileService" android:exported="true" android:foregroundServiceType="systemExempted" android:icon="@drawable/ic_service_active" android:label="@string/tile_title" android:permission="android.permission.BIND_QUICK_SETTINGS_TILE" android:process=":bg" tools:ignore="ForegroundServicePermission" tools:targetApi="n">
++        <service android:name="io.nekohasekai.sagernet.bg.TileService" android:exported="true" android:foregroundServiceType="systemExempted" android:icon="@mipmap/ic_launcher" android:label="@string/tile_title" android:permission="android.permission.BIND_QUICK_SETTINGS_TILE" android:process=":bg" tools:ignore="ForegroundServicePermission" tools:targetApi="n">
              <intent-filter>
                  <action android:name="android.service.quicksettings.action.QS_TILE" />
              </intent-filter>
@@ -5451,6 +5451,17 @@ index 32891b1..cdf426a 100644
          isFromClipboard = intent.getBooleanExtra(EXTRA_FROM_CLIPBOARD, false)
          val subscriptionLink = intent.getStringExtra(EXTRA_GROUP_SUBSCRIPTION_LINK)
          DataStore.editingId = editingId
+@@ -342,8 +342,10 @@ class GroupSettingsActivity : ThemedActivity(),
+                     GroupSettingsScreen(
+                         canDelete = editingId == 0L || GroupManager.canDelete(editingId),
+                         frontProxyName = outboundName(DataStore.frontProxyTmp, DataStore.frontProxy),
+                         landingProxyName = outboundName(DataStore.landingProxyTmp, DataStore.landingProxy),
+                         onClose = ::closeEditor,
+                         onSave = { runOnDefaultDispatcher { saveAndExit() } },
+                         onDelete = ::requestDelete,
++                        canShowQrCode = DataStore.groupType == GroupType.SUBSCRIPTION && DataStore.subscriptionLink.isNotBlank(),
++                        onShowQrCode = { io.nekohasekai.sagernet.widget.QRCodeDialog(DataStore.subscriptionLink, DataStore.groupName).show(supportFragmentManager, "mobiletina-subscription-qr") },
+                         onSelectFrontProxy = { selectProxy(true) },
 @@ -383,7 +387,7 @@ class GroupSettingsActivity : ThemedActivity(),
                  GroupManager.updateGroup(newGroup)
                  showRoutingNotProvided()
@@ -6953,6 +6964,17 @@ diff --git a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagern
 index 478d87c..0025945 100644
 --- a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/compose/GroupSettingsScreen.kt
 +++ b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/compose/GroupSettingsScreen.kt
+@@ -39,8 +39,10 @@ internal fun GroupSettingsScreen(
+ internal fun GroupSettingsScreen(
+     canDelete: Boolean,
+     frontProxyName: String,
+     landingProxyName: String,
+     onClose: () -> Unit,
+     onSave: () -> Unit,
+     onDelete: () -> Unit,
++    canShowQrCode: Boolean,
++    onShowQrCode: () -> Unit,
+     onSelectFrontProxy: () -> Unit,
 @@ -56,7 +56,7 @@ internal fun GroupSettingsScreen(
  ) {
      val context = LocalContext.current
@@ -6962,6 +6984,17 @@ index 478d87c..0025945 100644
      var revision by remember { mutableIntStateOf(0) }
      var bannerDialog by remember { mutableStateOf(false) }
      val store = DataStore.profileCacheStore
+@@ -123,7 +123,10 @@ internal fun GroupSettingsScreen(
+                 actions = {
+                     if (canDelete) IconButton(onClick = onDelete) {
+                         Icon(painterResource(R.drawable.ic_action_delete), stringResource(R.string.delete))
+                     }
++                    if (canShowQrCode) IconButton(onClick = onShowQrCode) {
++                        Icon(painterResource(R.drawable.mobiletina_qr_code), stringResource(io.nekohasekai.sagernet.R.string.mobiletina_qr))
++                    }
+                     IconButton(onClick = onSave) {
+                         Icon(painterResource(R.drawable.ic_action_done), stringResource(R.string.apply))
+                     }
 @@ -123,7 +123,7 @@ internal fun GroupSettingsScreen(
                  title = { Text(stringResource(R.string.group_settings)) },
                  navigationIcon = {
@@ -9099,7 +9132,7 @@ index 2f6ec1c..80851d6 100644
      <string name="quick_enable">Enable</string>
      <string name="quick_disable">Disable</string>
 -    <string name="tile_title">Switcher</string>
-+    <string name="tile_title">MobileTina</string>
++    <string name="tile_title">VPN</string>
      <string name="menu_traffic">Traffic</string>
 -    <string name="menu_dashboard">sing-box Dashboard</string>
      <!-- externel -->
