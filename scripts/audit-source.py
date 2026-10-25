@@ -99,7 +99,7 @@ assert hashlib.sha256((res/'drawable-nodpi/mobiletina_launcher.png').read_bytes(
 
 # Release105 removes these complete application features, not just their settings rows.
 application_source = "\n".join(p.read_text() for p in (NBA/'app/src/main/java').rglob('*') if p.suffix in {'.kt', '.java'})
-for token in ('notificationCountryIndicator','useToolbar','profileCountryIndicator','showBottomBarInSettings','compactStatsBar','legacyMainView','showDirectSpeed','showGroupInNotification','persistentStatusNotification','alwaysShowAddress','tabDoubleTapToNavigate','configureToolbarLayout','startIcmpPing','icmpPingWithAddress','canICMPing','ToolsFragment','LogcatFragment','WebviewFragment','BackupFragment','GitBackupRepository','CountryFlagRenderer'):
+for token in ('notificationCountryIndicator','useToolbar','profileCountryIndicator','showBottomBarInSettings','compactStatsBar','legacyMainView','showDirectSpeed','showGroupInNotification','persistentStatusNotification','alwaysShowAddress','tabDoubleTapToNavigate','configureToolbarLayout','startIcmpPing','icmpPingWithAddress','canICMPing','ToolsFragment','LogcatFragment','WebviewFragment','BackupFragment','GitBackupRepository','CountryFlagRenderer','PERSISTENT_STATUS_NOTIFICATION','NOTIFICATION_COUNTRY_INDICATOR_ENABLED','updateNotificationCountryIndicator','trafficVisible'):
     assert token not in application_source, 'Removed feature remains: '+token
 assert 'syncImportedPayloads(targetId, payloads)' in (NBA/'app/src/main/java/io/nekohasekai/sagernet/ui/ConfigurationFragment.kt').read_text()
 notification = (NBA/'app/src/main/java/io/nekohasekai/sagernet/bg/ServiceNotification.kt').read_text()

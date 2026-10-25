@@ -1263,7 +1263,7 @@ index 8437e1e..d543844 100644
                  pendingResult.finish()
              }
 diff --git a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/Constants.kt b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/Constants.kt
-index daedb36..cf17ca3 100644
+index daedb36..e877c33 100644
 --- a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/Constants.kt
 +++ b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/Constants.kt
 @@ -24,18 +24,9 @@ object Key {
@@ -1327,12 +1327,12 @@ index daedb36..cf17ca3 100644
  
      const val GLOBAL_MODE = "globalMode"
  }
-@@ -414,14 +391,11 @@ object Action {
+@@ -414,14 +391,10 @@ object Action {
      const val RELOAD = "io.nekohasekai.sagernet.RELOAD"
      const val EXTRA_PROFILE_ID = "io.nekohasekai.sagernet.extra.PROFILE_ID"
      const val EXTRA_REQUEST_ID = "io.nekohasekai.sagernet.extra.REQUEST_ID"
 -    const val EXTRA_NOTIFICATION_COUNTRY_INDICATOR_ENABLED =
-         "io.nekohasekai.sagernet.extra.NOTIFICATION_COUNTRY_INDICATOR_ENABLED"
+-        "io.nekohasekai.sagernet.extra.NOTIFICATION_COUNTRY_INDICATOR_ENABLED"
      const val RECOVER_CORE = "${BuildConfig.APPLICATION_ID}.RECOVER_CORE"
  
      // const val SWITCH_WAKE_LOCK = "io.nekohasekai.sagernet.SWITCH_WAKELOCK"
@@ -4633,7 +4633,7 @@ index 936c057..7550d8e 100644
                      return true
                  }
 diff --git a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/GlobalSettingsController.kt b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/GlobalSettingsController.kt
-index 48e90b0..9ba348e 100644
+index 48e90b0..87f83d9 100644
 --- a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/GlobalSettingsController.kt
 +++ b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/GlobalSettingsController.kt
 @@ -48,7 +48,6 @@ internal class GlobalSettingsController(
@@ -4696,7 +4696,7 @@ index 48e90b0..9ba348e 100644
          val theme = Theme.getTheme(themeId)
          context.applicationContext.setTheme(theme)
          activity.setTheme(theme)
-@@ -208,12 +194,13 @@ internal class GlobalSettingsController(
+@@ -208,13 +194,14 @@ internal class GlobalSettingsController(
  
      private companion object {
          val RELOAD_KEYS = setOf(
@@ -4707,10 +4707,12 @@ index 48e90b0..9ba348e 100644
              Key.ENABLE_CLASH_API, Key.HIDE_CLASH_API, Key.REQUIRE_PROXY_IN_VPN,
              Key.DISABLE_UDP_FOR_LOCAL_PROXY, Key.MIXED_LISTENER, Key.MIXED_PORT, Key.MIXED_USERNAME,
 -            Key.MIXED_PASSWORD, Key.APPEND_HTTP_PROXY, Key.STRICT_ROUTE, Key.SHOW_DIRECT_SPEED,
+-            Key.PERSISTENT_STATUS_NOTIFICATION, Key.TRAFFIC_SNIFFING, Key.BYPASS_LAN,
 +            Key.MIXED_PASSWORD, Key.APPEND_HTTP_PROXY, Key.STRICT_ROUTE,
-             Key.PERSISTENT_STATUS_NOTIFICATION, Key.TRAFFIC_SNIFFING, Key.BYPASS_LAN,
++            Key.TRAFFIC_SNIFFING, Key.BYPASS_LAN,
              Key.BYPASS_LAN_IN_CORE, Key.MTU, Key.UDP_NAT_MAPPING, Key.UDP_NAT_FILTERING,
              Key.UDP_NAT_MAX, Key.ENABLE_FAKEDNS, Key.DNS_DISABLE_CACHE, Key.DNS_DISABLE_EXPIRE,
+             Key.DNS_CACHE_CAPACITY, Key.DNS_TIMEOUT, Key.DNS_OPTIMISTIC_CACHE,
 diff --git a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/GlobalSettingsOperations.kt b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/GlobalSettingsOperations.kt
 index 8e69893..567668a 100644
 --- a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/GlobalSettingsOperations.kt
@@ -5457,7 +5459,7 @@ index 32891b1..cdf426a 100644
              onNegative = ::finish,
          )
 diff --git a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/MainActivity.kt b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/MainActivity.kt
-index c403caa..fd05766 100644
+index c403caa..d3bebe6 100644
 --- a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/MainActivity.kt
 +++ b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/MainActivity.kt
 @@ -12,6 +12,7 @@ import android.os.Build
@@ -5740,7 +5742,7 @@ index c403caa..fd05766 100644
      }
  
      private fun requestProxyAppsToggle(enabled: Boolean) {
-@@ -441,10 +437,137 @@ class MainActivity :
+@@ -441,10 +437,136 @@ class MainActivity :
  
      fun closeDrawer() = shellState.closeDrawer()
  
@@ -5763,7 +5765,6 @@ index c403caa..fd05766 100644
 +        displayFragmentWithId(id)
 +    }
 +
-+    val mobileTinaTrafficAvailable: Boolean get() = shellState.trafficVisible
 +
 +    fun dispatchMobileTinaConfigurationAction(id: Int) {
 +        if (id in MobileTinaConfigurationCleanup.actions) {
@@ -5878,7 +5879,7 @@ index c403caa..fd05766 100644
  
          if (DataStore.hideFromRecentApps) {
              applyHideFromRecentApps(DataStore.hideFromRecentApps)
-@@ -464,19 +587,43 @@ class MainActivity :
+@@ -464,19 +586,43 @@ class MainActivity :
          }
      }
  
@@ -5927,7 +5928,7 @@ index c403caa..fd05766 100644
  
          RoutingLinkProcessors.forLink(uri.toString())?.let { processor ->
              setIntent(Intent(intent).setAction(null).setData(null))
-@@ -648,60 +795,6 @@ class MainActivity :
+@@ -648,60 +794,6 @@ class MainActivity :
          }
      }
  
@@ -5988,7 +5989,7 @@ index c403caa..fd05766 100644
      fun urlTest(automatic: Boolean = false): Int {
          if (!DataStore.serviceState.connected || connection.service == null) {
              error("not started")
-@@ -709,7 +802,7 @@ class MainActivity :
+@@ -709,7 +801,7 @@ class MainActivity :
          return connection.service!!.urlTest(automatic)
      }
  
@@ -5997,7 +5998,7 @@ index c403caa..fd05766 100644
          val group: ProxyGroup
  
          val url = uri.getQueryParameter("url")
-@@ -746,7 +839,12 @@ class MainActivity :
+@@ -746,7 +838,12 @@ class MainActivity :
          if (name.isNullOrBlank()) return
  
          group.name = group.name.takeIf { !it.isNullOrBlank() }
@@ -6011,7 +6012,7 @@ index c403caa..fd05766 100644
  
          onMainDispatcher {
              displayFragmentWithId(R.id.nav_group)
-@@ -755,7 +853,7 @@ class MainActivity :
+@@ -755,7 +852,7 @@ class MainActivity :
                  title = getText(R.string.subscription_import),
                  message = getString(R.string.subscription_import_message, name),
                  positiveButton = getText(R.string.yes),
@@ -6020,7 +6021,7 @@ index c403caa..fd05766 100644
                  onPositive = {
                      runOnDefaultDispatcher {
                          finishImportSubscription(group)
-@@ -765,9 +863,40 @@ class MainActivity :
+@@ -765,9 +862,40 @@ class MainActivity :
          }
      }
  
@@ -6064,7 +6065,7 @@ index c403caa..fd05766 100644
      }
  
      suspend fun importProfile(uri: Uri) {
-@@ -804,7 +933,7 @@ class MainActivity :
+@@ -804,7 +932,7 @@ class MainActivity :
                  title = getText(R.string.profile_import),
                  message = message,
                  positiveButton = getText(R.string.yes),
@@ -6073,7 +6074,16 @@ index c403caa..fd05766 100644
                  onPositive = {
                      runOnDefaultDispatcher {
                          finishImportProfiles(profiles)
-@@ -905,20 +1034,16 @@ class MainActivity :
+@@ -818,6 +946,8 @@ class MainActivity :
+         val targetId = DataStore.selectedGroupForImport()
+ 
+         ProfileManager.createProfiles(targetId, profiles)
++        io.nekohasekai.sagernet.ui.MobileTinaSubscriptionExpiry.syncImportedPayloads(targetId,
++            profiles.mapNotNull { (it as? moe.matsuri.nb4a.proxy.config.ConfigBean)?.config })
+ 
+         onMainDispatcher {
+             displayFragmentWithId(R.id.nav_configuration)
+@@ -905,20 +1035,16 @@ class MainActivity :
          fragment.openGroup(groupId, animate = false)
      }
  
@@ -6097,7 +6107,7 @@ index c403caa..fd05766 100644
          binding.stats.useExternalScrollDriver =
              fragment is ConfigurationFragment || fragment is SettingsFragment
          if (bottomControlsVisibleForCurrentFragment) {
-@@ -959,6 +1084,14 @@ class MainActivity :
+@@ -959,6 +1085,14 @@ class MainActivity :
          @IdRes id: Int,
      ): Boolean {
          when (id) {
@@ -6112,7 +6122,7 @@ index c403caa..fd05766 100644
              R.id.nav_configuration -> {
                  displayFragment(ConfigurationFragment())
              }
-@@ -984,19 +1117,6 @@ class MainActivity :
+@@ -984,19 +1118,6 @@ class MainActivity :
                  displayFragment(SettingsFragment())
              }
  
@@ -6132,7 +6142,7 @@ index c403caa..fd05766 100644
              R.id.nav_about -> {
                  displayFragment(AboutFragment())
              }
-@@ -1018,6 +1138,7 @@ class MainActivity :
+@@ -1018,6 +1139,7 @@ class MainActivity :
          val previousState = renderedServiceState
          renderedServiceState = state
          DataStore.serviceState = state
@@ -6140,7 +6150,7 @@ index c403caa..fd05766 100644
  
          if (bottomControlsVisibleForCurrentFragment) {
              binding.fab.changeState(state, previousState, animate)
-@@ -1032,8 +1153,6 @@ class MainActivity :
+@@ -1032,8 +1154,6 @@ class MainActivity :
                  it.refreshVisibleProfileActions()
                  it.refreshToolbarMenuState()
              }
@@ -6149,7 +6159,7 @@ index c403caa..fd05766 100644
          (supportFragmentManager.findFragmentById(R.id.fragment_holder) as? SettingsFragment)
              ?.syncServiceState()
          if (msg != null) snackbar(getString(R.string.vpn_error, msg)).show()
-@@ -1141,6 +1260,12 @@ class MainActivity :
+@@ -1141,6 +1261,12 @@ class MainActivity :
          connection.connect(this, this)
      }
  
@@ -6162,7 +6172,7 @@ index c403caa..fd05766 100644
      private val connect =
          registerForActivityResult(VpnRequestActivity.StartService()) {
              if (it) snackbar(R.string.vpn_permission_denied).show()
-@@ -1188,14 +1313,6 @@ class MainActivity :
+@@ -1188,14 +1314,6 @@ class MainActivity :
                  }
              }
  
@@ -6177,7 +6187,7 @@ index c403caa..fd05766 100644
              Key.GLOBAL_MODE -> {
                  syncGlobalModeFabStyle()
              }
-@@ -1227,6 +1344,10 @@ class MainActivity :
+@@ -1227,6 +1345,10 @@ class MainActivity :
      }
  
      override fun onDestroy() {
@@ -6188,7 +6198,7 @@ index c403caa..fd05766 100644
          binding.root.removeCallbacks(initialDrawTimeout)
          initialDrawListener?.let { listener ->
              binding.root.viewTreeObserver.takeIf { it.isAlive }
-@@ -1239,12 +1360,8 @@ class MainActivity :
+@@ -1239,12 +1361,8 @@ class MainActivity :
          customThemePreviewDialog?.dismiss()
          customThemePreviewDialog = null
          if (isFinishing) {
@@ -7980,7 +7990,7 @@ index 67b4e26..e866ac9 100644
                          },
                      ) {
 diff --git a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/widget/StatsBar.kt b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/widget/StatsBar.kt
-index a2e32ee..12ed60d 100644
+index a2e32ee..cb38135 100644
 --- a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/widget/StatsBar.kt
 +++ b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/widget/StatsBar.kt
 @@ -58,39 +58,20 @@ class StatsBar @JvmOverloads constructor(
@@ -8292,15 +8302,19 @@ index a2e32ee..12ed60d 100644
  
      fun testConnection(automatic: Boolean = false) {
          val activity = context.mainActivity() ?: return
-@@ -750,7 +582,7 @@ class StatsBar @JvmOverloads constructor(
+@@ -748,11 +580,7 @@ class StatsBar @JvmOverloads constructor(
+                             ipInfo.ip,
+                             ProfileCountryResolver.SOURCE_OUTBOUND,
                          )
-                     if (countryUpdated && isCurrentTest()) {
-                         SagerNet.updateNotificationCountryIndicator(
+-                    if (countryUpdated && isCurrentTest()) {
+-                        SagerNet.updateNotificationCountryIndicator(
 -                            DataStore.notificationCountryIndicator
-+                            false
-                         )
-                     }
+-                        )
+-                    }
++
                  }
+                 onMainDispatcher {
+                     if (!isCurrentTest()) return@onMainDispatcher
 diff --git a/workspace/NekoBoxForAndroid/app/src/main/java/moe/matsuri/nb4a/proxy/byedpi/ByeDPIBean.java b/workspace/NekoBoxForAndroid/app/src/main/java/moe/matsuri/nb4a/proxy/byedpi/ByeDPIBean.java
 index 2c55ec1..ef6dd68 100644
 --- a/workspace/NekoBoxForAndroid/app/src/main/java/moe/matsuri/nb4a/proxy/byedpi/ByeDPIBean.java
