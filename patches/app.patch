@@ -2939,6 +2939,17 @@ index e5f381a..5e2a891 100644
      }
  
      override suspend fun onUpdateFailure(group: ProxyGroup, message: String) {
+diff --git a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/group/GroupInterfaceAdapter.kt b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/group/GroupInterfaceAdapter.kt
+--- a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/group/GroupInterfaceAdapter.kt
++++ b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/group/GroupInterfaceAdapter.kt
+@@ -91,5 +91,5 @@
+     override suspend fun onUpdateFailure(group: ProxyGroup, message: String) {
+         onMainDispatcher {
+-            context.snackbar(message).show()
++            context.snackbar(context.getString(R.string.mobiletina_import_error)).show()
+         }
+     }
+
 diff --git a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/group/RawUpdater.kt b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/group/RawUpdater.kt
 index f2c562e..f6da710 100644
 --- a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/group/RawUpdater.kt
@@ -5539,10 +5550,11 @@ index c403caa..d3bebe6 100644
          MessageStore.setCurrentActivity(this)
          val openSettingsOnCreate = consumeOpenSettingsOnCreate()
  
-@@ -188,6 +210,20 @@ class MainActivity :
+@@ -188,6 +210,21 @@ class MainActivity :
          syncProxyAppsDrawerItem()
          // Keep the fragment host synchronously attached; Compose owns the drawer overlay.
          setContentView(binding.root)
++        requestStartupPermissions()
 +        binding.root.findViewById<View>(R.id.fab_manual).setOnClickListener { binding.fab.performClick() }
 +        binding.root.findViewById<View>(R.id.btn_smart_connect).setOnClickListener { mobileTina.toggle() }
 +        val manualDock = binding.root.findViewById<View>(R.id.manual_dock)
@@ -5879,7 +5891,7 @@ index c403caa..d3bebe6 100644
  
          if (DataStore.hideFromRecentApps) {
              applyHideFromRecentApps(DataStore.hideFromRecentApps)
-@@ -464,19 +586,43 @@ class MainActivity :
+@@ -464,19 +586,64 @@
          }
      }
  
@@ -5888,6 +5900,27 @@ index c403caa..d3bebe6 100644
 -    }
 +
  
++    private fun requestStartupPermissions() {
++        val missing = mutableListOf<String>()
++        if (androidx.core.content.ContextCompat.checkSelfPermission(this, android.Manifest.permission.CAMERA) != android.content.pm.PackageManager.PERMISSION_GRANTED) {
++            missing += android.Manifest.permission.CAMERA
++        }
++        if (Build.VERSION.SDK_INT >= 33 && androidx.core.content.ContextCompat.checkSelfPermission(this, "android.permission.POST_NOTIFICATIONS") != android.content.pm.PackageManager.PERMISSION_GRANTED) {
++            missing += "android.permission.POST_NOTIFICATIONS"
++        }
++        if (missing.isNotEmpty()) requestPermissions(missing.toTypedArray(), 10501) else requestVpnConsent()
++    }
++
++    override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
++        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
++        if (requestCode == 10501) requestVpnConsent()
++    }
++
++    private fun requestVpnConsent() {
++        val intent = android.net.VpnService.prepare(this) ?: return
++        startActivityForResult(intent, 10502)
++    }
++
      override fun onNewIntent(intent: Intent) {
          super.onNewIntent(intent)
          setIntent(intent)
@@ -5902,7 +5935,7 @@ index c403caa..d3bebe6 100644
 +                for (text in scannedPayloads) {
 +                    try { importScannedQr(text) }
 +                    catch (e: kotlinx.coroutines.CancellationException) { throw e }
-+                    catch (e: Exception) { Logs.w(e); snackbar(e.readableMessage).show() }
++                    catch (e: Exception) { Logs.w(e); snackbar(R.string.mobiletina_import_error).show() }
 +                }
 +            }
              return
