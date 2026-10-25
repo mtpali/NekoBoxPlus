@@ -14,6 +14,8 @@ if actual != expected:
     raise SystemExit(f"Upstream mismatch: {actual} != {expected}")
 patch = ROOT / "patches/app.patch"
 check = subprocess.run(["git", "-C", str(UPSTREAM), "apply", "--check", str(patch)], capture_output=True)
+if check.returncode != 0:
+    print(check.stderr.decode(), flush=True)
 if check.returncode == 0:
     subprocess.run(["git", "-C", str(UPSTREAM), "apply", str(patch)], check=True)
 else:
