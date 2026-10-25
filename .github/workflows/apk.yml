@@ -65,6 +65,7 @@ jobs:
             python3 scripts/verify-apk.py "$apk" "$ANDROID_HOME/build-tools/36.0.0/aapt2"
           done
           cp upstream/workspace/NekoBoxForAndroid/app/build/outputs/mapping/plusRelease/mapping.txt dist/validation/
+          cp upstream/workspace/NekoBoxForAndroid/app/build/outputs/mapping/plusRelease/json-field-contract.json dist/validation/
           cp -r upstream/workspace/NekoBoxForAndroid/app/build/test-results/testPlusDebugUnitTest dist/validation/
           cp "$ANDROID_HOME/build-tools/36.0.0/lib/apksigner.jar" dist/signing-tools/
           cp RELEASE_CERT_SHA256 UPSTREAM_COMMIT BRANDING_PROTECTION.json native-guard-validation.txt dist/validation/
@@ -83,3 +84,4 @@ jobs:
             upstream/workspace/NekoBoxForAndroid/app/build/reports/
             upstream/workspace/NekoBoxForAndroid/app/build/test-results/
           if-no-files-found: ignore
+

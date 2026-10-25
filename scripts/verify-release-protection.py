@@ -29,14 +29,8 @@ def verify(apk,abis):
         name='io.nekohasekai.sagernet.utils.'+simple
         match=re.search(r'^'+re.escape(name)+r' -> ([^:]+):$',mapping,re.M)
         assert match and match[1]!=name,'Protected class not renamed: '+name
-    current='';count=0
-    for line in mapping.splitlines():
-        if line and not line[0].isspace() and not line.startswith('#') and ' -> ' in line:current=line.split(' -> ')[0]
-        elif line.startswith('    ') and ' -> ' in line and '(' not in line:
-            if current=='io.nekohasekai.sagernet.AndroidTunPayload' or current.startswith('moe.matsuri.nb4a.SingBoxOptions$'):
-                left,right=line.strip().split(' -> ')
-                assert left.split()[-1]==right,'Core JSON field renamed: '+current+'.'+left
-                count+=1
-    assert count>50,'Core JSON preservation evidence missing'
+    import runpy
+    count=runpy.run_path(str(ROOT/'scripts/json-field-contract.py'))['verify'](apk)
     return {'obfuscated':True,'branding_plaintext_absent':True,'native_guard_verified':True,'core_json_fields_preserved':count,
             'branding_digest':c['digest_sha256'],'mapping_sha256':hashlib.sha256(mapping.encode()).hexdigest()}
+
