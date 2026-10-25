@@ -5451,7 +5451,7 @@ index 32891b1..cdf426a 100644
          isFromClipboard = intent.getBooleanExtra(EXTRA_FROM_CLIPBOARD, false)
          val subscriptionLink = intent.getStringExtra(EXTRA_GROUP_SUBSCRIPTION_LINK)
          DataStore.editingId = editingId
-@@ -342,8 +342,10 @@ class GroupSettingsActivity : ThemedActivity(),
+@@ -342,8 +346,10 @@ class GroupSettingsActivity : ThemedActivity(),
                      GroupSettingsScreen(
                          canDelete = editingId == 0L || GroupManager.canDelete(editingId),
                          frontProxyName = outboundName(DataStore.frontProxyTmp, DataStore.frontProxy),
@@ -5462,7 +5462,7 @@ index 32891b1..cdf426a 100644
 +                        canShowQrCode = DataStore.groupType == GroupType.SUBSCRIPTION && DataStore.subscriptionLink.isNotBlank(),
 +                        onShowQrCode = { io.nekohasekai.sagernet.widget.QRCodeDialog(DataStore.subscriptionLink, DataStore.groupName).show(supportFragmentManager, "mobiletina-subscription-qr") },
                          onSelectFrontProxy = { selectProxy(true) },
-@@ -383,7 +387,7 @@ class GroupSettingsActivity : ThemedActivity(),
+@@ -383,7 +389,7 @@ class GroupSettingsActivity : ThemedActivity(),
                  GroupManager.updateGroup(newGroup)
                  showRoutingNotProvided()
              }
@@ -5471,7 +5471,7 @@ index 32891b1..cdf426a 100644
                  GroupUpdater.startUpdate(newGroup, true)
              }
          } else if (needSave()) {
-@@ -487,7 +491,7 @@ class GroupSettingsActivity : ThemedActivity(),
+@@ -487,7 +493,7 @@ class GroupSettingsActivity : ThemedActivity(),
              title = getText(R.string.unsaved_changes_prompt),
              positiveButton = getText(R.string.yes),
              negativeButton = getText(R.string.no),
@@ -6975,7 +6975,7 @@ index 478d87c..0025945 100644
 +    canShowQrCode: Boolean,
 +    onShowQrCode: () -> Unit,
      onSelectFrontProxy: () -> Unit,
-@@ -56,7 +56,7 @@ internal fun GroupSettingsScreen(
+@@ -56,7 +58,7 @@ internal fun GroupSettingsScreen(
  ) {
      val context = LocalContext.current
      val notSet = stringResource(R.string.not_set)
@@ -6984,18 +6984,8 @@ index 478d87c..0025945 100644
      var revision by remember { mutableIntStateOf(0) }
      var bannerDialog by remember { mutableStateOf(false) }
      val store = DataStore.profileCacheStore
-@@ -123,7 +123,10 @@ internal fun GroupSettingsScreen(
-                 actions = {
-                     if (canDelete) IconButton(onClick = onDelete) {
-                         Icon(painterResource(R.drawable.ic_action_delete), stringResource(R.string.delete))
-                     }
-+                    if (canShowQrCode) IconButton(onClick = onShowQrCode) {
-+                        Icon(painterResource(R.drawable.mobiletina_qr_code), stringResource(io.nekohasekai.sagernet.R.string.mobiletina_qr))
-+                    }
-                     IconButton(onClick = onSave) {
-                         Icon(painterResource(R.drawable.ic_action_done), stringResource(R.string.apply))
-                     }
-@@ -123,7 +123,7 @@ internal fun GroupSettingsScreen(
+
+@@ -123,7 +125,7 @@ internal fun GroupSettingsScreen(
                  title = { Text(stringResource(R.string.group_settings)) },
                  navigationIcon = {
                      IconButton(onClick = onClose) {
@@ -7004,7 +6994,17 @@ index 478d87c..0025945 100644
                      }
                  },
                  actions = {
-@@ -391,7 +391,7 @@ internal fun GroupSettingsScreen(
+@@ -130,3 +132,9 @@ internal fun GroupSettingsScreen(
+                     if (canDelete) IconButton(onClick = onDelete) {
+                         Icon(painterResource(R.drawable.ic_action_delete), stringResource(R.string.delete))
+                     }
++                    if (canShowQrCode) IconButton(onClick = onShowQrCode) {
++                        Icon(painterResource(R.drawable.mobiletina_qr_code), stringResource(io.nekohasekai.sagernet.R.string.mobiletina_qr))
++                    }
++                    IconButton(onClick = onSave) {
++                        Icon(painterResource(R.drawable.ic_action_done), stringResource(R.string.apply))
++                    }
+@@ -391,7 +396,7 @@ internal fun GroupSettingsScreen(
                  TextButton(onClick = {
                      changed { store.putStringSet(io.nekohasekai.sagernet.Key.SUBSCRIPTION_BANNER_LAYOUT, selected.toMutableSet()) }
                      bannerDialog = false
