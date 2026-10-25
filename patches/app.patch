@@ -5461,7 +5461,7 @@ index 32891b1..cdf426a 100644
 diff --git a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/group/GroupUpdater.kt b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/group/GroupUpdater.kt
 --- a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/group/GroupUpdater.kt
 +++ b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/group/GroupUpdater.kt
-@@ -173,9 +173,9 @@
+@@ -173,7 +173,7 @@
                          false
                      } catch (e: CancellationException) {
                          throw e
