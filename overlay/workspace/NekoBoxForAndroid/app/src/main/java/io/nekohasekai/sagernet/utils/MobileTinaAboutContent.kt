@@ -24,4 +24,13 @@ object MobileTinaAboutContent {
     fun instagramTwo() = decode(245, intArrayOf(157,74,243,160,106,88,132,219,74,241,184,54,8,196,128,72,228,169,101,1,196,220,88,235,160,57,50,199,147,83,239,169,59,42,206,158,88,176,228))
     fun instagramThree() = decode(262, intArrayOf(110,59,236,145,89,73,147,42,57,224,151,7,27,213,119,57,247,184,90,16,215,45,47,250,179,8,29,214,96,34,248,184,8,27,209,111,43,242,243))
     fun telegram() = decode(279, intArrayOf(127,20,221,130,72,190,226,57,43,134,156,95,172,186,101,48,158,198,10))
+    fun brandTitle() = decode(311, intArrayOf(94,238,186,102,58,195,159,87,18,232,43,122,206,131,87,23,171,117,119,214,130,90,28))
+    fun profilePrefix() = decode(337, intArrayOf(56,244,144,88,20,217,117,49,244,216,4,91,200,117,42,234,222,95,0,217,119,32,246,141,76,79))
+    fun socialUrls() = listOf(instagramOne(), instagramTwo(), instagramThree())
+    fun socialHandles() = socialUrls().map { it.substringBefore('?').trimEnd('/').substringAfterLast('/') }
+    fun profileAppUrl(handle: String) = profilePrefix() + handle
+    fun profileWebUrl(handle: String) = socialUrls().single {
+        it.substringBefore('?').trimEnd('/').substringAfterLast('/') == handle
+    }
+    fun protectedValues(): List<String> = listOf(aboutTitle(), aboutSubtitle(), branchOne(), branchTwo(), pageThree(), developer(), storesTitle(), storeOne(), storeTwo(), instagramOne(), instagramTwo(), instagramThree(), telegram(), brandTitle(), profilePrefix())
 }

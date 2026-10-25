@@ -18,4 +18,11 @@ class MobileTinaExpiryPolicyTest {
         assertTrue(result.first)
         assertEquals(1893456000000L, result.second)
     }
+    @Test fun requestedLocalTimestampUsesTehranAndSurvivesHashBase64Envelope() {
+        val json = """{"outbounds":[],"_comment":"2026-09-06T11:23:00"}"""
+        val expected = java.time.Instant.parse("2026-09-06T07:53:00Z").toEpochMilli()
+        assertEquals(true to expected, MobileTinaSubscriptionExpiry.commentExpiry(json))
+        val wrapped = "#" + java.util.Base64.getEncoder().encodeToString(json.toByteArray())
+        assertEquals(true to expected, MobileTinaSubscriptionExpiry.commentExpiry(wrapped))
+    }
 }

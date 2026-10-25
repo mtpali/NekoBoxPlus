@@ -1,2 +1,3 @@
 <?xml version="1.0" encoding="utf-8"?>
-<resources><item type="id" name="nav_mobiletina"/><item type="id" name="action_mobiletina_auto"/><item type="id" name="action_mobiletina_search"/><item type="id" name="action_mobiletina_group"/><item type="id" name="action_mobiletina_tools"/><item type="id" name="nav_mobiletina_clear_all"/></resources>
+<resources><item type="id" name="nav_mobiletina"/><item type="id" name="action_mobiletina_auto"/><item type="id" name="action_mobiletina_search"/><item type="id" name="action_mobiletina_group"/><item type="id" name="action_mobiletina_tools"/><item type="id" name="nav_mobiletina_clear_all"/>    <item name="action_mobiletina_clear_configs" type="id" />
+</resources>

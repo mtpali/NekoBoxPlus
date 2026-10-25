@@ -85,7 +85,7 @@ class MobileTinaHomeFragment : ToolbarFragment(R.layout.mobiletina_home) {
         }
         root.findViewById<View>(R.id.subscription_card).isVisible = state.usage.visible && !state.expired
         root.findViewById<TextView>(R.id.tv_subscription_name).text =
-            state.groupName.ifBlank { getString(R.string.mobiletina_usage_brand) }
+            state.groupName.ifBlank { io.nekohasekai.sagernet.utils.MobileTinaAboutContent.brandTitle() }
         root.findViewById<ProgressBar>(R.id.subscription_progress).apply {
             isVisible = (state.usage.total ?: 0) > 0 && state.usage.used != null
             progress = (state.usage.fraction * 100).toInt().coerceIn(0, 100)
@@ -140,7 +140,9 @@ class MobileTinaHomeFragment : ToolbarFragment(R.layout.mobiletina_home) {
 
     private fun showSubscription(state: MobileTinaHomeState) {
         viewLifecycleOwner.lifecycleScope.launch {
-            val link = withContext(Dispatchers.IO) { AppData.groups.getById(state.groupId)?.subscription?.link }
+            val link = withContext(Dispatchers.IO) {
+                AppData.groups.getById(state.groupId)?.subscription?.takeIf { it.protectedContent != true }?.link
+            }
             if (!isAdded || link.isNullOrBlank()) return@launch
             MaterialAlertDialogBuilder(requireContext()).setTitle(R.string.mobiletina_subscription)
                 .setMessage(R.string.mobiletina_share_hint)

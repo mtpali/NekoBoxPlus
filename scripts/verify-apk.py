@@ -34,18 +34,22 @@ with zipfile.ZipFile(apk) as z:
         assert core[:4] == b'\x7fELF'
         assert core[4] == (1 if abi == 'armeabi-v7a' else 2), f'Incorrect ELF class: {abi}'
         assert int.from_bytes(core[18:20], 'little') == (40 if abi == 'armeabi-v7a' else 183), f'Incorrect CPU: {abi}'
-    expected = {hashlib.sha256(p.read_bytes()).hexdigest() for p in (ROOT/'overlay/workspace/NekoBoxForAndroid/app/src/main/res/raw').glob('mt_auto_*.bin')}
+    expected = {hashlib.sha256(p.read_bytes()).hexdigest() for p in (ROOT/'overlay/workspace/NekoBoxForAndroid/app/src/main/res/raw').glob('mt_*.bin')}
     actual = {hashlib.sha256(z.read(p)).hexdigest() for p in z.namelist() if p.endswith('.bin') and z.getinfo(p).file_size < 500_000}
     assert expected and expected <= actual, 'Connection artwork was changed or removed'
-    reference_art = set(json.loads((ROOT/'EXCLAVE_UI_ASSETS_SHA256.json').read_text()).values())
+    reference_manifest = json.loads((ROOT/'EXCLAVE_UI_ASSETS_SHA256.json').read_text())
+    reference_art = {v for k,v in reference_manifest.items() if k != 'mt_nav.webp'}
     packaged_art = {hashlib.sha256(z.read(name)).hexdigest() for name in z.namelist()
                     if name.endswith('.webp') and z.getinfo(name).file_size < 500_000}
     assert reference_art <= packaged_art, 'Exclave interface artwork is missing or changed'
+    assert reference_manifest['mt_nav.webp'] not in packaged_art, 'Plaintext social header must not be packaged'
     font_digest = (ROOT/'REFERENCE_EXCLAVE_FONT_SHA256').read_text().strip()
     assert any(hashlib.sha256(z.read(name)).hexdigest() == font_digest
                for name in z.namelist() if name.endswith('.ttf')), 'Missing Exclave font'
 report = {'file': apk.name, 'bytes': apk.stat().st_size, 'sha256': hashlib.sha256(apk.read_bytes()).hexdigest(),
           'package': package[1], 'versionCode': package[2], 'versionName': package[3], 'abis': sorted(abis),
           'native_source': (ROOT/'UPSTREAM_COMMIT').read_text().strip(), 'debuggable': False}
+import runpy
+report.update(runpy.run_path(str(ROOT/'scripts/verify-release-protection.py'))['verify'](apk, abis))
 apk.with_suffix('.verification.json').write_text(json.dumps(report, indent=2)+'\n')
 print(json.dumps(report))

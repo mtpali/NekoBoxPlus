@@ -70,14 +70,12 @@ internal object MobileTinaHomeChrome {
                 source.findItem(R.id.action_add)?.subMenu?.let { copyMenu(it, popup.menu) }
             } else {
                 popup.menu.add(0, R.id.action_update_subscription, 0, R.string.mobiletina_more_update)
-                    .setIcon(R.drawable.ic_baseline_refresh_24)
                 popup.menu.add(0, R.id.action_connection_url_test, 1, R.string.mobiletina_more_speed_test)
-                    .setIcon(R.drawable.ic_baseline_speed_24)
-                popup.menu.add(0, R.id.action_mobiletina_group, 2, R.string.mobiletina_group)
-                    .setIcon(R.drawable.ic_baseline_view_list_24)
-                popup.menu.add(0, R.id.action_mobiletina_search, 3, R.string.mobiletina_search)
+                popup.menu.add(0, R.id.action_mobiletina_clear_configs, 2, R.string.mobiletina_delete_configs)
+                popup.menu.add(0, R.id.action_mobiletina_group, 3, R.string.mobiletina_group)
+                popup.menu.add(0, R.id.action_mobiletina_search, 4, R.string.mobiletina_search)
                 source.findItem(R.id.action_misc)?.subMenu?.let {
-                    copyMenu(it, popup.menu, setOf(R.id.action_update_subscription, R.id.action_connection_url_test))
+                    copyMenu(it, popup.menu, setOf(R.id.action_update_subscription, R.id.action_connection_url_test, R.id.action_show_active, R.id.action_global_mode, R.id.nav_tools))
                 }
 
             }
@@ -95,7 +93,7 @@ internal object MobileTinaHomeChrome {
                 else -> R.id.action_layout_single
             }
             popup.menu.findItem(layoutItem)?.isChecked = true
-            popup.setForceShowIcon(true)
+            popup.setForceShowIcon(add)
             popup.setOnMenuItemClickListener { item ->
                 if (item.hasSubMenu() || item.itemId == 0) return@setOnMenuItemClickListener false
                 when (item.itemId) {

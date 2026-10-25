@@ -43,7 +43,7 @@
                         <TextView android:id="@+id/tv_subscription_name" android:layout_width="match_parent"
                             android:layout_height="wrap_content" android:gravity="center"
                             android:textColor="@color/mobiletina_primary_content"
-                            android:text="@string/mobiletina_usage_brand" android:textSize="16sp" android:textStyle="bold" />
+                            android:textSize="16sp" android:textStyle="bold" />
                         <ProgressBar android:id="@+id/subscription_progress" style="?android:attr/progressBarStyleHorizontal"
                             android:layout_width="match_parent" android:layout_height="6dp"
                             android:layout_marginTop="18dp" android:max="100" />

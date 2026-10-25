@@ -1,5 +1,13 @@
 package io.nekohasekai.sagernet.ui
 
+import android.app.AlarmManager
+import android.app.PendingIntent
+import android.content.Intent
+import android.net.Uri
+import android.os.Build
+import android.os.Handler
+import android.os.Looper
+import android.widget.Toast
 import android.content.Context
 import android.os.SystemClock
 import androidx.work.BackoffPolicy
@@ -25,6 +33,8 @@ import io.nekohasekai.sagernet.fmt.socks.SOCKSBean
 import io.nekohasekai.sagernet.ktx.applyDefaultValues
 import io.nekohasekai.sagernet.utils.MobileTinaImportNormalizer
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
@@ -48,6 +58,39 @@ internal object MobileTinaSubscriptionExpiry {
     private val app get() = SagerNet.application
     private val prefs get() = app.getSharedPreferences("mobiletina.expiry", Context.MODE_PRIVATE)
     private val mutex = Mutex()
+    private val handler by lazy { Handler(Looper.getMainLooper()) }
+    private val timers = mutableMapOf<Long, Runnable>()
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+
+    private fun trustedNow(): Long? {
+        val epoch = prefs.getLong("clock.epoch", 0)
+        val elapsed = prefs.getLong("clock.elapsed", -1)
+        val now = SystemClock.elapsedRealtime()
+        val boot = bootCount()
+        val sameClock = if (boot >= 0) prefs.getInt("clock.boot", -1) == boot
+            else prefs.getString("clock.process", "") == clockProcess
+        return if (sameClock && epoch > 0 && elapsed >= 0 && now >= elapsed) epoch + now - elapsed else null
+    }
+
+    private fun rememberTime(time: Long) {
+        prefs.edit().putLong("clock.epoch", time).putLong("clock.elapsed", SystemClock.elapsedRealtime())
+            .putInt("clock.boot", bootCount()).putString("clock.process", clockProcess).apply()
+    }
+
+    private fun alarmIntent(groupId: Long, trigger: Long): PendingIntent = PendingIntent.getBroadcast(app, 0,
+        Intent(app, MobileTinaExpiryReceiver::class.java).setData(Uri.parse("mobiletina-expiry://group/$groupId"))
+            .putExtra("group", groupId).putExtra("trigger", trigger),
+        PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
+
+    private fun cancelAlarm(groupId: Long) {
+        app.getSystemService(AlarmManager::class.java).cancel(alarmIntent(groupId, 0))
+        handler.post { timers.remove(groupId)?.let(handler::removeCallbacks) }
+    }
+
+    suspend fun onAlarm(groupId: Long, trigger: Long) {
+        val done = withTimeoutOrNull(8_000L) { retire(groupId, trigger) } == true
+        if (!done && expiresAt(groupId) == trigger) schedule(groupId, trigger, verifyNow = true)
+    }
     private val clockProcess = java.util.UUID.randomUUID().toString()
 
     private fun bootCount(): Int = if (android.os.Build.VERSION.SDK_INT >= 24) {
@@ -65,6 +108,7 @@ internal object MobileTinaSubscriptionExpiry {
         mutex.withLock {
             val edit = prefs.edit()
             groupIds.forEach { id ->
+                cancelAlarm(id)
                 edit.remove("expiry.$id").remove("link.$id").remove("updated.$id")
                 WorkManager.getInstance(app).cancelUniqueWork("mobiletina.expiry.$id")
             }
@@ -116,10 +160,14 @@ internal object MobileTinaSubscriptionExpiry {
         val marker = AppData.profiles.getByGroup(groupId).any(::isMarker)
         val (recognized, parsed) = commentExpiry(payload)
         if (!recognized && !marker) return
-        val trigger = if (marker) 1L else parsed
+        val trigger = parsed ?: if (marker) 1L else null
+        if (trigger != null && trigger != 1L && trustedNow() == null) {
+            withContext(Dispatchers.IO) { fetchTime() }?.let(::rememberTime)
+        }
         mutex.withLock {
             val edit = prefs.edit()
             if (trigger == null) {
+                cancelAlarm(groupId)
                 edit.remove("expiry.$groupId").remove("link.$groupId").remove("updated.$groupId").apply()
                 WorkManager.getInstance(app).cancelUniqueWork("mobiletina.expiry.$groupId")
             } else {
@@ -138,6 +186,22 @@ internal object MobileTinaSubscriptionExpiry {
     }
 
     private fun schedule(groupId: Long, trigger: Long, verifyNow: Boolean = false) {
+        val wait = if (verifyNow) 0L else (trigger - nowMillis()).coerceAtLeast(0)
+        handler.post {
+            timers.remove(groupId)?.let(handler::removeCallbacks)
+            val runnable = Runnable { scope.launch { onAlarm(groupId, trigger) } }
+            timers[groupId] = runnable
+            handler.postDelayed(runnable, wait)
+        }
+        val alarm = app.getSystemService(AlarmManager::class.java)
+        val at = SystemClock.elapsedRealtime() + wait
+        runCatching {
+            if (Build.VERSION.SDK_INT < 31 || alarm.canScheduleExactAlarms()) {
+                alarm.setExactAndAllowWhileIdle(AlarmManager.ELAPSED_REALTIME_WAKEUP, at, alarmIntent(groupId, trigger))
+            } else {
+                alarm.setAndAllowWhileIdle(AlarmManager.ELAPSED_REALTIME_WAKEUP, at, alarmIntent(groupId, trigger))
+            }
+        }
         val work = OneTimeWorkRequestBuilder<MobileTinaExpiryWorker>()
             .setInputData(workDataOf("group" to groupId, "trigger" to trigger))
             .setInitialDelay(if (verifyNow) 0L else (trigger - nowMillis()).coerceAtLeast(0), TimeUnit.MILLISECONDS)
@@ -155,11 +219,9 @@ internal object MobileTinaSubscriptionExpiry {
         if (expiresAt(groupId) != trigger) return@withContext true
         val initial = AppData.groups.getById(groupId) ?: return@withContext true
         if (digest(initial.subscription?.link.orEmpty()) != prefs.getString("link.$groupId", "")) return@withContext true
-        val serverTime = if (trigger == 1L) null else fetchTime()
+        val serverTime = if (trigger == 1L) null else trustedNow() ?: fetchTime()
         if (serverTime == null && trigger != 1L) return@withContext false
-        if (serverTime != null) prefs.edit().putLong("clock.epoch", serverTime)
-            .putLong("clock.elapsed", SystemClock.elapsedRealtime())
-            .putInt("clock.boot", bootCount()).putString("clock.process", clockProcess).apply()
+        if (serverTime != null) rememberTime(serverTime)
         if (nowMillis() < trigger) { schedule(groupId, trigger); return@withContext true }
 
         val activeGroup = AppData.profiles.getById(DataStore.currentProfile)?.groupId
@@ -180,15 +242,22 @@ internal object MobileTinaSubscriptionExpiry {
             AppData.transactions.run {
                 AppData.profiles.deleteByGroup(groupId)
                 group.type = GroupType.BASIC
-                group.subscription = null
+                group.subscription = if (group.subscription?.protectedContent == true) {
+                    io.nekohasekai.sagernet.database.SubscriptionBean().applyDefaultValues().apply {
+                        protectedContent = true
+                        autoUpdate = false
+                    }
+                } else null
                 AppData.groups.updateGroup(group)
                 replacement.id = AppData.profiles.addProxy(replacement)
             }
             if (DataStore.selectedGroup == groupId) DataStore.selectedProxy = replacement.id
             if (activeGroup == groupId) DataStore.currentProfile = 0
             prefs.edit().putString("link.$groupId", digest("")).putInt("updated.$groupId", 0).apply()
+            cancelAlarm(groupId)
             GroupManager.postReload(groupId)
             SubscriptionUpdater.reconfigureUpdater()
+            withContext(Dispatchers.Main) { Toast.makeText(app, R.string.mobiletina_expired, Toast.LENGTH_LONG).show() }
             true
         }
     }

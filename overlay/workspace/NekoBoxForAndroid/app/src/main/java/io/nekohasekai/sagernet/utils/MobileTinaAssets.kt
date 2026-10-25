@@ -19,6 +19,7 @@ object MobileTinaAssets {
         YELLOW(R.raw.mt_auto_yellow, "2139988a7e22839298f67991c66bf4dffe0e7e39bf276af339de7f7aca3edd67"),
         BLUE(R.raw.mt_auto_blue, "63ed57f28a66e361daa747135253d8d07ab6129f46c67b23d14a8fd397f4adb8"),
         RED(R.raw.mt_auto_red, "b93250c6c425ba0722f8307d135eb530f5d54ddafb8260e06f3c2a247cef1c54"),
+        NAV(R.raw.mt_nav, "b93ea494eb517d9fe940e7780dd2eab58ed5fd3994f6dd876114b8a4db4039c8"),
     }
 
     private val cache = mutableMapOf<Int, WeakReference<Bitmap>>()
@@ -28,7 +29,7 @@ object MobileTinaAssets {
     private fun cipherMaterial(): ByteArray {
         // Derive the scrambling material from integrity metadata already embedded in the app.
         // Nothing here is a credential or security boundary; R8 still obscures the data flow.
-        val source = State.values().joinToString("|") { it.sha256.reversed() } + "|mt/assets/v2"
+        val source = State.values().take(4).joinToString("|") { it.sha256.reversed() } + "|mt/assets/v2"
         return MessageDigest.getInstance("SHA-512").digest(source.toByteArray())
     }
 

@@ -118,7 +118,7 @@ internal class MobileTinaViewModel(application: Application) : AndroidViewModel(
         return viewModelScope.launch(Dispatchers.IO) {
             try {
                 val group = AppData.groups.getById(DataStore.currentGroupId()) ?: return@launch
-                if (group.subscription != null && group.id !in GroupUpdater.updating) {
+                if (group.type == io.nekohasekai.sagernet.GroupType.SUBSCRIPTION && group.subscription != null && group.id !in GroupUpdater.updating) {
                     GroupUpdater.executeUpdate(group, byUser)
                 }
             } catch (cancelled: CancellationException) { throw cancelled }

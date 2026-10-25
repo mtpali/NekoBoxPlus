@@ -3,6 +3,7 @@ import hashlib
 import json
 import re
 import subprocess
+import sys
 import xml.etree.ElementTree as ET
 from pathlib import Path
 
@@ -55,14 +56,15 @@ assert hashlib.sha256(font.read_bytes()).hexdigest() == (ROOT/'REFERENCE_EXCLAVE
 assert 'name="fontFamily">@font/mobiletina' in (res/'values/themes.xml').read_text()
 main = (NBA/'app/src/main/java/io/nekohasekai/sagernet/ui/MainActivity.kt').read_text()
 setup = main.split('private suspend fun performProxyAppsFirstSetup() {',1)[1].split('\n    }',1)[0]
-assert 'DataStore.proxyApps = false' in setup and 'DataStore.proxyApps = true' not in setup
+assert 'DataStore.proxyApps = true' in setup and 'DataStore.proxyApps = false' not in setup
 assert 'R.layout.layout_about' in (NBA/'app/src/main/java/io/nekohasekai/sagernet/ui/AboutFragment.kt').read_text()
 assert (NBA/'app/src/main/assets/LICENSE').stat().st_size > 100
 print('Verified XML, identity, ARM ABIs, original menu/actions, authorized removals, single language/icon, startup defaults, Exclave font, artwork, and license.')
 
 # The reference layouts/assets and actual welcome replace the former approximation.
 for name, digest in json.loads((ROOT/'EXCLAVE_UI_ASSETS_SHA256.json').read_text()).items():
-    assert hashlib.sha256((res/'drawable-nodpi'/name).read_bytes()).hexdigest() == digest
+    if name != 'mt_nav.webp':
+        assert hashlib.sha256((res/'drawable-nodpi'/name).read_bytes()).hexdigest() == digest
 home = (NBA/'app/src/main/java/io/nekohasekai/sagernet/ui/MobileTinaHomeFragment.kt').read_text()
 assert 'R.layout.mobiletina_home' in home and 'welcomeSeen' not in home
 assert 'mobiletina_welcome_title' not in (res/'values/mobiletina_strings.xml').read_text()
@@ -84,3 +86,5 @@ for path in res.rglob('*'):
 for path in (ROOT/'overlay/workspace/NekoBoxForAndroid/app/src/main/res').rglob('*.xml'):
     for kind, name in re.findall(r'@(string|layout|drawable|color|font)/([A-Za-z0-9_.]+)', path.read_text()):
         assert (kind, name) in owned_resources, ('Missing reference resource', path, kind, name)
+
+subprocess.run([sys.executable, str(ROOT/'scripts/branding-contract.py')], check=True)

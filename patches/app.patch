@@ -1,5 +1,5 @@
 diff --git a/workspace/NekoBoxForAndroid/app/build.gradle.kts b/workspace/NekoBoxForAndroid/app/build.gradle.kts
-index 414f488..7bc4a3e 100644
+index 414f488a..7bc4a3ed 100644
 --- a/workspace/NekoBoxForAndroid/app/build.gradle.kts
 +++ b/workspace/NekoBoxForAndroid/app/build.gradle.kts
 @@ -76,11 +76,14 @@ android {
@@ -19,21 +19,75 @@ index 414f488..7bc4a3e 100644
  }
  
 diff --git a/workspace/NekoBoxForAndroid/app/proguard-rules.pro b/workspace/NekoBoxForAndroid/app/proguard-rules.pro
-index 3e6f05a..a15dbea 100644
+index 3e6f05ac..34760911 100644
 --- a/workspace/NekoBoxForAndroid/app/proguard-rules.pro
 +++ b/workspace/NekoBoxForAndroid/app/proguard-rules.pro
-@@ -74,3 +74,6 @@
+@@ -1,8 +1,8 @@
+ -repackageclasses ''
+ -allowaccessmodification
+ 
+--keep class io.nekohasekai.sagernet.** { *;}
+--keep class moe.matsuri.nb4a.** { *;}
++
++
+ 
+ # Clean Kotlin
+ -assumenosideeffects class kotlin.jvm.internal.Intrinsics {
+@@ -25,8 +25,9 @@
+ # SnakeYaml
+ -keep class org.yaml.snakeyaml.** { *; }
+ 
+--dontobfuscate
+--keepattributes SourceFile
++
++-renamesourcefileattribute SourceFile
++-keepattributes Signature,*Annotation*,InnerClasses,EnclosingMethod
+ 
+ -dontwarn java.beans.BeanInfo
+ -dontwarn java.beans.FeatureDescriptor
+@@ -74,3 +75,29 @@
      <init>();
      public java.lang.String *;
  }
 +
 +# Persisted work names and Android entry points added by MobileTina.
 +-keep class io.nekohasekai.sagernet.ui.MobileTinaExpiryWorker { public <init>(android.content.Context, androidx.work.WorkerParameters); }
++
++# JSON/core field names and persisted model identities must remain compatible.
++-keep class io.nekohasekai.sagernet.fmt.** { *; }
++-keep class io.nekohasekai.sagernet.database.** { *; }
++-keep class moe.matsuri.nb4a.SingBoxOptions$* { *; }
++-keep class moe.matsuri.nb4a.proxy.** { *; }
++-keep class io.nekohasekai.sagernet.AndroidTunPayload { *; }
++-keep class io.nekohasekai.sagernet.dto.** { *; }
++-keep class io.nekohasekai.sagernet.routing.ExternalRouting* { *; }
++-keep class io.nekohasekai.sagernet.routing.Stable* { *; }
++-keep class io.nekohasekai.sagernet.utils.AdblockRepository$* { *; }
++-keep class io.nekohasekai.sagernet.bg.ServiceAdblockFilterUpdate { *; }
++-keepclassmembers,allowoptimization class * { @com.google.gson.annotations.SerializedName <fields>; }
++-keep class libcore.** { *; }
++-keep class go.** { *; }
++-keepclassmembers class * implements libcore.** { *; }
++-keepclasseswithmembernames,includedescriptorclasses class * { native <methods>; }
++-keep class io.nekohasekai.sagernet.utils.N { native <methods>; }
++-keep class * extends androidx.work.ListenableWorker { public <init>(android.content.Context, androidx.work.WorkerParameters); }
++-keep,allowoptimization,allowobfuscation class io.nekohasekai.sagernet.utils.MobileTinaAboutContent { public *; }
++-keep,allowoptimization,allowobfuscation class io.nekohasekai.sagernet.utils.MobileTinaWelcomeContent { public *; }
++-keep,allowoptimization,allowobfuscation class io.nekohasekai.sagernet.utils.MobileTinaIntegrity { public *; }
++-keep,allowoptimization,allowobfuscation class io.nekohasekai.sagernet.utils.MobileTinaAssets { public *; }
 diff --git a/workspace/NekoBoxForAndroid/app/src/main/AndroidManifest.xml b/workspace/NekoBoxForAndroid/app/src/main/AndroidManifest.xml
-index a412021..ac1daff 100644
+index a412021d..3bba53a9 100644
 --- a/workspace/NekoBoxForAndroid/app/src/main/AndroidManifest.xml
 +++ b/workspace/NekoBoxForAndroid/app/src/main/AndroidManifest.xml
-@@ -30,7 +30,6 @@
+@@ -21,6 +21,7 @@
+     <uses-permission android:name="android.permission.ACCESS_LOCAL_NETWORK" />
+     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+     <uses-permission android:name="android.permission.WAKE_LOCK" />
++    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
+     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+     <uses-permission android:name="android.permission.EXPAND_STATUS_BAR" />
+ 
+@@ -30,7 +31,6 @@
      <uses-permission android:name="com.android.permission.GET_INSTALLED_APPS" />
  
      <uses-permission android:name="android.permission.CAMERA" />
@@ -41,7 +95,7 @@ index a412021..ac1daff 100644
  
      <uses-feature
          android:name="android.software.leanback"
-@@ -67,6 +66,7 @@
+@@ -67,6 +67,7 @@
          android:networkSecurityConfig="@xml/network_security_config"
          android:roundIcon="@mipmap/ic_launcher_round"
          android:supportsRtl="true"
@@ -49,7 +103,7 @@ index a412021..ac1daff 100644
          android:theme="@style/Theme.Start">
          <meta-data
              android:name="android.app.shortcuts"
-@@ -246,244 +246,6 @@
+@@ -246,244 +247,6 @@
              </intent-filter>
              <meta-data android:name="android.app.shortcuts" android:resource="@xml/shortcuts" />
          </activity-alias>
@@ -294,7 +348,7 @@ index a412021..ac1daff 100644
          <activity
              android:name="io.nekohasekai.sagernet.ui.VpnRequestActivity"
              android:excludeFromRecents="true"
-@@ -778,6 +540,13 @@
+@@ -778,6 +541,13 @@
              android:authorities="${applicationId}.androidx-startup"
              tools:node="remove" />
  
@@ -308,16 +362,17 @@ index a412021..ac1daff 100644
          <receiver
              android:name="io.nekohasekai.sagernet.BootReceiver"
              android:enabled="false"
-@@ -804,6 +573,7 @@
+@@ -804,6 +574,8 @@
              android:name="androidx.room.MultiInstanceInvalidationService"
              android:process=":bg" />
  
++        <receiver android:name=".ui.MobileTinaExpiryReceiver" android:exported="false" />
 +        <receiver android:name=".bg.MobileTinaSessionReceiver" android:exported="false" android:process=":bg" />
      </application>
  
  </manifest>
 diff --git a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/AppIconManager.kt b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/AppIconManager.kt
-index 02d728d..623292f 100644
+index 02d728df..623292fd 100644
 --- a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/AppIconManager.kt
 +++ b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/AppIconManager.kt
 @@ -3,178 +3,15 @@ package io.nekohasekai.sagernet
@@ -507,7 +562,7 @@ index 02d728d..623292f 100644
 -        ComponentName(context.packageName, aliasClassName)
  }
 diff --git a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/BootReceiver.kt b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/BootReceiver.kt
-index 8437e1e..d543844 100644
+index 8437e1eb..d543844a 100644
 --- a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/BootReceiver.kt
 +++ b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/BootReceiver.kt
 @@ -27,6 +27,7 @@ class BootReceiver : BroadcastReceiver() {
@@ -519,7 +574,7 @@ index 8437e1e..d543844 100644
                  pendingResult.finish()
              }
 diff --git a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/SagerNet.kt b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/SagerNet.kt
-index af78c50..0dbc8f2 100644
+index af78c502..944c0db2 100644
 --- a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/SagerNet.kt
 +++ b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/SagerNet.kt
 @@ -32,6 +32,9 @@ import io.nekohasekai.sagernet.ktx.isPreview
@@ -532,11 +587,12 @@ index af78c50..0dbc8f2 100644
  import kotlinx.coroutines.DEBUG_PROPERTY_NAME
  import kotlinx.coroutines.DEBUG_PROPERTY_VALUE_ON
  import libcore.Libcore
-@@ -62,11 +65,12 @@ class SagerNet : Application(),
+@@ -62,11 +65,13 @@ class SagerNet : Application(),
  
      override fun onCreate() {
          super.onCreate()
 +        MobileTinaIntegrity.verify(this)
++        MobileTinaIntegrity.installContinuousVerification(this)
  
          Thread.setDefaultUncaughtExceptionHandler(CrashHandler)
  
@@ -547,7 +603,7 @@ index af78c50..0dbc8f2 100644
          }
  
          if (isMainProcess || isBgProcess) {
-@@ -98,6 +102,7 @@ class SagerNet : Application(),
+@@ -98,6 +103,7 @@ class SagerNet : Application(),
          }
  
          if (isMainProcess) {
@@ -555,7 +611,7 @@ index af78c50..0dbc8f2 100644
              DynamicColors.applyToActivitiesIfAvailable(
                  this,
                  DynamicColorsOptions.Builder()
-@@ -118,7 +123,9 @@ class SagerNet : Application(),
+@@ -118,7 +124,9 @@ class SagerNet : Application(),
                  }
  
                  runCatching {
@@ -566,7 +622,7 @@ index af78c50..0dbc8f2 100644
                  }.onFailure {
                      Logs.w("Unable to reconfigure subscription updater: ${it.message}")
                  }
-@@ -281,7 +288,26 @@ class SagerNet : Application(),
+@@ -281,7 +289,26 @@ class SagerNet : Application(),
              }
          }
  
@@ -593,7 +649,7 @@ index af78c50..0dbc8f2 100644
              CoreRecoveryService.updateStopWatchdog(
                  context = application,
                  serviceMode = DataStore.serviceMode,
-@@ -290,7 +316,7 @@ class SagerNet : Application(),
+@@ -290,7 +317,7 @@ class SagerNet : Application(),
              ContextCompat.startForegroundService(
                  application,
                  Intent(application, SagerConnection.serviceClass)
@@ -602,7 +658,7 @@ index af78c50..0dbc8f2 100644
                      .putExtra(Action.EXTRA_REQUEST_ID, SystemClock.elapsedRealtimeNanos()),
              )
          }
-@@ -311,6 +337,7 @@ class SagerNet : Application(),
+@@ -311,6 +338,7 @@ class SagerNet : Application(),
          }
  
          fun stopService() {
@@ -611,7 +667,7 @@ index af78c50..0dbc8f2 100644
                  context = application,
                  serviceMode = DataStore.serviceMode,
 diff --git a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/bg/BaseService.kt b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/bg/BaseService.kt
-index fcac457..b7cd730 100644
+index fcac457b..b7cd7305 100644
 --- a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/bg/BaseService.kt
 +++ b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/bg/BaseService.kt
 @@ -172,6 +172,7 @@ class BaseService {
@@ -623,7 +679,7 @@ index fcac457..b7cd730 100644
              if (s != State.Connected) binder.resetConnectionTestState()
              binder.stateChanged(s, msg)
 diff --git a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/bg/ServiceNotification.kt b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/bg/ServiceNotification.kt
-index b0c82cf..c1ca15b 100644
+index b0c82cf1..c1ca15b3 100644
 --- a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/bg/ServiceNotification.kt
 +++ b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/bg/ServiceNotification.kt
 @@ -230,26 +230,13 @@ class ServiceNotification(
@@ -655,7 +711,7 @@ index b0c82cf..c1ca15b 100644
      }
  
 diff --git a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/bg/SubscriptionUpdater.kt b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/bg/SubscriptionUpdater.kt
-index 2793346..713cf83 100644
+index 27933464..713cf837 100644
 --- a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/bg/SubscriptionUpdater.kt
 +++ b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/bg/SubscriptionUpdater.kt
 @@ -3,6 +3,9 @@ package io.nekohasekai.sagernet.bg
@@ -802,7 +858,7 @@ index 2793346..713cf83 100644
 -
  }
 diff --git a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/bg/proto/UrlTest.kt b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/bg/proto/UrlTest.kt
-index b7a7e07..268f9d3 100644
+index b7a7e07d..268f9d36 100644
 --- a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/bg/proto/UrlTest.kt
 +++ b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/bg/proto/UrlTest.kt
 @@ -10,7 +10,7 @@ import moe.matsuri.nb4a.net.LocalResolverImpl
@@ -825,7 +881,7 @@ index b7a7e07..268f9d3 100644
          this.testType = testType
      }
 diff --git a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/database/DataStore.kt b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/database/DataStore.kt
-index cc5908d..8f3eec8 100644
+index cc5908d8..8f3eec8e 100644
 --- a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/database/DataStore.kt
 +++ b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/database/DataStore.kt
 @@ -1,5 +1,7 @@
@@ -884,21 +940,22 @@ index cc5908d..8f3eec8 100644
      // var enableTLSFragment by configurationStore.boolean(Key.ENABLE_TLS_FRAGMENT)
  
 diff --git a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/database/GroupManager.kt b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/database/GroupManager.kt
-index 93f7291..4254f50 100644
+index 93f72911..71ae67cc 100644
 --- a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/database/GroupManager.kt
 +++ b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/database/GroupManager.kt
-@@ -94,6 +94,10 @@ object GroupManager {
+@@ -94,6 +94,11 @@ object GroupManager {
      }
  
      suspend fun createGroup(group: ProxyGroup): ProxyGroup {
++        group.name = io.nekohasekai.sagernet.utils.MobileTinaProtectedPayload.cleanTitle(group.name)
 +        if (group.type == GroupType.SUBSCRIPTION &&
 +            (group.name.isNullOrBlank() || group.name!!.matches(Regex("(?i)^subscription(?: #\\d+)?$")))) {
-+            group.name = io.nekohasekai.sagernet.ktx.app.getString(io.nekohasekai.sagernet.R.string.mobiletina_default_subscription)
++            group.name = io.nekohasekai.sagernet.utils.MobileTinaAboutContent.brandTitle()
 +        }
          group.userOrder = AppData.groups.nextOrder() ?: 1
          group.id = AppData.groups.createGroup(group.applyDefaultValues())
          iterator { groupAdd(group) }
-@@ -146,6 +150,26 @@ object GroupManager {
+@@ -146,6 +151,26 @@ object GroupManager {
          SubscriptionUpdater.reconfigureUpdater()
      }
  
@@ -926,7 +983,7 @@ index 93f7291..4254f50 100644
          val groups = AppData.groups.allGroups()
          if (groups.isEmpty()) {
 diff --git a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/database/ProxyGroup.kt b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/database/ProxyGroup.kt
-index 22e46ba..58c5d08 100644
+index 22e46ba9..870dc48f 100644
 --- a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/database/ProxyGroup.kt
 +++ b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/database/ProxyGroup.kt
 @@ -20,7 +20,7 @@ data class ProxyGroup(
@@ -938,23 +995,63 @@ index 22e46ba..58c5d08 100644
      var isSelector: Boolean = false,
      var frontProxy: Long = -1L,
      var landingProxy: Long = -1L,
-@@ -176,7 +176,10 @@ data class ProxyGroup(
+@@ -176,7 +176,11 @@ data class ProxyGroup(
          }
  
      fun displayName(): String {
 -        return name.takeIf { !it.isNullOrBlank() } ?: app.getString(R.string.group_default)
++        val cleanName = io.nekohasekai.sagernet.utils.MobileTinaProtectedPayload.cleanTitle(name)
 +        return if (type == GroupType.SUBSCRIPTION &&
-+            (name.isNullOrBlank() || name!!.matches(Regex("(?i)^subscription(?: #\\d+)?$")))) {
-+            app.getString(R.string.mobiletina_default_subscription)
-+        } else name.takeIf { !it.isNullOrBlank() } ?: app.getString(R.string.group_default)
++            (cleanName.isNullOrBlank() || cleanName!!.matches(Regex("(?i)^subscription(?: #\\d+)?$")))) {
++            io.nekohasekai.sagernet.utils.MobileTinaAboutContent.brandTitle()
++        } else cleanName.takeIf { !it.isNullOrBlank() } ?: app.getString(R.string.group_default)
      }
  
      @androidx.room.Dao
 diff --git a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/database/SubscriptionBean.java b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/database/SubscriptionBean.java
-index c2d981b..0356a6b 100644
+index c2d981bd..06e385eb 100644
 --- a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/database/SubscriptionBean.java
 +++ b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/database/SubscriptionBean.java
-@@ -226,8 +226,8 @@ public class SubscriptionBean extends Serializable {
+@@ -17,6 +17,7 @@ public class SubscriptionBean extends Serializable {
+     public Integer type;
+     public String link;
+     public String token;
++    public Boolean protectedContent;
+     public Boolean forceResolve;
+     public Boolean deduplication;
+     public Boolean updateWhenConnectedOnly;
+@@ -67,7 +68,7 @@ public class SubscriptionBean extends Serializable {
+ 
+     @Override
+     public void serializeToBuffer(ByteBufferOutput output) {
+-        output.writeInt(8);
++        output.writeInt(9);
+ 
+         output.writeInt(type);
+ 
+@@ -117,6 +118,8 @@ public class SubscriptionBean extends Serializable {
+ 
+         // v8
+         output.writeBoolean(providerAutoUpdateDefaultsApplied);
++        // v9: source-group export/edit policy
++        output.writeBoolean(protectedContent);
+     }
+ 
+     public void serializeForShare(ByteBufferOutput output) {
+@@ -197,6 +200,7 @@ public class SubscriptionBean extends Serializable {
+             // Existing subscriptions must never have provider defaults applied again.
+             providerAutoUpdateDefaultsApplied = true;
+         }
++        protectedContent = version >= 9 && input.readBoolean();
+     }
+ 
+     public void deserializeFromShare(ByteBufferInput input) {
+@@ -222,12 +226,13 @@ public class SubscriptionBean extends Serializable {
+         if (type == null) type = 0;
+         if (link == null) link = "";
+         if (token == null) token = "";
++        if (protectedContent == null) protectedContent = false;
+         if (forceResolve == null) forceResolve = false;
          if (deduplication == null) deduplication = false;
          if (updateWhenConnectedOnly == null) updateWhenConnectedOnly = false;
          if (customUserAgent == null) customUserAgent = "";
@@ -966,7 +1063,7 @@ index c2d981b..0356a6b 100644
          if (lastUpdated == null) lastUpdated = 0;
          if (filterMode == null) filterMode = 0;
 diff --git a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/fmt/AbstractBean.java b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/fmt/AbstractBean.java
-index ca20d9e..b33af60 100644
+index ca20d9ef..b33af60d 100644
 --- a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/fmt/AbstractBean.java
 +++ b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/fmt/AbstractBean.java
 @@ -78,7 +78,7 @@ public abstract class AbstractBean extends Serializable {
@@ -979,7 +1076,7 @@ index ca20d9e..b33af60 100644
      }
  
 diff --git a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/fmt/ConfigBuilder.kt b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/fmt/ConfigBuilder.kt
-index d363fd0..ed67299 100644
+index d363fd07..ed67299d 100644
 --- a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/fmt/ConfigBuilder.kt
 +++ b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/fmt/ConfigBuilder.kt
 @@ -163,7 +163,10 @@ fun buildConfig(
@@ -1004,7 +1101,7 @@ index d363fd0..ed67299 100644
                  proxy.id,
                  trafficMap,
 diff --git a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/fmt/TrafficFragmentationPlanner.kt b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/fmt/TrafficFragmentationPlanner.kt
-index c375cf6..3fea502 100644
+index c375cf60..3fea5023 100644
 --- a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/fmt/TrafficFragmentationPlanner.kt
 +++ b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/fmt/TrafficFragmentationPlanner.kt
 @@ -27,7 +27,7 @@ private fun AbstractBean.isTcpBased(): Boolean = when (this) {
@@ -1017,7 +1114,7 @@ index c375cf6..3fea502 100644
  
  internal fun isTrafficFragmentationEligible(
 diff --git a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/fmt/hysteria/HysteriaBean.java b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/fmt/hysteria/HysteriaBean.java
-index af3fc7a..a7443b9 100644
+index af3fc7a0..a7443b9f 100644
 --- a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/fmt/hysteria/HysteriaBean.java
 +++ b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/fmt/hysteria/HysteriaBean.java
 @@ -214,7 +214,7 @@ public class HysteriaBean extends AbstractBean {
@@ -1030,7 +1127,7 @@ index af3fc7a..a7443b9 100644
      }
  
 diff --git a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/fmt/internal/InternalBean.java b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/fmt/internal/InternalBean.java
-index 2627b3a..ef913b9 100644
+index 2627b3a4..ef913b95 100644
 --- a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/fmt/internal/InternalBean.java
 +++ b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/fmt/internal/InternalBean.java
 @@ -15,7 +15,7 @@ public abstract class InternalBean extends AbstractBean {
@@ -1043,7 +1140,7 @@ index 2627b3a..ef913b9 100644
      }
  
 diff --git a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/fmt/juicity/JuicityBean.java b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/fmt/juicity/JuicityBean.java
-index 15dace4..2358bd3 100644
+index 15dace41..2358bd32 100644
 --- a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/fmt/juicity/JuicityBean.java
 +++ b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/fmt/juicity/JuicityBean.java
 @@ -51,7 +51,7 @@ public class JuicityBean extends AbstractBean {
@@ -1056,7 +1153,7 @@ index 15dace4..2358bd3 100644
      }
  
 diff --git a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/fmt/masque/MasqueBean.java b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/fmt/masque/MasqueBean.java
-index 6d5383a..fe72ab9 100644
+index 6d5383a5..fe72ab90 100644
 --- a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/fmt/masque/MasqueBean.java
 +++ b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/fmt/masque/MasqueBean.java
 @@ -214,7 +214,7 @@ public class MasqueBean extends AbstractBean {
@@ -1069,7 +1166,7 @@ index 6d5383a..fe72ab9 100644
      }
  
 diff --git a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/fmt/masterdns/MasterDnsVPNBean.java b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/fmt/masterdns/MasterDnsVPNBean.java
-index 69876b8..7caf9b3 100644
+index 69876b8f..7caf9b39 100644
 --- a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/fmt/masterdns/MasterDnsVPNBean.java
 +++ b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/fmt/masterdns/MasterDnsVPNBean.java
 @@ -98,7 +98,7 @@ public class MasterDnsVPNBean extends AbstractBean {
@@ -1082,7 +1179,7 @@ index 69876b8..7caf9b3 100644
      }
  
 diff --git a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/fmt/openconnect/OpenConnectBean.java b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/fmt/openconnect/OpenConnectBean.java
-index f7cd42a..8eb970c 100644
+index f7cd42a6..8eb970cb 100644
 --- a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/fmt/openconnect/OpenConnectBean.java
 +++ b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/fmt/openconnect/OpenConnectBean.java
 @@ -294,7 +294,7 @@ public class OpenConnectBean extends AbstractBean {
@@ -1095,7 +1192,7 @@ index f7cd42a..8eb970c 100644
      }
  
 diff --git a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/fmt/openvpn/OpenVPNBean.java b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/fmt/openvpn/OpenVPNBean.java
-index 23dab8d..9a4decf 100644
+index 23dab8d0..9a4decf7 100644
 --- a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/fmt/openvpn/OpenVPNBean.java
 +++ b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/fmt/openvpn/OpenVPNBean.java
 @@ -322,7 +322,7 @@ public class OpenVPNBean extends AbstractBean {
@@ -1108,7 +1205,7 @@ index 23dab8d..9a4decf 100644
      }
  
 diff --git a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/fmt/tailscale/TailscaleBean.java b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/fmt/tailscale/TailscaleBean.java
-index af64805..2516819 100644
+index af648055..25168193 100644
 --- a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/fmt/tailscale/TailscaleBean.java
 +++ b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/fmt/tailscale/TailscaleBean.java
 @@ -88,7 +88,7 @@ public class TailscaleBean extends AbstractBean {
@@ -1121,7 +1218,7 @@ index af64805..2516819 100644
      }
  
 diff --git a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/fmt/tuic/TuicBean.java b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/fmt/tuic/TuicBean.java
-index f912007..7470b21 100644
+index f9120077..7470b218 100644
 --- a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/fmt/tuic/TuicBean.java
 +++ b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/fmt/tuic/TuicBean.java
 @@ -106,7 +106,7 @@ public class TuicBean extends AbstractBean {
@@ -1134,7 +1231,7 @@ index f912007..7470b21 100644
      }
  
 diff --git a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/fmt/wireguard/AmneziaWGBean.java b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/fmt/wireguard/AmneziaWGBean.java
-index 03e231c..6f31c46 100644
+index 03e231c9..6f31c469 100644
 --- a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/fmt/wireguard/AmneziaWGBean.java
 +++ b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/fmt/wireguard/AmneziaWGBean.java
 @@ -179,7 +179,7 @@ public class AmneziaWGBean extends AbstractBean {
@@ -1147,7 +1244,7 @@ index 03e231c..6f31c46 100644
      }
  
 diff --git a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/fmt/wireguard/WireGuardBean.java b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/fmt/wireguard/WireGuardBean.java
-index 6db9064..d60a763 100644
+index 6db90647..d60a7633 100644
 --- a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/fmt/wireguard/WireGuardBean.java
 +++ b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/fmt/wireguard/WireGuardBean.java
 @@ -63,7 +63,7 @@ public class WireGuardBean extends AbstractBean {
@@ -1160,7 +1257,7 @@ index 6db9064..d60a763 100644
      }
  
 diff --git a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/group/GroupInterfaceAdapter.kt b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/group/GroupInterfaceAdapter.kt
-index e5f381a..5e2a891 100644
+index e5f381a7..5e2a8916 100644
 --- a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/group/GroupInterfaceAdapter.kt
 +++ b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/group/GroupInterfaceAdapter.kt
 @@ -8,7 +8,6 @@ import io.nekohasekai.sagernet.ktx.onMainDispatcher
@@ -1230,10 +1327,28 @@ index e5f381a..5e2a891 100644
  
      override suspend fun onUpdateFailure(group: ProxyGroup, message: String) {
 diff --git a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/group/RawUpdater.kt b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/group/RawUpdater.kt
-index f2c562e..a276c59 100644
+index f2c562e9..b7a27537 100644
 --- a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/group/RawUpdater.kt
 +++ b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/group/RawUpdater.kt
-@@ -281,6 +281,8 @@ object RawUpdater : GroupUpdater() {
+@@ -36,6 +36,7 @@ internal fun mergeCurrentSubscriptionSettings(
+     current: SubscriptionBean,
+     updated: SubscriptionBean,
+ ) {
++    updated.protectedContent = current.protectedContent == true || updated.protectedContent == true
+     updated.link = current.link
+     updated.forceResolve = current.forceResolve
+     updated.deduplication = current.deduplication
+@@ -149,6 +150,9 @@ object RawUpdater : GroupUpdater() {
+         val originalName = proxyGroup.name
+         val document = subscriptionReader.read(subscription)
+         val responseText = document.body
++        if (io.nekohasekai.sagernet.utils.MobileTinaProtectedPayload.decode(responseText) != null) {
++            subscription.protectedContent = true
++        }
+         var proxies = parseRaw(responseText) ?: error(
+             app.getString(
+                 if (document.source == SubscriptionDocument.Source.CONTENT) {
+@@ -281,6 +285,8 @@ object RawUpdater : GroupUpdater() {
              SubscriptionUpdater.reconfigureUpdater()
          }
  
@@ -1243,7 +1358,7 @@ index f2c562e..a276c59 100644
              proxyGroup,
              syncResult.changed,
 diff --git a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ktx/Dialogs.kt b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ktx/Dialogs.kt
-index 6bc0edd..b0e7b42 100644
+index 6bc0edd3..b0e7b428 100644
 --- a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ktx/Dialogs.kt
 +++ b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ktx/Dialogs.kt
 @@ -22,7 +22,7 @@ fun Context.happCryptUnsupportedDialog(): ComponentDialog {
@@ -1256,7 +1371,7 @@ index 6bc0edd..b0e7b42 100644
      )
  }
 diff --git a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/AboutFragment.kt b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/AboutFragment.kt
-index 99bb60a..107a508 100644
+index 99bb60a0..107a5085 100644
 --- a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/AboutFragment.kt
 +++ b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/AboutFragment.kt
 @@ -1,137 +1,70 @@
@@ -1449,7 +1564,7 @@ index 99bb60a..107a508 100644
      }
  }
 diff --git a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/AdblockSettingsActivity.kt b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/AdblockSettingsActivity.kt
-index 7d6c16f..685a9af 100644
+index 7d6c16f5..685a9af4 100644
 --- a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/AdblockSettingsActivity.kt
 +++ b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/AdblockSettingsActivity.kt
 @@ -273,7 +273,7 @@ class AdblockSettingsFragment : ToolbarFragment(),
@@ -1470,8 +1585,44 @@ index 7d6c16f..685a9af 100644
              onPositive = {
                  val storedFilters = AdblockRepository.customFilters()
                  if (index in storedFilters.indices) {
+diff --git a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/AppManagerActivity.kt b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/AppManagerActivity.kt
+index 3914027d..367cb947 100644
+--- a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/AppManagerActivity.kt
++++ b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/AppManagerActivity.kt
+@@ -38,8 +38,7 @@ class AppManagerActivity : ThemedActivity() {
+ 
+     override fun onCreate(savedInstanceState: Bundle?) {
+         super.onCreate(savedInstanceState)
+-        if (!DataStore.proxyApps) DataStore.proxyApps = true
+-        routingMode = if (DataStore.bypass) AppRoutingMode.Bypass else AppRoutingMode.Proxy
++        routingMode = if (!DataStore.proxyApps) AppRoutingMode.Off else if (DataStore.bypass) AppRoutingMode.Bypass else AppRoutingMode.Proxy
+         model = AppSelectionModel(DataStore.individual) { DataStore.individual = it }
+         setContent {
+             NekoComposeTheme {
+@@ -96,17 +95,20 @@ class AppManagerActivity : ThemedActivity() {
+     }
+ 
+     private fun changeRoutingMode(mode: AppRoutingMode) {
++        DataStore.dirty = true
+         when (mode) {
+             AppRoutingMode.Off -> {
+                 DataStore.proxyApps = false
+-                finish()
++                routingMode = mode
+             }
+             AppRoutingMode.Proxy -> {
+                 routingMode = mode
++                DataStore.proxyApps = true
+                 DataStore.bypass = false
+             }
+             AppRoutingMode.Bypass -> {
+                 routingMode = mode
++                DataStore.proxyApps = true
+                 DataStore.bypass = true
+             }
+         }
 diff --git a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/AppSelectionModel.kt b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/AppSelectionModel.kt
-index c1325b2..0543165 100644
+index c1325b27..05431658 100644
 --- a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/AppSelectionModel.kt
 +++ b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/AppSelectionModel.kt
 @@ -97,6 +97,10 @@ internal class AppSelectionModel(
@@ -1507,7 +1658,7 @@ index c1325b2..0543165 100644
                      app.name.contains(query, ignoreCase = true) ||
                      app.packageName.contains(query, ignoreCase = true) ||
 diff --git a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/BackgroundProcessController.kt b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/BackgroundProcessController.kt
-index ffcfebd..222f62a 100644
+index ffcfebde..222f62a8 100644
 --- a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/BackgroundProcessController.kt
 +++ b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/BackgroundProcessController.kt
 @@ -20,7 +20,7 @@ object BackgroundProcessController {
@@ -1520,7 +1671,7 @@ index ffcfebd..222f62a 100644
          )
      }
 diff --git a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/ConfigurationFragment.kt b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/ConfigurationFragment.kt
-index 936c057..431957f 100644
+index 936c0574..f14881e9 100644
 --- a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/ConfigurationFragment.kt
 +++ b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/ConfigurationFragment.kt
 @@ -45,6 +45,8 @@ import androidx.appcompat.widget.Toolbar
@@ -1584,7 +1735,56 @@ index 936c057..431957f 100644
  
          if (!select) {
              if (profileSelectionMode) setupProfileSelectionToolbarMenu() else setupProfileToolbarMenu()
-@@ -953,6 +967,11 @@ class ConfigurationFragment @JvmOverloads constructor(
+@@ -842,6 +856,7 @@ class ConfigurationFragment @JvmOverloads constructor(
+                     val subscriptions = mutableListOf<SubscriptionLinkImportPolicy.Candidate>()
+                     var qrImportError: Exception? = null
+                     var happCryptFound = false
++                    var protectedImported = false
+                     when (
+                         ProfileFileImportPolicy.classify(
+                             fileName,
+@@ -856,8 +871,8 @@ class ConfigurationFragment @JvmOverloads constructor(
+                                 val entry = zip.nextEntry ?: break
+                                 if (entry.isDirectory) continue
+                                 val fileText = zip.bufferedReader().readText()
+-                                RawUpdater.parseRaw(fileText, entry.name)
+-                                    ?.let { pl -> proxies.addAll(pl) }
++                                if (MobileTinaProtectedImports.import(mainActivity, fileText)) protectedImported = true
++                                else RawUpdater.parseRaw(fileText, entry.name)?.let { proxies.addAll(it) }
+                                 zip.closeEntry()
+                             }
+                             zip.closeQuietly()
+@@ -886,6 +901,9 @@ class ConfigurationFragment @JvmOverloads constructor(
+                                         is QrCodeImportResult.Subscription -> {
+                                             subscriptions.add(result.candidate)
+                                         }
++                                        is QrCodeImportResult.Protected -> {
++                                            protectedImported = MobileTinaProtectedImports.import(mainActivity, result.text) || protectedImported
++                                        }
+                                         QrCodeImportResult.Empty -> Unit
+                                     }
+                                 } catch (error: Exception) {
+@@ -899,8 +917,8 @@ class ConfigurationFragment @JvmOverloads constructor(
+                             val fileText = context.contentResolver.openInputStream(file)!!.use {
+                                 it.bufferedReader().readText()
+                             }
+-                            RawUpdater.parseRaw(fileText, fileName ?: "")
+-                                ?.let { pl -> proxies.addAll(pl) }
++                            if (MobileTinaProtectedImports.import(mainActivity, fileText)) protectedImported = true
++                            else RawUpdater.parseRaw(fileText, fileName ?: "")?.let { proxies.addAll(it) }
+                         }
+                     }
+                     if (proxies.isNotEmpty()) {
+@@ -916,7 +934,7 @@ class ConfigurationFragment @JvmOverloads constructor(
+                             context.happCryptUnsupportedDialog().show()
+                         }
+                     }
+-                    if (proxies.isEmpty() && subscriptions.isEmpty() && !happCryptFound) {
++                    if (proxies.isEmpty() && subscriptions.isEmpty() && !happCryptFound && !protectedImported) {
+                         qrImportError?.let { throw it }
+                         onMainDispatcher {
+                             snackbar(getString(R.string.no_proxies_found_in_file)).show()
+@@ -953,6 +971,11 @@ class ConfigurationFragment @JvmOverloads constructor(
  
      override fun onMenuItemClick(item: MenuItem): Boolean {
          when (item.itemId) {
@@ -1596,7 +1796,7 @@ index 936c057..431957f 100644
              R.id.action_select_profiles -> {
                  enterProfileSelectionMode()
                  return true
-@@ -1020,13 +1039,9 @@ class ConfigurationFragment @JvmOverloads constructor(
+@@ -1020,13 +1043,9 @@ class ConfigurationFragment @JvmOverloads constructor(
                  return true
              }
  
@@ -1611,7 +1811,16 @@ index 936c057..431957f 100644
                  return true
              }
  
-@@ -1114,7 +1129,7 @@ class ConfigurationFragment @JvmOverloads constructor(
+@@ -1083,6 +1102,8 @@ class ConfigurationFragment @JvmOverloads constructor(
+                 val text = SagerNet.getClipboardText()
+                 if (text.isBlank()) {
+                     snackbar(getString(R.string.clipboard_empty)).show()
++                } else if (io.nekohasekai.sagernet.utils.MobileTinaProtectedPayload.decode(text) != null) {
++                    runOnDefaultDispatcher { MobileTinaProtectedImports.import(mainActivity, text) }
+                 } else if (RoutingLinkProcessors.forLink(text) != null) {
+                     (requireActivity() as MainActivity).requestRoutingImport(text)
+                 } else if (SubscriptionLinkImportPolicy.isHappCryptLink(text)) {
+@@ -1114,7 +1135,7 @@ class ConfigurationFragment @JvmOverloads constructor(
                                  val subscription = SubscriptionBean()
                                  group.subscription = subscription
                                  subscription.link = subscriptionLink
@@ -1620,21 +1829,167 @@ index 936c057..431957f 100644
                                  group.name = ""
                                  startActivity(Intent(requireContext(), GroupSettingsActivity::class.java).apply {
                                      putExtra(GroupSettingsActivity.EXTRA_FROM_CLIPBOARD, true)
-@@ -1462,12 +1477,9 @@ class ConfigurationFragment @JvmOverloads constructor(
+@@ -1321,156 +1342,15 @@ class ConfigurationFragment @JvmOverloads constructor(
              }
  
-             R.id.action_connection_icmp_ping -> {
+             R.id.action_connection_test_delete_unavailable -> {
+-                runOnDefaultDispatcher {
+-                    val profiles = SagerDatabase.proxyDao.getByGroup(DataStore.currentGroupId())
+-                    val toClear = mutableListOf<ProxyEntity>()
+-                    if (profiles.isNotEmpty()) for (profile in profiles) {
+-                        if (profile.status != 0 && profile.status != 1) {
+-                            toClear.add(profile)
+-                        }
+-                    }
+-                    if (toClear.isNotEmpty()) {
+-                        onMainDispatcher {
+-                            requireContext().showComposeMessageDialog(
+-                                title = getText(R.string.confirm),
+-                                message = getText(R.string.delete_unavailable_confirm_prompt),
+-                                positiveButton = getText(R.string.yes),
+-                                negativeButton = getText(R.string.no),
+-                                onPositive = {
+-                                    for (profile in toClear) {
+-                                        adapter.groupFragments[DataStore.selectedGroup]?.adapter?.apply {
+-                                            val index = configurationIdList.indexOf(profile.id)
+-                                            if (index >= 0) {
+-                                                configurationIdList.removeAt(index)
+-                                                configurationList.remove(profile.id)
+-                                                notifyItemRemoved(index)
+-                                            }
+-                                        }
+-                                    }
+-                                    runOnDefaultDispatcher {
+-                                        for (profile in toClear) {
+-                                            ProfileManager.deleteProfile2(
+-                                                profile.groupId, profile.id
+-                                            )
+-                                        }
+-                                    }
+-                                },
+-                            )
+-                        }
+-                    }
+-                }
++                MobileTinaConfigurationCleanup.show(requireActivity() as ThemedActivity, item.itemId, DataStore.currentGroupId())
+             }
+ 
+             R.id.action_remove_duplicate -> {
+-                runOnDefaultDispatcher {
+-                    val profiles = SagerDatabase.proxyDao.getByGroup(DataStore.currentGroupId())
+-                    val toClear = mutableListOf<ProxyEntity>()
+-                    val uniqueProxyHashes = LinkedHashSet<String>()
+-                    for (pf in profiles) {
+-                        val proxyHash = pf.requireBean().hash
+-                        if (!uniqueProxyHashes.add(proxyHash)) {
+-                            toClear += pf
+-                        }
+-                    }
+-                    if (toClear.isNotEmpty()) {
+-                        onMainDispatcher {
+-                            requireContext().showComposeMessageDialog(
+-                                title = getText(R.string.confirm),
+-                                message =
+-                                    getString(R.string.delete_confirm_prompt) + "\n" +
+-                                            toClear.mapIndexedNotNull { index, proxyEntity ->
+-                                                if (index < 20) {
+-                                                    proxyEntity.displayName()
+-                                                } else if (index == 20) {
+-                                                    "......"
+-                                                } else {
+-                                                    null
+-                                                }
+-                                            }.joinToString("\n"),
+-                                positiveButton = getText(R.string.yes),
+-                                negativeButton = getText(R.string.no),
+-                                onPositive = {
+-                                    for (profile in toClear) {
+-                                        adapter.groupFragments[DataStore.selectedGroup]?.adapter?.apply {
+-                                            val index = configurationIdList.indexOf(profile.id)
+-                                            if (index >= 0) {
+-                                                configurationIdList.removeAt(index)
+-                                                configurationList.remove(profile.id)
+-                                                notifyItemRemoved(index)
+-                                            }
+-                                        }
+-                                    }
+-                                    runOnDefaultDispatcher {
+-                                        for (profile in toClear) {
+-                                            ProfileManager.deleteProfile2(
+-                                                profile.groupId, profile.id
+-                                            )
+-                                        }
+-                                    }
+-                                },
+-                            )
+-                        }
+-                    }
+-                }
++                MobileTinaConfigurationCleanup.show(requireActivity() as ThemedActivity, item.itemId, DataStore.currentGroupId())
+             }
+ 
+             R.id.action_remove_insecure -> {
+-                runOnDefaultDispatcher {
+-                    val toClear = SagerDatabase.proxyDao
+-                        .getByGroup(DataStore.currentGroupId())
+-                        .filter { it.isInsecureProfile(DataStore.globalAllowInsecure) }
+-                    if (toClear.isNotEmpty()) {
+-                        onMainDispatcher {
+-                            requireContext().showComposeMessageDialog(
+-                                title = getText(R.string.confirm),
+-                                message =
+-                                    getString(R.string.remove_insecure_confirm_prompt) + "\n" +
+-                                            toClear.mapIndexedNotNull { index, proxyEntity ->
+-                                                if (index < 20) {
+-                                                    proxyEntity.displayName()
+-                                                } else if (index == 20) {
+-                                                    "......"
+-                                                } else {
+-                                                    null
+-                                                }
+-                                            }.joinToString("\n"),
+-                                positiveButton = getText(R.string.yes),
+-                                negativeButton = getText(R.string.no),
+-                                onPositive = {
+-                                    for (profile in toClear) {
+-                                        adapter.groupFragments[DataStore.selectedGroup]?.adapter?.apply {
+-                                            val index = configurationIdList.indexOf(profile.id)
+-                                            if (index >= 0) {
+-                                                configurationIdList.removeAt(index)
+-                                                configurationList.remove(profile.id)
+-                                                notifyItemRemoved(index)
+-                                            }
+-                                        }
+-                                    }
+-                                    runOnDefaultDispatcher {
+-                                        for (profile in toClear) {
+-                                            ProfileManager.deleteProfile2(
+-                                                profile.groupId, profile.id
+-                                            )
+-                                        }
+-                                    }
+-                                },
+-                            )
+-                        }
+-                    }
+-                }
+-            }
+-
+-            R.id.action_connection_icmp_ping -> {
 -                pingTest(true)
-+                pingTest()
-             }
- 
+-            }
+-
 -            R.id.action_connection_tcp_ping -> {
 -                pingTest(false)
 -            }
+-
+-            R.id.action_connection_url_test -> {
+-                urlTest()
++                MobileTinaConfigurationCleanup.show(requireActivity() as ThemedActivity, item.itemId, DataStore.currentGroupId())
+             }
  
-             R.id.action_connection_url_test -> {
-                 urlTest()
-@@ -1533,7 +1545,7 @@ class ConfigurationFragment @JvmOverloads constructor(
+             R.id.action_global_mode -> {
+@@ -1533,7 +1413,7 @@ class ConfigurationFragment @JvmOverloads constructor(
              name = candidate.name ?: "Subscription #${System.currentTimeMillis()}"
              subscription = SubscriptionBean().apply {
                  link = candidate.link
@@ -1643,7 +1998,7 @@ index 936c057..431957f 100644
              }
          })
  
-@@ -1544,13 +1556,7 @@ class ConfigurationFragment @JvmOverloads constructor(
+@@ -1544,13 +1424,7 @@ class ConfigurationFragment @JvmOverloads constructor(
          GroupUpdater.startUpdate(group, true)
      }
  
@@ -1658,7 +2013,18 @@ index 936c057..431957f 100644
  
      fun urlTest() {
          GroupConnectionTestController.startUrlTest(this)
-@@ -1688,22 +1694,10 @@ class ConfigurationFragment @JvmOverloads constructor(
+@@ -1624,6 +1498,10 @@ class ConfigurationFragment @JvmOverloads constructor(
+             return
+         }
+         runOnDefaultDispatcher {
++            if (SagerDatabase.proxyDao.getEntities(profileIds).any(MobileTinaProtection::isProtected)) {
++                onMainDispatcher { snackbar(R.string.mobiletina_protected).show() }
++                return@runOnDefaultDispatcher
++            }
+             try {
+                 val result = ProfileManager.transferProfiles(profileIds, targetGroupId, operation)
+                 onMainDispatcher {
+@@ -1688,22 +1566,10 @@ class ConfigurationFragment @JvmOverloads constructor(
          }
      }
  
@@ -1684,7 +2050,18 @@ index 936c057..431957f 100644
      }
  
      private fun testSelectedProfilesIcmpPing() = selectedProfiles { profiles ->
-@@ -2349,6 +2343,7 @@ class ConfigurationFragment @JvmOverloads constructor(
+@@ -1713,6 +1579,10 @@ class ConfigurationFragment @JvmOverloads constructor(
+ 
+     private fun exportSelectedProfiles(kind: BatchExportKind, target: BatchExportTarget) =
+         selectedProfiles { profiles ->
++            if (profiles.any(MobileTinaProtection::isProtected)) {
++                snackbar(R.string.mobiletina_protected).show()
++                return@selectedProfiles
++            }
+             val result = when (kind) {
+                 BatchExportKind.Standard -> ProfileBatchExport.standardLinks(profiles)
+                 BatchExportKind.Universal -> ProfileBatchExport.universalLinks(profiles)
+@@ -2349,6 +2219,7 @@ class ConfigurationFragment @JvmOverloads constructor(
              })
              itemTouchHelper.attachToRecyclerView(configurationListView)
          }
@@ -1692,7 +2069,7 @@ index 936c057..431957f 100644
          lateinit var configurationListView: RecyclerView
          private var didInitialPositionList = false
          private var lastGroupUpdateStamp: Int? = null
-@@ -2396,6 +2391,9 @@ class ConfigurationFragment @JvmOverloads constructor(
+@@ -2396,6 +2267,9 @@ class ConfigurationFragment @JvmOverloads constructor(
          }
  
          override fun onDestroyView() {
@@ -1702,7 +2079,7 @@ index 936c057..431957f 100644
              lastGroupUpdateStamp = null
              didInitialPositionList = false
              if (::configurationListView.isInitialized) {
-@@ -2602,19 +2600,39 @@ class ConfigurationFragment @JvmOverloads constructor(
+@@ -2602,19 +2476,39 @@ class ConfigurationFragment @JvmOverloads constructor(
              if (!::proxyGroup.isInitialized) return
  
              configurationListView = view.findViewById(R.id.configuration_list)
@@ -1746,7 +2123,7 @@ index 936c057..431957f 100644
              )
              configurationListView.adapter = combinedAdapter
              configurationListView.setItemViewCacheSize(20)
-@@ -3377,7 +3395,9 @@ class ConfigurationFragment @JvmOverloads constructor(
+@@ -3377,7 +3271,9 @@ class ConfigurationFragment @JvmOverloads constructor(
              RecyclerView.Adapter<SubscriptionBannerHolder>() {
  
              private var presentation =
@@ -1757,7 +2134,7 @@ index 936c057..431957f 100644
  
              init {
                  setHasStableIds(true)
-@@ -3423,7 +3443,9 @@ class ConfigurationFragment @JvmOverloads constructor(
+@@ -3423,7 +3319,9 @@ class ConfigurationFragment @JvmOverloads constructor(
              }
  
              fun refresh() {
@@ -1768,7 +2145,61 @@ index 936c057..431957f 100644
                  notifyDataSetChanged()
                  (layoutManager as? FixedGridLayoutManager)
                      ?.spanSizeLookup
-@@ -3863,13 +3885,51 @@ class ConfigurationFragment @JvmOverloads constructor(
+@@ -3605,11 +3503,11 @@ class ConfigurationFragment @JvmOverloads constructor(
+                         statusColor = context.getColour(R.color.material_green_500)
+                     }
+                     entity.status == 2 -> {
+-                        status = entity.error.orEmpty()
++                        status = getString(R.string.mobiletina_inactive)
+                         statusColor = context.getColour(R.color.material_red_500)
+                     }
+                     entity.status == 3 -> {
+-                        status = Protocols.genFriendlyMsg(entity.error ?: "<?>")
++                        status = getString(R.string.mobiletina_inactive)
+                         statusColor = context.getColour(R.color.material_red_500)
+                     }
+                 }
+@@ -3623,10 +3521,12 @@ class ConfigurationFragment @JvmOverloads constructor(
+                     notificationSwitchPopup = activity is SwitchActivity,
+                     batchSelection = batchSelection,
+                 )
+-                val showShare = !selectOrChain && !batchSelection && entity.nekoBean == null
++                val protectedContent = proxyGroup.subscription?.protectedContent == true
++                val showShare = !protectedContent && !selectOrChain && !batchSelection && entity.nekoBean == null
+                 val showTrafficInOwnField = showTraffic && showTrafficSeparately
+                 presentation = ProfileCardModel(
+                     entity = entity,
++                    protectedContent = protectedContent,
+                     layout = layout,
+                     name = ProfileCountryResolver.presentationName(entity, countryVisible),
+                     type = entity.profileCardType(DataStore.shortProfileProtocolInfo),
+@@ -3647,7 +3547,7 @@ class ConfigurationFragment @JvmOverloads constructor(
+                     statusVisible = !double || entity.status > 0,
+                     batchSelection = batchSelection,
+                     batchSelected = parent.isProfileSelected(entity.id),
+-                    showEdit = !double && !select && !batchSelection,
++                    showEdit = !protectedContent && !double && !select && !batchSelection,
+                     editEnabled = !isCurrentRunningProfile,
+                     showUrlTest = !double && showUrlTest,
+                     urlTestEnabled = !UrlTest.isUnsupportedProfile(entity),
+@@ -3703,7 +3603,7 @@ class ConfigurationFragment @JvmOverloads constructor(
+             }
+ 
+             private fun edit() {
+-                if (isCurrentRunningProfile) return
++                if (isCurrentRunningProfile || MobileTinaProtection.isProtected(entity)) return
+                 composeView.context.startActivity(
+                     entity.settingIntent(
+                         composeView.context,
+@@ -3748,6 +3648,7 @@ class ConfigurationFragment @JvmOverloads constructor(
+             }
+ 
+             private fun showShareMenu(action: ProfileShareAction) {
++                if (MobileTinaProtection.isProtected(entity)) return
+                 runCatching {
+                     when (action) {
+                         ProfileShareAction.STANDARD_QR -> showCode(entity.toStdLink())
+@@ -3863,13 +3764,51 @@ class ConfigurationFragment @JvmOverloads constructor(
          toolbarOrNull()?.post { focusTvToolbarAction() }
      }
  
@@ -1821,7 +2252,7 @@ index 936c057..431957f 100644
  
          activeToolbar.post {
              if (toolbarOrNull() !== activeToolbar ||
-@@ -3987,7 +4047,6 @@ class ConfigurationFragment @JvmOverloads constructor(
+@@ -3987,7 +3926,6 @@ class ConfigurationFragment @JvmOverloads constructor(
              ProfileToolbarActionId.DELETE_UNAVAILABLE -> R.id.action_connection_test_delete_unavailable
              ProfileToolbarActionId.REMOVE_INSECURE -> R.id.action_remove_insecure
              ProfileToolbarActionId.ICMP_PING -> R.id.action_connection_icmp_ping
@@ -1829,7 +2260,7 @@ index 936c057..431957f 100644
              ProfileToolbarActionId.URL_TEST -> R.id.action_connection_url_test
              ProfileToolbarActionId.GLOBAL_MODE -> R.id.action_global_mode
              ProfileToolbarActionId.CLASH_MODE -> R.id.action_clash_mode
-@@ -4146,6 +4205,7 @@ class ConfigurationFragment @JvmOverloads constructor(
+@@ -4146,6 +4084,7 @@ class ConfigurationFragment @JvmOverloads constructor(
          activeToolbar.inflateMenu(R.menu.profile_selection_menu)
          activeToolbar.setOnMenuItemClickListener(this)
          updateSelectionMenuEnabledState()
@@ -1837,7 +2268,7 @@ index 936c057..431957f 100644
      }
  
      private fun enterProfileSelectionMode() {
-@@ -4205,7 +4265,6 @@ class ConfigurationFragment @JvmOverloads constructor(
+@@ -4205,7 +4144,6 @@ class ConfigurationFragment @JvmOverloads constructor(
              R.id.action_selection_clear_traffic,
              R.id.action_selection_clear_tests,
              R.id.action_selection_icmp_ping,
@@ -1845,7 +2276,23 @@ index 936c057..431957f 100644
              R.id.action_selection_url_test,
              R.id.action_selection_group_copy,
              R.id.action_selection_group_move,
-@@ -4225,12 +4284,14 @@ class ConfigurationFragment @JvmOverloads constructor(
+@@ -4217,6 +4155,15 @@ class ConfigurationFragment @JvmOverloads constructor(
+             R.id.action_selection_config_file,
+             R.id.action_selection_delete,
+         ).forEach { menu.findItem(it)?.isEnabled = enabled }
++        val allowExport = selectedProfileIds.none { id ->
++            AppData.profiles.getById(id)?.let(MobileTinaProtection::isProtected) == true
++        }
++        sequenceOf(R.id.action_selection_group_copy, R.id.action_selection_group_move,
++            R.id.action_selection_standard_qr, R.id.action_selection_universal_qr,
++            R.id.action_selection_standard_clipboard, R.id.action_selection_universal_clipboard,
++            R.id.action_selection_config_clipboard, R.id.action_selection_config_file,
++            R.id.action_selection_amneziawg_json_clipboard, R.id.action_selection_amneziawg_json_file)
++            .forEach { menu.findItem(it)?.isVisible = allowExport }
+     }
+ 
+     private fun setupSearchView() {
+@@ -4225,12 +4172,14 @@ class ConfigurationFragment @JvmOverloads constructor(
              object : MenuItem.OnActionExpandListener {
                  override fun onMenuItemActionExpand(item: MenuItem): Boolean {
                      profileSearchExpanded = true
@@ -1861,7 +2308,7 @@ index 936c057..431957f 100644
                      return true
                  }
 diff --git a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/GlobalSettingsController.kt b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/GlobalSettingsController.kt
-index 48e90b0..40f3af6 100644
+index 48e90b0b..40f3af67 100644
 --- a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/GlobalSettingsController.kt
 +++ b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/GlobalSettingsController.kt
 @@ -66,8 +66,7 @@ internal class GlobalSettingsController(
@@ -1910,7 +2357,7 @@ index 48e90b0..40f3af6 100644
              Key.TUN_SYSTEM_DNS_TRAFFIC, Key.TUN_DNS_WHITELIST, Key.TUN_DOT_WHITELIST,
              Key.TUN_DOH_WHITELIST, Key.CONNECTION_GUARD, Key.OVERLOAD_WATCHDOG, Key.MEMORY_LIMIT,
 diff --git a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/GlobalSettingsOperations.kt b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/GlobalSettingsOperations.kt
-index 8e69893..c21df27 100644
+index 8e698930..567668aa 100644
 --- a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/GlobalSettingsOperations.kt
 +++ b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/GlobalSettingsOperations.kt
 @@ -9,7 +9,6 @@ import androidx.activity.ComponentDialog
@@ -1930,11 +2377,13 @@ index 8e69893..c21df27 100644
                  DataStore.configurationStore.reset()
                  triggerFullRestart(context)
              },
-@@ -118,7 +117,7 @@ internal class GlobalSettingsOperations(private val fragment: SettingsFragment)
+@@ -117,8 +116,8 @@ internal class GlobalSettingsOperations(private val fragment: SettingsFragment)
+         context.showComposeMessageDialog(
              title = context.getText(R.string.clear_cache),
              message = context.getText(R.string.clear_cache_confirm),
-             positiveButton = context.getText(android.R.string.ok),
+-            positiveButton = context.getText(android.R.string.ok),
 -            negativeButton = context.getText(android.R.string.cancel),
++            positiveButton = context.getText(io.nekohasekai.sagernet.R.string.mobiletina_ok),
 +            negativeButton = context.getText(io.nekohasekai.sagernet.R.string.mobiletina_cancel),
              onPositive = ::clearAppCache,
          )
@@ -1948,17 +2397,19 @@ index 8e69893..c21df27 100644
              onItemSelected = { index ->
                  fragment.viewLifecycleOwner.lifecycleScope.launch {
                      val crashed = withContext(Dispatchers.Default) {
-@@ -310,7 +309,7 @@ internal class GlobalSettingsOperations(private val fragment: SettingsFragment)
+@@ -309,8 +308,8 @@ internal class GlobalSettingsOperations(private val fragment: SettingsFragment)
+             context.showComposeMessageDialog(
                  title = context.getText(R.string.run_storage_maintenance),
                  message = context.getText(R.string.storage_maintenance_confirm),
-                 positiveButton = context.getText(android.R.string.ok),
+-                positiveButton = context.getText(android.R.string.ok),
 -                negativeButton = context.getText(android.R.string.cancel),
++                positiveButton = context.getText(io.nekohasekai.sagernet.R.string.mobiletina_ok),
 +                negativeButton = context.getText(io.nekohasekai.sagernet.R.string.mobiletina_cancel),
                  onPositive = ::runStorageMaintenance,
              )
          }
 diff --git a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/GroupConnectionTestController.kt b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/GroupConnectionTestController.kt
-index 51b47f1..cdd74a8 100644
+index 51b47f18..cdd74a80 100644
 --- a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/GroupConnectionTestController.kt
 +++ b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/GroupConnectionTestController.kt
 @@ -10,8 +10,6 @@ import io.nekohasekai.sagernet.R
@@ -2089,10 +2540,54 @@ index 51b47f1..cdd74a8 100644
          dialog = fragment.requireContext().showConnectionTestProgressDialog(
              state = { progressUiState },
 diff --git a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/GroupFragment.kt b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/GroupFragment.kt
-index dbb8bf4..81742f6 100644
+index dbb8bf48..b705404b 100644
 --- a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/GroupFragment.kt
 +++ b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/GroupFragment.kt
-@@ -465,7 +465,7 @@ class GroupFragment : ToolbarFragment(), GroupManager.Listener,
+@@ -162,7 +162,7 @@ class GroupFragment : ToolbarFragment(), GroupManager.Listener,
+                 }
+             },
+             traffic = subscriptionTraffic(subscription),
+-            canEdit = !group.ungrouped || GroupManager.canDelete(group.id),
++            canEdit = subscription?.protectedContent != true && (!group.ungrouped || GroupManager.canDelete(group.id)),
+             canDelete = GroupDeletionPolicy.canSwipeDelete(
+                 isUngrouped = group.ungrouped,
+                 canDeleteGroup = GroupManager.canDelete(group.id),
+@@ -174,9 +174,10 @@ class GroupFragment : ToolbarFragment(), GroupManager.Listener,
+             progress = updateProgress?.let {
+                 if (it.max <= 0) null else (it.progress.toFloat() / it.max).coerceIn(0f, 1f)
+             },
+-            canShareSubscription = group.type == GroupType.SUBSCRIPTION,
++            canShareSubscription = group.type == GroupType.SUBSCRIPTION && subscription?.protectedContent != true,
+             canShareSubscriptionUrl = group.type == GroupType.SUBSCRIPTION &&
+-                !subscription?.link.isNullOrBlank(),
++                !subscription?.link.isNullOrBlank() && subscription?.protectedContent != true,
++            canExportProfiles = subscription?.protectedContent != true,
+         )
+     }
+ 
+@@ -257,6 +258,10 @@ class GroupFragment : ToolbarFragment(), GroupManager.Listener,
+     private fun handleGroupAction(groupId: Long, action: GroupAction) {
+         val group = groups.firstOrNull { it.id == groupId } ?: return
+         selectedGroup = group
++        if (group.subscription?.protectedContent == true && action !in setOf(GroupAction.Update, GroupAction.Clear, GroupAction.Delete)) {
++            snackbar(R.string.mobiletina_protected).show()
++            return
++        }
+         when (action) {
+             GroupAction.Edit -> startActivity(Intent(context, GroupSettingsActivity::class.java).apply {
+                 putExtra(GroupSettingsActivity.EXTRA_GROUP_ID, group.id)
+@@ -424,6 +429,10 @@ class GroupFragment : ToolbarFragment(), GroupManager.Listener,
+     }
+ 
+     private fun importSubscriptions(text: String, notFoundMessage: Int) {
++        if (io.nekohasekai.sagernet.utils.MobileTinaProtectedPayload.decode(text) != null) {
++            runOnDefaultDispatcher { MobileTinaProtectedImports.import(mainActivity, text) }
++            return
++        }
+         if (text.isBlank()) {
+             snackbar(notFoundMessage).show()
+             return
+@@ -465,7 +474,7 @@ class GroupFragment : ToolbarFragment(), GroupManager.Listener,
                          ?: "Subscription #${System.currentTimeMillis()}"
                      subscription = SubscriptionBean().apply {
                          this.link = link
@@ -2102,10 +2597,21 @@ index dbb8bf4..81742f6 100644
                  },
                  name,
 diff --git a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/GroupSettingsActivity.kt b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/GroupSettingsActivity.kt
-index 32891b1..2a7bf2e 100644
+index 32891b11..b523d2a3 100644
 --- a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/GroupSettingsActivity.kt
 +++ b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/GroupSettingsActivity.kt
-@@ -487,7 +487,7 @@ class GroupSettingsActivity : ThemedActivity(),
+@@ -314,6 +314,10 @@ class GroupSettingsActivity : ThemedActivity(),
+             override fun handleOnBackPressed() = closeEditor()
+         })
+         val editingId = intent.getLongExtra(EXTRA_GROUP_ID, 0L)
++        if (editingId > 0L && MobileTinaProtection.isProtected(editingId)) {
++            finish()
++            return
++        }
+         isFromClipboard = intent.getBooleanExtra(EXTRA_FROM_CLIPBOARD, false)
+         val subscriptionLink = intent.getStringExtra(EXTRA_GROUP_SUBSCRIPTION_LINK)
+         DataStore.editingId = editingId
+@@ -487,7 +491,7 @@ class GroupSettingsActivity : ThemedActivity(),
              title = getText(R.string.unsaved_changes_prompt),
              positiveButton = getText(R.string.yes),
              negativeButton = getText(R.string.no),
@@ -2115,7 +2621,7 @@ index 32891b1..2a7bf2e 100644
              onNegative = ::finish,
          )
 diff --git a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/MainActivity.kt b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/MainActivity.kt
-index c403caa..fd94b9d 100644
+index c403caac..bfc7c9f5 100644
 --- a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/MainActivity.kt
 +++ b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/MainActivity.kt
 @@ -12,6 +12,7 @@ import android.os.Build
@@ -2269,12 +2775,8 @@ index c403caa..fd94b9d 100644
      private fun setupLegacyNavigationBarInsets() {
          val coordinatorInitialLeft = binding.coordinator.paddingLeft
          val coordinatorInitialRight = binding.coordinator.paddingRight
-@@ -363,26 +402,14 @@ class MainActivity :
-     }
- 
-     private suspend fun performProxyAppsFirstSetup() {
--        DataStore.proxyApps = true
-+        DataStore.proxyApps = false
+@@ -366,45 +405,14 @@ class MainActivity :
+         DataStore.proxyApps = true
          DataStore.bypass = false
          DataStore.proxyAppsFirstSetup = true
 +        syncProxyAppsDrawerItem()
@@ -2298,11 +2800,11 @@ index c403caa..fd94b9d 100644
 -
      private fun applyFirstRunSelection(routingDir: String) {
          DataStore.firstRunRoutingRegion = routingDir
-         val service = RoutingRulesService(this, routingDir)
-@@ -390,23 +417,6 @@ class MainActivity :
-         DataStore.individual = selected.joinToString("\n")
-     }
- 
+-        val service = RoutingRulesService(this, routingDir)
+-        val selected = service.computeProxiedPackages(PackageCache.installedApps, false)
+-        DataStore.individual = selected.joinToString("\n")
+-    }
+-
 -    private fun showFirstRunRegionPicker() {
 -        val labels =
 -            arrayOf(
@@ -2318,12 +2820,11 @@ index c403caa..fd94b9d 100644
 -            cancelable = false,
 -            onItemSelected = { i -> applyFirstRunSelection(dirs[i]) },
 -        )
--    }
--
++        DataStore.individual = MobileTinaUiDefaults.defaultAppSelection()
+     }
+ 
      private fun requestProxyAppsToggle(enabled: Boolean) {
-         if (enabled) {
-             DataStore.proxyApps = true
-@@ -441,10 +451,133 @@ class MainActivity :
+@@ -441,10 +449,137 @@ class MainActivity :
  
      fun closeDrawer() = shellState.closeDrawer()
  
@@ -2349,6 +2850,10 @@ index c403caa..fd94b9d 100644
 +    val mobileTinaTrafficAvailable: Boolean get() = shellState.trafficVisible
 +
 +    fun dispatchMobileTinaConfigurationAction(id: Int) {
++        if (id in MobileTinaConfigurationCleanup.actions) {
++            MobileTinaConfigurationCleanup.show(this, id, DataStore.currentGroupId())
++            return
++        }
 +        if (supportFragmentManager.isStateSaved) return
 +        var target = supportFragmentManager.findFragmentById(R.id.fragment_holder) as? ConfigurationFragment
 +        if (target == null) {
@@ -2457,10 +2962,15 @@ index c403caa..fd94b9d 100644
  
          if (DataStore.hideFromRecentApps) {
              applyHideFromRecentApps(DataStore.hideFromRecentApps)
-@@ -477,6 +610,18 @@ class MainActivity :
+@@ -477,6 +612,23 @@ class MainActivity :
              return
          }
          val uri = intent.data ?: return
++        if (io.nekohasekai.sagernet.utils.MobileTinaProtectedPayload.decode(uri.toString()) != null) {
++            setIntent(Intent(intent).setAction(null).setData(null))
++            lifecycleScope.launch { MobileTinaProtectedImports.import(this@MainActivity, uri.toString()) }
++            return
++        }
 +        io.nekohasekai.sagernet.utils.MobileTinaImportNormalizer.subscriptionUrl(uri.toString())
 +            ?.takeIf { runCatching { java.net.URI(it).rawUserInfo == null }.getOrDefault(false) }
 +            ?.let { normalized ->
@@ -2476,16 +2986,16 @@ index c403caa..fd94b9d 100644
  
          RoutingLinkProcessors.forLink(uri.toString())?.let { processor ->
              setIntent(Intent(intent).setAction(null).setData(null))
-@@ -746,7 +891,7 @@ class MainActivity :
+@@ -746,7 +898,7 @@ class MainActivity :
          if (name.isNullOrBlank()) return
  
          group.name = group.name.takeIf { !it.isNullOrBlank() }
 -            ?: ("Subscription #" + System.currentTimeMillis())
-+            ?: getString(R.string.mobiletina_default_subscription)
++            ?: io.nekohasekai.sagernet.utils.MobileTinaAboutContent.brandTitle()
  
          onMainDispatcher {
              displayFragmentWithId(R.id.nav_group)
-@@ -755,7 +900,7 @@ class MainActivity :
+@@ -755,7 +907,7 @@ class MainActivity :
                  title = getText(R.string.subscription_import),
                  message = getString(R.string.subscription_import_message, name),
                  positiveButton = getText(R.string.yes),
@@ -2494,7 +3004,7 @@ index c403caa..fd94b9d 100644
                  onPositive = {
                      runOnDefaultDispatcher {
                          finishImportSubscription(group)
-@@ -804,7 +949,7 @@ class MainActivity :
+@@ -804,7 +956,7 @@ class MainActivity :
                  title = getText(R.string.profile_import),
                  message = message,
                  positiveButton = getText(R.string.yes),
@@ -2503,7 +3013,7 @@ index c403caa..fd94b9d 100644
                  onPositive = {
                      runOnDefaultDispatcher {
                          finishImportProfiles(profiles)
-@@ -916,8 +1061,10 @@ class MainActivity :
+@@ -916,8 +1068,10 @@ class MainActivity :
          syncState: Boolean = true,
      ) {
          if (fragment == null) return
@@ -2515,7 +3025,7 @@ index c403caa..fd94b9d 100644
              (fragment is SettingsFragment && DataStore.showBottomBarInSettings)
          binding.stats.useExternalScrollDriver =
              fragment is ConfigurationFragment || fragment is SettingsFragment
-@@ -959,6 +1106,14 @@ class MainActivity :
+@@ -959,6 +1113,14 @@ class MainActivity :
          @IdRes id: Int,
      ): Boolean {
          when (id) {
@@ -2530,7 +3040,7 @@ index c403caa..fd94b9d 100644
              R.id.nav_configuration -> {
                  displayFragment(ConfigurationFragment())
              }
-@@ -1018,6 +1173,7 @@ class MainActivity :
+@@ -1018,6 +1180,7 @@ class MainActivity :
          val previousState = renderedServiceState
          renderedServiceState = state
          DataStore.serviceState = state
@@ -2538,7 +3048,7 @@ index c403caa..fd94b9d 100644
  
          if (bottomControlsVisibleForCurrentFragment) {
              binding.fab.changeState(state, previousState, animate)
-@@ -1141,6 +1297,12 @@ class MainActivity :
+@@ -1141,6 +1304,12 @@ class MainActivity :
          connection.connect(this, this)
      }
  
@@ -2551,7 +3061,7 @@ index c403caa..fd94b9d 100644
      private val connect =
          registerForActivityResult(VpnRequestActivity.StartService()) {
              if (it) snackbar(R.string.vpn_permission_denied).show()
-@@ -1227,6 +1389,9 @@ class MainActivity :
+@@ -1227,6 +1396,9 @@ class MainActivity :
      }
  
      override fun onDestroy() {
@@ -2561,11 +3071,30 @@ index c403caa..fd94b9d 100644
          binding.root.removeCallbacks(initialDrawTimeout)
          initialDrawListener?.let { listener ->
              binding.root.viewTreeObserver.takeIf { it.isAlive }
+diff --git a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/ProfileShareCapabilities.kt b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/ProfileShareCapabilities.kt
+index 461ca810..62314dc6 100644
+--- a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/ProfileShareCapabilities.kt
++++ b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/ProfileShareCapabilities.kt
+@@ -8,10 +8,10 @@ internal data class ProfileShareCapabilities(
+     val configuration: Boolean,
+ ) {
+     companion object {
+-        fun from(entity: ProxyEntity) = ProfileShareCapabilities(
+-            links = entity.haveLink(),
+-            standardLinks = entity.haveStandardLink(),
+-            configuration = entity.nekoBean == null,
++        fun from(entity: ProxyEntity, protectedContent: Boolean = false) = ProfileShareCapabilities(
++            links = !protectedContent && entity.haveLink(),
++            standardLinks = !protectedContent && entity.haveStandardLink(),
++            configuration = !protectedContent && entity.nekoBean == null,
+         )
+     }
+ }
 diff --git a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/QrCodeImportParser.kt b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/QrCodeImportParser.kt
-index 7d585bd..60e4e66 100644
+index 7d585bd6..6b5cab91 100644
 --- a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/QrCodeImportParser.kt
 +++ b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/QrCodeImportParser.kt
-@@ -4,6 +4,8 @@ import io.nekohasekai.sagernet.fmt.AbstractBean
+@@ -4,8 +4,11 @@ import io.nekohasekai.sagernet.fmt.AbstractBean
  import io.nekohasekai.sagernet.group.RawUpdater
  import io.nekohasekai.sagernet.ktx.SubscriptionFoundException
  import io.nekohasekai.sagernet.ktx.parseAmneziaVpnLink
@@ -2573,8 +3102,20 @@ index 7d585bd..60e4e66 100644
 +import kotlinx.coroutines.CancellationException
  
  internal sealed class QrCodeImportResult {
++    data class Protected(val text: String) : QrCodeImportResult()
      data class Profiles(val profiles: List<AbstractBean>) : QrCodeImportResult()
-@@ -21,16 +23,25 @@ internal object QrCodeImportParser {
+     data class Subscription(
+         val candidate: SubscriptionLinkImportPolicy.Candidate,
+@@ -15,22 +18,34 @@ internal sealed class QrCodeImportResult {
+ 
+ internal object QrCodeImportParser {
+     suspend fun parse(text: String): QrCodeImportResult {
++        if (io.nekohasekai.sagernet.utils.MobileTinaProtectedPayload.decode(text) != null) {
++            return QrCodeImportResult.Protected(text)
++        }
+         return try {
+             val profiles = when {
+                 text.startsWith("vpn://") -> parseAmneziaVpnLink(text)
                  else -> RawUpdater.parseRaw(text)
              }
              if (profiles.isNullOrEmpty()) {
@@ -2603,7 +3144,7 @@ index 7d585bd..60e4e66 100644
 +                ?.let(SubscriptionLinkImportPolicy::singleHttpCandidate)
  }
 diff --git a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/RouteSettingsActivity.kt b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/RouteSettingsActivity.kt
-index 0d18f26..4dbe9eb 100644
+index 0d18f26c..643355f2 100644
 --- a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/RouteSettingsActivity.kt
 +++ b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/RouteSettingsActivity.kt
 @@ -244,7 +244,7 @@ class RouteSettingsActivity : ThemedActivity(),
@@ -2624,8 +3165,32 @@ index 0d18f26..4dbe9eb 100644
              onPositive = { runOnDefaultDispatcher { saveAndExit() } },
              onNegative = ::finish,
          )
+@@ -587,7 +587,7 @@ class RouteSettingsActivity : ThemedActivity(),
+                 R.string.wifi_background_location_permission_message,
+                 allowAllTheTimeLabel,
+             ),
+-            positiveButton = getText(android.R.string.ok),
++            positiveButton = getText(io.nekohasekai.sagernet.R.string.mobiletina_ok),
+             negativeButton = getText(R.string.wifi_background_location_permission_continue_without),
+             onPositive = {
+                 requestBackgroundLocationSettings.launch(
+diff --git a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/ScannerActivity.kt b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/ScannerActivity.kt
+index 1c241fe8..fa11d461 100644
+--- a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/ScannerActivity.kt
++++ b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/ScannerActivity.kt
+@@ -213,6 +213,10 @@ class ScannerActivity : ThemedActivity() {
+ 
+     private suspend fun importQrPayload(text: String) {
+         when (val importResult = QrCodeImportParser.parse(text)) {
++            is QrCodeImportResult.Protected -> {
++                MobileTinaProtectedImports.import(this@ScannerActivity, importResult.text)
++                importedN.incrementAndGet()
++            }
+             is QrCodeImportResult.Profiles -> {
+                 val currentGroupId = DataStore.selectedGroupForImport()
+                 if (DataStore.selectedGroup != currentGroupId) {
 diff --git a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/SettingsFragment.kt b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/SettingsFragment.kt
-index 23b690e..6823a61 100644
+index 23b690e6..6823a615 100644
 --- a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/SettingsFragment.kt
 +++ b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/SettingsFragment.kt
 @@ -285,7 +285,9 @@ class SettingsFragment : ToolbarFragment(),
@@ -2639,8 +3204,21 @@ index 23b690e..6823a61 100644
                          is Page.Group -> GlobalSettingsGroupScreen(
                              groupId = current.id,
                              highlightKey = current.highlightKey,
+diff --git a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/SubscriptionLinkImportPolicy.kt b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/SubscriptionLinkImportPolicy.kt
+index c537c964..924333c6 100644
+--- a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/SubscriptionLinkImportPolicy.kt
++++ b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/SubscriptionLinkImportPolicy.kt
+@@ -80,7 +80,7 @@ object SubscriptionLinkImportPolicy {
+                 encodedFragment.replace("+", "%2B"),
+                 Charsets.UTF_8.name(),
+             )
+-        }.getOrDefault(encodedFragment).takeIf { it.isNotBlank() }
++        }.getOrDefault(encodedFragment).let(io.nekohasekai.sagernet.utils.MobileTinaProtectedPayload::cleanTitle)
+     }
+ 
+     private fun cleanLink(link: String): String {
 diff --git a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/ThemedActivity.kt b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/ThemedActivity.kt
-index 72370c4..477c601 100644
+index 72370c4c..477c6012 100644
 --- a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/ThemedActivity.kt
 +++ b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/ThemedActivity.kt
 @@ -47,6 +47,7 @@ abstract class ThemedActivity : AppCompatActivity {
@@ -2652,7 +3230,7 @@ index 72370c4..477c601 100644
          super.onCreate(savedInstanceState)
  
 diff --git a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/VpnRequestActivity.kt b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/VpnRequestActivity.kt
-index eb316ba..2f74215 100644
+index eb316ba7..2f742158 100644
 --- a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/VpnRequestActivity.kt
 +++ b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/VpnRequestActivity.kt
 @@ -14,7 +14,6 @@ import androidx.activity.result.contract.ActivityResultContract
@@ -2745,7 +3323,7 @@ index eb316ba..2f74215 100644
                  if (
                      LocalNetworkPermission.isRequired(context, DataStore.tunImplementation) ||
 diff --git a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/compose/AdblockFilterListScreens.kt b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/compose/AdblockFilterListScreens.kt
-index 638b53f..28470a0 100644
+index 638b53fa..28470a08 100644
 --- a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/compose/AdblockFilterListScreens.kt
 +++ b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/compose/AdblockFilterListScreens.kt
 @@ -93,7 +93,7 @@ internal fun AdblockBundledFiltersScreen(
@@ -2767,7 +3345,7 @@ index 638b53f..28470a0 100644
                      }
                  },
 diff --git a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/compose/AnyTLSProfileSettingsScreen.kt b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/compose/AnyTLSProfileSettingsScreen.kt
-index 77588d2..2ce43dd 100644
+index 77588d2d..2ce43dd6 100644
 --- a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/compose/AnyTLSProfileSettingsScreen.kt
 +++ b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/compose/AnyTLSProfileSettingsScreen.kt
 @@ -21,7 +21,7 @@ internal fun AnyTLSProfileSettingsScreen() {
@@ -2780,7 +3358,7 @@ index 77588d2..2ce43dd 100644
      val fingerprintValues = stringArrayResource(R.array.utls_fingerprint_value).toList()
      val nameTitle = stringResource(R.string.profile_name)
 diff --git a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/compose/AssetCard.kt b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/compose/AssetCard.kt
-index 37f6b7d..41b4cb2 100644
+index 37f6b7d2..41b4cb2e 100644
 --- a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/compose/AssetCard.kt
 +++ b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/compose/AssetCard.kt
 @@ -68,7 +68,7 @@ fun AssetsScreen(
@@ -2793,7 +3371,7 @@ index 37f6b7d..41b4cb2 100644
                      }
                  },
 diff --git a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/compose/BackupImportOptions.kt b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/compose/BackupImportOptions.kt
-index ef53e2a..bcc899b 100644
+index ef53e2a7..bcc899b7 100644
 --- a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/compose/BackupImportOptions.kt
 +++ b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/compose/BackupImportOptions.kt
 @@ -74,7 +74,7 @@ internal fun BackupImportDialog(
@@ -2806,7 +3384,7 @@ index ef53e2a..bcc899b 100644
                      TextButton(onClick = onImport) {
                          Text(stringResource(R.string.backup_import))
 diff --git a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/compose/BackupScreen.kt b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/compose/BackupScreen.kt
-index 10f024f..99bcc28 100644
+index 10f024fa..99bcc28f 100644
 --- a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/compose/BackupScreen.kt
 +++ b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/compose/BackupScreen.kt
 @@ -191,7 +191,7 @@ fun BackupScreen(
@@ -2828,7 +3406,7 @@ index 10f024f..99bcc28 100644
              },
              confirmButton = {
 diff --git a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/compose/CacheProfileSettingsScreen.kt b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/compose/CacheProfileSettingsScreen.kt
-index 75a1268..e5b1142 100644
+index 75a12689..e5b1142c 100644
 --- a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/compose/CacheProfileSettingsScreen.kt
 +++ b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/compose/CacheProfileSettingsScreen.kt
 @@ -152,7 +152,7 @@ internal fun CacheProfileSettingsScreen(
@@ -2841,7 +3419,7 @@ index 75a1268..e5b1142 100644
                          preference.icon,
                          preference.title,
 diff --git a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/compose/ConfigEditorScreen.kt b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/compose/ConfigEditorScreen.kt
-index ac8be24..9e7cfff 100644
+index ac8be24b..3709ba38 100644
 --- a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/compose/ConfigEditorScreen.kt
 +++ b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/compose/ConfigEditorScreen.kt
 @@ -121,7 +121,7 @@ fun ConfigEditorScreen(
@@ -2853,8 +3431,17 @@ index ac8be24..9e7cfff 100644
                      }
                  }
              },
+@@ -133,7 +133,7 @@ fun ConfigEditorScreen(
+             title = { Text(stringResource(R.string.error_title)) },
+             text = { Text(it) },
+             confirmButton = {
+-                TextButton(onClick = onDismissError) { Text(stringResource(android.R.string.ok)) }
++                TextButton(onClick = onDismissError) { Text(stringResource(io.nekohasekai.sagernet.R.string.mobiletina_ok)) }
+             },
+         )
+     }
 diff --git a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/compose/ConnectionTestProgressContent.kt b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/compose/ConnectionTestProgressContent.kt
-index b3e7745..2ce8444 100644
+index b3e7745b..2ce84445 100644
 --- a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/compose/ConnectionTestProgressContent.kt
 +++ b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/compose/ConnectionTestProgressContent.kt
 @@ -60,7 +60,7 @@ internal fun Context.showConnectionTestProgressDialog(
@@ -2867,7 +3454,7 @@ index b3e7745..2ce8444 100644
                              Spacer(Modifier.size(8.dp))
                              TextButton(onClick = onMinimize) {
 diff --git a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/compose/CustomDnsServerSettingsScreen.kt b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/compose/CustomDnsServerSettingsScreen.kt
-index 97eea10..078a781 100644
+index 97eea10f..078a781a 100644
 --- a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/compose/CustomDnsServerSettingsScreen.kt
 +++ b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/compose/CustomDnsServerSettingsScreen.kt
 @@ -97,7 +97,7 @@ internal fun CustomDnsServerSettingsScreen(
@@ -2880,10 +3467,10 @@ index 97eea10..078a781 100644
                      }
                  },
 diff --git a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/compose/CustomThemeColorPickerDialog.kt b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/compose/CustomThemeColorPickerDialog.kt
-index 2765e38..3a570bd 100644
+index 2765e384..a5135c1c 100644
 --- a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/compose/CustomThemeColorPickerDialog.kt
 +++ b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/compose/CustomThemeColorPickerDialog.kt
-@@ -170,7 +170,7 @@ internal fun CustomThemeColorPickerDialog(
+@@ -170,12 +170,12 @@ internal fun CustomThemeColorPickerDialog(
          },
          dismissButton = {
              TextButton(onClick = onDismiss) {
@@ -2892,11 +3479,17 @@ index 2765e38..3a570bd 100644
              }
          },
          confirmButton = {
+             TextButton(onClick = { onConfirm(selectedColor) }) {
+-                Text(stringResource(android.R.string.ok))
++                Text(stringResource(io.nekohasekai.sagernet.R.string.mobiletina_ok))
+             }
+         },
+     )
 diff --git a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/compose/DashboardScreen.kt b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/compose/DashboardScreen.kt
-index edf2874..79b382a 100644
+index edf28742..c5c2edc6 100644
 --- a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/compose/DashboardScreen.kt
 +++ b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/compose/DashboardScreen.kt
-@@ -174,7 +174,7 @@ private fun DashboardUrlDialog(
+@@ -174,10 +174,10 @@ private fun DashboardUrlDialog(
                  horizontalArrangement = Arrangement.End,
              ) {
                  TextButton(onClick = onDismiss) {
@@ -2904,9 +3497,13 @@ index edf2874..79b382a 100644
 +                    Text(stringResource(io.nekohasekai.sagernet.R.string.mobiletina_cancel))
                  }
                  TextButton(onClick = onConfirm) {
-                     Text(stringResource(android.R.string.ok))
+-                    Text(stringResource(android.R.string.ok))
++                    Text(stringResource(io.nekohasekai.sagernet.R.string.mobiletina_ok))
+                 }
+             }
+         }
 diff --git a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/compose/GitBackupSettingsScreen.kt b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/compose/GitBackupSettingsScreen.kt
-index d79bf9a..d46b5c2 100644
+index d79bf9ad..8ef5ba0c 100644
 --- a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/compose/GitBackupSettingsScreen.kt
 +++ b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/compose/GitBackupSettingsScreen.kt
 @@ -146,7 +146,7 @@ internal fun GitBackupSettingsScreen(
@@ -2918,7 +3515,7 @@ index d79bf9a..d46b5c2 100644
                      }
                  }
              }
-@@ -198,7 +198,7 @@ internal fun GitBackupSettingsScreen(
+@@ -198,10 +198,10 @@ internal fun GitBackupSettingsScreen(
                  )
              },
              dismissButton = {
@@ -2926,9 +3523,13 @@ index d79bf9a..d46b5c2 100644
 +                TextButton(onClick = onDismissCreateBranch) { Text(stringResource(io.nekohasekai.sagernet.R.string.mobiletina_cancel)) }
              },
              confirmButton = {
-                 TextButton(onClick = onConfirmCreateBranch) { Text(stringResource(android.R.string.ok)) }
+-                TextButton(onClick = onConfirmCreateBranch) { Text(stringResource(android.R.string.ok)) }
++                TextButton(onClick = onConfirmCreateBranch) { Text(stringResource(io.nekohasekai.sagernet.R.string.mobiletina_ok)) }
+             },
+         )
+     }
 diff --git a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/compose/GlobalSettingsScreen.kt b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/compose/GlobalSettingsScreen.kt
-index b6c495f..2832673 100644
+index b6c495f1..2832673d 100644
 --- a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/compose/GlobalSettingsScreen.kt
 +++ b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/compose/GlobalSettingsScreen.kt
 @@ -6,7 +6,6 @@ import androidx.annotation.StringRes
@@ -3060,10 +3661,18 @@ index b6c495f..2832673 100644
          list("tunUnrecognizedTraffic", R.drawable.ic_baseline_add_road_24, R.string.title_tun_unrecognized_traffic, R.array.tun_unrecognized_traffic_mode, R.array.tun_unrecognized_traffic_mode_values, R.string.summary_tun_unrecognized_traffic),
          list("tunSystemDnsTraffic", R.drawable.ic_baseline_add_road_24, R.string.title_tun_system_dns_traffic, R.array.tun_system_dns_traffic_mode, R.array.tun_system_dns_traffic_mode_values, R.string.summary_tun_system_dns_traffic),
 diff --git a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/compose/GroupScreen.kt b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/compose/GroupScreen.kt
-index ba453c2..50cc81d 100644
+index ba453c20..c7399f14 100644
 --- a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/compose/GroupScreen.kt
 +++ b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/compose/GroupScreen.kt
-@@ -242,7 +242,7 @@ fun GroupScreen(
+@@ -80,6 +80,7 @@ data class GroupUiItem(
+     val progress: Float?,
+     val canShareSubscription: Boolean,
+     val canShareSubscriptionUrl: Boolean,
++    val canExportProfiles: Boolean = true,
+ )
+ 
+ enum class GroupAction {
+@@ -242,7 +243,7 @@ fun GroupScreen(
          GroupConfirmationDialog(
              title = stringResource(R.string.confirm),
              message = stringResource(R.string.clear_profiles_message),
@@ -3072,8 +3681,35 @@ index ba453c2..50cc81d 100644
              onDismiss = { pendingClearGroupId = null },
              onConfirm = {
                  pendingClearGroupId = null
+@@ -491,6 +492,15 @@ private fun GroupRow(
+                                 }
+                             }
+                         }
++                        if (group.canDelete) {
++                            IconButton(
++                                onClick = { onAction(group.id, GroupAction.Delete) },
++                                enabled = !group.isUpdating,
++                                modifier = Modifier.size(40.dp),
++                            ) {
++                                Icon(painterResource(R.drawable.ic_action_delete), contentDescription = stringResource(R.string.delete))
++                            }
++                        }
+                         if (group.canEdit) {
+                             IconButton(
+                                 onClick = { onAction(group.id, GroupAction.Edit) },
+@@ -650,8 +660,8 @@ private fun GroupActionsMenu(
+                         submenu = GroupActionSubmenu.ShareUniversal
+                     }
+                 }
+-                GroupSubmenuItem(GroupActionSubmenu.Export.title) {
+-                    submenu = GroupActionSubmenu.Export
++                if (group.canExportProfiles) {
++                    GroupSubmenuItem(GroupActionSubmenu.Export.title) { submenu = GroupActionSubmenu.Export }
+                 }
+                 DropdownMenuItem(
+                     text = { Text(stringResource(R.string.clear_profiles)) },
 diff --git a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/compose/GroupSettingsScreen.kt b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/compose/GroupSettingsScreen.kt
-index 478d87c..6e467cc 100644
+index 478d87cc..0025945f 100644
 --- a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/compose/GroupSettingsScreen.kt
 +++ b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/compose/GroupSettingsScreen.kt
 @@ -56,7 +56,7 @@ internal fun GroupSettingsScreen(
@@ -3094,8 +3730,17 @@ index 478d87c..6e467cc 100644
                      }
                  },
                  actions = {
+@@ -391,7 +391,7 @@ internal fun GroupSettingsScreen(
+                 TextButton(onClick = {
+                     changed { store.putStringSet(io.nekohasekai.sagernet.Key.SUBSCRIPTION_BANNER_LAYOUT, selected.toMutableSet()) }
+                     bannerDialog = false
+-                }) { Text(stringResource(android.R.string.ok)) }
++                }) { Text(stringResource(io.nekohasekai.sagernet.R.string.mobiletina_ok)) }
+             },
+             dismissButton = {
+                 TextButton(onClick = { bannerDialog = false }) { Text(cancel) }
 diff --git a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/compose/HysteriaProfileSettingsScreen.kt b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/compose/HysteriaProfileSettingsScreen.kt
-index e29d186..3f02ba1 100644
+index e29d186e..3f02ba18 100644
 --- a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/compose/HysteriaProfileSettingsScreen.kt
 +++ b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/compose/HysteriaProfileSettingsScreen.kt
 @@ -23,7 +23,7 @@ internal fun HysteriaProfileSettingsScreen() {
@@ -3108,7 +3753,7 @@ index e29d186..3f02ba1 100644
      val authLabels = stringArrayResource(R.array.hysteria_auth_type).toList()
      val authValues = stringArrayResource(R.array.int_array_3).toList()
 diff --git a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/compose/MainComposeShell.kt b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/compose/MainComposeShell.kt
-index 26620ca..38ce38b 100644
+index 26620cae..7ec8cc52 100644
 --- a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/compose/MainComposeShell.kt
 +++ b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/compose/MainComposeShell.kt
 @@ -3,9 +3,16 @@ package io.nekohasekai.sagernet.ui.compose
@@ -3128,7 +3773,16 @@ index 26620ca..38ce38b 100644
  import androidx.compose.foundation.layout.fillMaxSize
  import androidx.compose.foundation.layout.fillMaxHeight
  import androidx.compose.foundation.layout.height
-@@ -42,7 +49,7 @@ import io.nekohasekai.sagernet.R
+@@ -31,6 +38,8 @@ import androidx.compose.runtime.mutableIntStateOf
+ import androidx.compose.runtime.mutableStateOf
+ import androidx.compose.runtime.remember
+ import androidx.compose.runtime.setValue
++import androidx.compose.ui.graphics.asImageBitmap
++import io.nekohasekai.sagernet.utils.MobileTinaAssets
+ import androidx.compose.ui.Modifier
+ import androidx.compose.ui.focus.FocusRequester
+ import androidx.compose.ui.focus.focusRequester
+@@ -42,7 +51,7 @@ import io.nekohasekai.sagernet.R
  internal class MainShellState {
      var drawerRequestedOpen by mutableStateOf(false)
      var drawerIsOpen by mutableStateOf(false)
@@ -3137,7 +3791,7 @@ index 26620ca..38ce38b 100644
      var trafficVisible by mutableStateOf(false)
      var proxyAppsEnabled by mutableStateOf(false)
  
-@@ -62,16 +69,9 @@ private data class DrawerDestination(
+@@ -62,16 +71,9 @@ private data class DrawerDestination(
  )
  
  private val primaryDestinations = listOf(
@@ -3157,7 +3811,7 @@ index 26620ca..38ce38b 100644
  )
  
  @Composable
-@@ -113,25 +113,24 @@ internal fun MainComposeDrawer(
+@@ -113,25 +115,27 @@ internal fun MainComposeDrawer(
          drawerState = drawerState,
          drawerContent = {
              ModalDrawerSheet(
@@ -3175,10 +3829,13 @@ index 26620ca..38ce38b 100644
 -                    style = MaterialTheme.typography.titleLarge,
 -                    modifier = Modifier.padding(horizontal = 28.dp, vertical = 16.dp),
 -                )
-+                Image(painterResource(R.drawable.mt_nav), contentDescription = null,
-+                    contentScale = androidx.compose.ui.layout.ContentScale.Fit,
-+                    modifier = Modifier.fillMaxWidth().height(168.dp)
-+                        .padding(start = 20.dp, top = 30.dp, end = 20.dp, bottom = 10.dp))
++                val header = remember { MobileTinaAssets.bitmap(MobileTinaAssets.State.NAV)?.asImageBitmap() }
++                header?.let { bitmap ->
++                    Image(bitmap = bitmap, contentDescription = null,
++                        contentScale = androidx.compose.ui.layout.ContentScale.Fit,
++                        modifier = Modifier.fillMaxWidth().height(168.dp)
++                            .padding(start = 20.dp, top = 30.dp, end = 20.dp, bottom = 10.dp))
++                }
                  DrawerItems(
                      primaryDestinations,
                      state.selectedItemId,
@@ -3190,7 +3847,7 @@ index 26620ca..38ce38b 100644
                      icon = { Icon(painterResource(R.drawable.ic_navigation_apps), contentDescription = null) },
                      badge = {
                          Switch(
-@@ -141,24 +140,20 @@ internal fun MainComposeDrawer(
+@@ -141,24 +145,20 @@ internal fun MainComposeDrawer(
                          )
                      },
                      selected = false,
@@ -3223,7 +3880,7 @@ index 26620ca..38ce38b 100644
                      state.selectedItemId,
                  ) { onNavigate(it); state.closeDrawer() }
              }
-@@ -177,6 +172,7 @@ private fun DrawerItems(
+@@ -177,6 +177,7 @@ private fun DrawerItems(
  ) {
      items.forEachIndexed { index, item ->
          DrawerItem(item, selectedId, initialFocusRequester.takeIf { index == 0 }, onClick)
@@ -3231,7 +3888,7 @@ index 26620ca..38ce38b 100644
      }
  }
  
-@@ -190,7 +186,9 @@ private fun DrawerItem(
+@@ -190,7 +191,9 @@ private fun DrawerItem(
      NavigationDrawerItem(
          label = { Text(stringResource(item.title)) },
          icon = { Icon(painterResource(item.icon), contentDescription = null) },
@@ -3242,7 +3899,7 @@ index 26620ca..38ce38b 100644
          onClick = { onClick(item.id) },
          modifier = Modifier
              .then(focusRequester?.let { Modifier.focusRequester(it) } ?: Modifier)
-@@ -198,3 +196,11 @@ private fun DrawerItem(
+@@ -198,3 +201,11 @@ private fun DrawerItem(
              .padding(NavigationDrawerItemDefaults.ItemPadding),
      )
  }
@@ -3254,8 +3911,30 @@ index 26620ca..38ce38b 100644
 +        color = MaterialTheme.colorScheme.outlineVariant,
 +    )
 +}
+diff --git a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/compose/MessageDialog.kt b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/compose/MessageDialog.kt
+index aed142cf..30727a4a 100644
+--- a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/compose/MessageDialog.kt
++++ b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/compose/MessageDialog.kt
+@@ -24,7 +24,7 @@ import io.nekohasekai.sagernet.utils.Theme
+ internal fun Context.showComposeMessageDialog(
+     title: CharSequence?,
+     message: CharSequence? = null,
+-    positiveButton: CharSequence? = getText(android.R.string.ok),
++    positiveButton: CharSequence? = getText(io.nekohasekai.sagernet.R.string.mobiletina_ok),
+     negativeButton: CharSequence? = null,
+     neutralButton: CharSequence? = null,
+     cancelable: Boolean = true,
+@@ -50,7 +50,7 @@ internal fun Context.showComposeMessageDialog(
+ internal fun Context.createComposeMessageDialog(
+     title: CharSequence?,
+     message: CharSequence? = null,
+-    positiveButton: CharSequence? = getText(android.R.string.ok),
++    positiveButton: CharSequence? = getText(io.nekohasekai.sagernet.R.string.mobiletina_ok),
+     negativeButton: CharSequence? = null,
+     neutralButton: CharSequence? = null,
+     cancelable: Boolean = true,
 diff --git a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/compose/MieruProfileSettingsScreen.kt b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/compose/MieruProfileSettingsScreen.kt
-index c7af7c6..fd0012a 100644
+index c7af7c64..fd0012a0 100644
 --- a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/compose/MieruProfileSettingsScreen.kt
 +++ b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/compose/MieruProfileSettingsScreen.kt
 @@ -21,7 +21,7 @@ import io.nekohasekai.sagernet.database.DataStore
@@ -3268,7 +3947,7 @@ index c7af7c6..fd0012a 100644
      val muxLabels = stringArrayResource(R.array.mieru_mux_level_entry).toList()
      val muxValues = stringArrayResource(R.array.mieru_mux_level_value).map(String::toInt)
 diff --git a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/compose/NaiveProfileSettingsScreen.kt b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/compose/NaiveProfileSettingsScreen.kt
-index 123be94..75f57cc 100644
+index 123be942..75f57cc5 100644
 --- a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/compose/NaiveProfileSettingsScreen.kt
 +++ b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/compose/NaiveProfileSettingsScreen.kt
 @@ -22,7 +22,7 @@ internal fun NaiveProfileSettingsScreen() {
@@ -3281,7 +3960,7 @@ index 123be94..75f57cc 100644
      val protocolValues = stringArrayResource(R.array.naive_proto_value).toList()
      val congestionLabels = stringArrayResource(R.array.naive_quic_congestion_control_entry).toList()
 diff --git a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/compose/NekoComposeTheme.kt b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/compose/NekoComposeTheme.kt
-index 7fa2bbc..6bdf4b8 100644
+index 7fa2bbca..6bdf4b85 100644
 --- a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/compose/NekoComposeTheme.kt
 +++ b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/compose/NekoComposeTheme.kt
 @@ -1,6 +1,9 @@
@@ -3346,10 +4025,33 @@ index 7fa2bbc..6bdf4b8 100644
              CompositionLocalProvider(
                  LocalIndication provides remember(colors.primary) {
 diff --git a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/compose/ProfileCard.kt b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/compose/ProfileCard.kt
-index 15e789c..21126bc 100644
+index 15e789cf..70f6a039 100644
 --- a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/compose/ProfileCard.kt
 +++ b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/compose/ProfileCard.kt
-@@ -756,12 +756,6 @@ private fun ProfileOverflowMenu(
+@@ -110,6 +110,7 @@ data class ProfileCardModel(
+     val showDelete: Boolean,
+     val showOverflow: Boolean,
+     val minimumHeightDp: Int,
++    val protectedContent: Boolean = false,
+ )
+ 
+ internal fun shouldWrapDoubleProfileFooter(
+@@ -736,12 +737,12 @@ private fun ProfileOverflowMenu(
+             leftFocusRequester = leftFocusRequester,
+         ) { expanded = true }
+         DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+-            ProfileMenuItem(R.string.edit, model.editEnabled) { expanded = false; onEdit() }
++            if (!model.protectedContent) ProfileMenuItem(R.string.edit, model.editEnabled) { expanded = false; onEdit() }
+             ProfileMenuItem(R.string.connection_test_url_test, model.urlTestEnabled) {
+                 expanded = false
+                 onUrlTest()
+             }
+-            ProfileMenuItem(R.string.share, true) {
++            if (!model.protectedContent) ProfileMenuItem(R.string.share, true) {
+                 expanded = false
+                 shareExpanded = true
+             }
+@@ -756,12 +757,6 @@ private fun ProfileOverflowMenu(
      }
  }
  
@@ -3362,20 +4064,21 @@ index 15e789c..21126bc 100644
  @Composable
  private fun ProfileShareMenu(
      model: ProfileCardModel,
-@@ -796,10 +790,10 @@ private fun ProfileShareDropdown(
+@@ -796,10 +791,10 @@ private fun ProfileShareDropdown(
      onDismissRequest: () -> Unit,
      onShare: (ProfileShareAction) -> Unit,
  ) {
 -    var section by remember(model.entity.id) { mutableStateOf<ProfileShareSection?>(null) }
+-    val capabilities = ProfileShareCapabilities.from(model.entity)
 +    var configurationExpanded by remember(model.entity.id) { mutableStateOf(false) }
-     val capabilities = ProfileShareCapabilities.from(model.entity)
++    val capabilities = ProfileShareCapabilities.from(model.entity, model.protectedContent)
      val dismiss = {
 -        section = null
 +        configurationExpanded = false
          onDismissRequest()
      }
      val select: (ProfileShareAction) -> Unit = { action ->
-@@ -807,61 +801,31 @@ private fun ProfileShareDropdown(
+@@ -807,61 +802,31 @@ private fun ProfileShareDropdown(
          onShare(action)
      }
      DropdownMenu(expanded = expanded, onDismissRequest = dismiss) {
@@ -3452,7 +4155,7 @@ index 15e789c..21126bc 100644
          }
      }
 diff --git a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/compose/ProfileSettingsScaffold.kt b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/compose/ProfileSettingsScaffold.kt
-index f007f8a..4f8e1eb 100644
+index f007f8ae..4f8e1eb9 100644
 --- a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/compose/ProfileSettingsScaffold.kt
 +++ b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/compose/ProfileSettingsScaffold.kt
 @@ -66,7 +66,7 @@ internal fun ProfileSettingsScaffold(
@@ -3465,7 +4168,7 @@ index f007f8a..4f8e1eb 100644
                      }
                  },
 diff --git a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/compose/ProfileSettingsScreen.kt b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/compose/ProfileSettingsScreen.kt
-index 60298e4..c843aef 100644
+index 60298e48..c843aef3 100644
 --- a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/compose/ProfileSettingsScreen.kt
 +++ b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/compose/ProfileSettingsScreen.kt
 @@ -50,7 +50,7 @@ internal fun SocksProfileSettingsScreen() {
@@ -3496,7 +4199,7 @@ index 60298e4..c843aef 100644
      val keepAliveTitle = stringResource(R.string.tcp_keep_alive)
      val keepAliveIntervalTitle = stringResource(R.string.tcp_keep_alive_interval)
 diff --git a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/compose/ProxySetProfileSettingsScreen.kt b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/compose/ProxySetProfileSettingsScreen.kt
-index 6d4f20f..d8aa4f1 100644
+index 6d4f20fc..d8aa4f10 100644
 --- a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/compose/ProxySetProfileSettingsScreen.kt
 +++ b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/compose/ProxySetProfileSettingsScreen.kt
 @@ -65,7 +65,7 @@ internal fun ProxySetProfileSettingsScreen(
@@ -3509,7 +4212,7 @@ index 6d4f20f..d8aa4f1 100644
          "profileName", "proxySetTestURL", "proxySetTestInterval", "proxySetTestIdleTimeout",
          "proxySetTestTolerance", "proxySetGroupFilterNotRegex",
 diff --git a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/compose/RouteScreen.kt b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/compose/RouteScreen.kt
-index a09d74a..d37f6ee 100644
+index a09d74a5..0c1b090d 100644
 --- a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/compose/RouteScreen.kt
 +++ b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/compose/RouteScreen.kt
 @@ -391,7 +391,7 @@ private fun RouteExportNameDialog(
@@ -3521,6 +4224,15 @@ index a09d74a..d37f6ee 100644
                  }
                  TextButton(onClick = { onConfirm(name.text) }) {
                      Text(stringResource(R.string.action_export))
+@@ -463,7 +463,7 @@ private fun RouteMessageDialog(
+                     .padding(horizontal = 8.dp),
+                 horizontalArrangement = Arrangement.End,
+             ) {
+-                TextButton(onClick = onDismiss) { Text(stringResource(android.R.string.ok)) }
++                TextButton(onClick = onDismiss) { Text(stringResource(io.nekohasekai.sagernet.R.string.mobiletina_ok)) }
+             }
+         }
+     }
 @@ -674,7 +674,7 @@ fun CustomDnsServersScreen(
                      IconButton(onClick = onClose) {
                          Icon(
@@ -3531,7 +4243,7 @@ index a09d74a..d37f6ee 100644
                      }
                  },
 diff --git a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/compose/RouteSettingsScreen.kt b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/compose/RouteSettingsScreen.kt
-index cffe99b..beac931 100644
+index cffe99bc..3aa43d3b 100644
 --- a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/compose/RouteSettingsScreen.kt
 +++ b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/compose/RouteSettingsScreen.kt
 @@ -53,7 +53,7 @@ internal fun RouteSettingsScreen(
@@ -3552,8 +4264,17 @@ index cffe99b..beac931 100644
                  } },
                  actions = {
                      IconButton(onClick = onDelete) {
+@@ -297,7 +297,7 @@ internal fun RouteSettingsScreen(
+             confirmButton = { TextButton(onClick = {
+                 changed { DataStore.routeNetworkType = selected.toMutableSet() }
+                 networkDialog = false
+-            }) { Text(stringResource(android.R.string.ok)) } },
++            }) { Text(stringResource(io.nekohasekai.sagernet.R.string.mobiletina_ok)) } },
+             dismissButton = { TextButton(onClick = { networkDialog = false }) { Text(cancel) } },
+         )
+     }
 diff --git a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/compose/RoutingImportPreviewScreen.kt b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/compose/RoutingImportPreviewScreen.kt
-index 265a8b9..837ce8c 100644
+index 265a8b92..0109116b 100644
 --- a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/compose/RoutingImportPreviewScreen.kt
 +++ b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/compose/RoutingImportPreviewScreen.kt
 @@ -111,7 +111,7 @@ fun RoutingImportPreviewScreen(
@@ -3574,8 +4295,39 @@ index 265a8b9..837ce8c 100644
                  }
              },
              confirmButton = {
+@@ -245,7 +245,7 @@ fun RoutingImportPreviewScreen(
+             text = { Text(message) },
+             confirmButton = {
+                 TextButton(onClick = onDismissFatalError) {
+-                    Text(stringResource(android.R.string.ok))
++                    Text(stringResource(io.nekohasekai.sagernet.R.string.mobiletina_ok))
+                 }
+             },
+         )
+@@ -257,7 +257,7 @@ fun RoutingImportPreviewScreen(
+             text = { Text(message) },
+             confirmButton = {
+                 TextButton(onClick = onDismissImportError) {
+-                    Text(stringResource(android.R.string.ok))
++                    Text(stringResource(io.nekohasekai.sagernet.R.string.mobiletina_ok))
+                 }
+             },
+         )
+diff --git a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/compose/RuleSetMatchScreen.kt b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/compose/RuleSetMatchScreen.kt
+index 47e9091e..2714576e 100644
+--- a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/compose/RuleSetMatchScreen.kt
++++ b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/compose/RuleSetMatchScreen.kt
+@@ -189,7 +189,7 @@ internal fun RuleSetMatchScreen(
+             title = { Text(stringResource(R.string.error_title)) },
+             text = { Text(it) },
+             confirmButton = {
+-                TextButton(onClick = onDismissError) { Text(stringResource(android.R.string.ok)) }
++                TextButton(onClick = onDismissError) { Text(stringResource(io.nekohasekai.sagernet.R.string.mobiletina_ok)) }
+             },
+         )
+     }
 diff --git a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/compose/SSHProfileSettingsScreen.kt b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/compose/SSHProfileSettingsScreen.kt
-index 5691527..a80d98f 100644
+index 5691527e..a80d98f8 100644
 --- a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/compose/SSHProfileSettingsScreen.kt
 +++ b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/compose/SSHProfileSettingsScreen.kt
 @@ -35,7 +35,7 @@ internal fun SSHProfileSettingsScreen(viewModel: SSHHostKeyFetchViewModel) {
@@ -3588,7 +4340,7 @@ index 5691527..a80d98f 100644
      val authValues = stringArrayResource(R.array.int_array_3).toList()
      val nameTitle = stringResource(R.string.profile_name)
 diff --git a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/compose/SettingsCategoryScreen.kt b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/compose/SettingsCategoryScreen.kt
-index 262465a..6aa5adf 100644
+index 262465a6..6aa5adff 100644
 --- a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/compose/SettingsCategoryScreen.kt
 +++ b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/compose/SettingsCategoryScreen.kt
 @@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.Arrangement
@@ -3637,7 +4389,7 @@ index 262465a..6aa5adf 100644
      }
  }
 diff --git a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/compose/SettingsSearchScreen.kt b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/compose/SettingsSearchScreen.kt
-index 62b6d8e..977cfe5 100644
+index 62b6d8ec..977cfe58 100644
 --- a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/compose/SettingsSearchScreen.kt
 +++ b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/compose/SettingsSearchScreen.kt
 @@ -99,7 +99,7 @@ internal fun SettingsSearchBar(
@@ -3650,7 +4402,7 @@ index 62b6d8e..977cfe5 100644
          }
      }
 diff --git a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/compose/ShadowTLSProfileSettingsScreen.kt b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/compose/ShadowTLSProfileSettingsScreen.kt
-index d5bc8d6..c370974 100644
+index d5bc8d6b..c370974b 100644
 --- a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/compose/ShadowTLSProfileSettingsScreen.kt
 +++ b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/compose/ShadowTLSProfileSettingsScreen.kt
 @@ -22,7 +22,7 @@ internal fun ShadowTLSProfileSettingsScreen() {
@@ -3663,7 +4415,7 @@ index d5bc8d6..c370974 100644
      val proxyLabels = stringArrayResource(R.array.proxy_protocol_entry).toList()
      val proxyValues = stringArrayResource(R.array.proxy_protocol_value).map(String::toInt)
 diff --git a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/compose/ShadowsocksProfileSettingsScreen.kt b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/compose/ShadowsocksProfileSettingsScreen.kt
-index 5dafd06..2b3ae7e 100644
+index 5dafd06b..2b3ae7e1 100644
 --- a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/compose/ShadowsocksProfileSettingsScreen.kt
 +++ b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/compose/ShadowsocksProfileSettingsScreen.kt
 @@ -22,7 +22,7 @@ internal fun ShadowsocksProfileSettingsScreen() {
@@ -3676,7 +4428,7 @@ index 5dafd06..2b3ae7e 100644
      val plugins = stringArrayResource(R.array.box_shadowsocks_plugins).toList()
      val muxTypeLabels = stringArrayResource(R.array.mux_type).toList()
 diff --git a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/compose/SnellProfileSettingsScreen.kt b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/compose/SnellProfileSettingsScreen.kt
-index 7e336dd..cdac416 100644
+index 7e336ddc..cdac4165 100644
 --- a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/compose/SnellProfileSettingsScreen.kt
 +++ b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/compose/SnellProfileSettingsScreen.kt
 @@ -22,7 +22,7 @@ internal fun SnellProfileSettingsScreen() {
@@ -3689,7 +4441,7 @@ index 7e336dd..cdac416 100644
      val quicProxySummary = stringResource(R.string.snell_quic_proxy_summary)
      val versions = stringArrayResource(R.array.snell_versions_value).toList()
 diff --git a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/compose/SpeedTestScreen.kt b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/compose/SpeedTestScreen.kt
-index 062bee7..27f217f 100644
+index 062bee7a..4465a603 100644
 --- a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/compose/SpeedTestScreen.kt
 +++ b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/compose/SpeedTestScreen.kt
 @@ -119,7 +119,7 @@ internal fun SpeedTestScreen(
@@ -3701,7 +4453,7 @@ index 062bee7..27f217f 100644
                  }
              },
              confirmButton = {
-@@ -479,7 +479,7 @@ private fun SpeedTestSettingsDialog(
+@@ -479,10 +479,10 @@ private fun SpeedTestSettingsDialog(
                  }
                  Spacer(Modifier.weight(1f))
                  TextButton(onClick = onDismiss) {
@@ -3709,22 +4461,28 @@ index 062bee7..27f217f 100644
 +                    Text(stringResource(io.nekohasekai.sagernet.R.string.mobiletina_cancel))
                  }
                  TextButton(onClick = ::save) {
-                     Text(stringResource(android.R.string.ok))
+-                    Text(stringResource(android.R.string.ok))
++                    Text(stringResource(io.nekohasekai.sagernet.R.string.mobiletina_ok))
+                 }
+             }
+         },
 diff --git a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/compose/TextInputDialog.kt b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/compose/TextInputDialog.kt
-index 4b10543..9890c3c 100644
+index 4b10543a..cdfc391b 100644
 --- a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/compose/TextInputDialog.kt
 +++ b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/compose/TextInputDialog.kt
-@@ -44,7 +44,7 @@ internal fun Context.showComposeTextInputDialog(
+@@ -43,8 +43,8 @@ import io.nekohasekai.sagernet.utils.Theme
+ internal fun Context.showComposeTextInputDialog(
      title: CharSequence,
      initialValue: String,
-     positiveButton: CharSequence = getText(android.R.string.ok),
+-    positiveButton: CharSequence = getText(android.R.string.ok),
 -    negativeButton: CharSequence = getText(android.R.string.cancel),
++    positiveButton: CharSequence = getText(io.nekohasekai.sagernet.R.string.mobiletina_ok),
 +    negativeButton: CharSequence = getText(io.nekohasekai.sagernet.R.string.mobiletina_cancel),
      keyboardType: KeyboardType = KeyboardType.Text,
      maxLength: Int = Int.MAX_VALUE,
      password: Boolean = false,
 diff --git a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/compose/ThemePickerDialog.kt b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/compose/ThemePickerDialog.kt
-index 3120b47..defe6b4 100644
+index 3120b47a..defe6b43 100644
 --- a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/compose/ThemePickerDialog.kt
 +++ b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/compose/ThemePickerDialog.kt
 @@ -105,8 +105,9 @@ private fun ThemePickerDialogContent(
@@ -3747,7 +4505,7 @@ index 3120b47..defe6b4 100644
          choice.color == null -> dynamicDescription
          else -> String.format(Locale.ROOT, "#%06X", choice.color and 0xFFFFFF)
 diff --git a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/compose/ToolbarLayoutScreen.kt b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/compose/ToolbarLayoutScreen.kt
-index 90b3a99..645d6c8 100644
+index 90b3a992..645d6c8f 100644
 --- a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/compose/ToolbarLayoutScreen.kt
 +++ b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/compose/ToolbarLayoutScreen.kt
 @@ -104,7 +104,7 @@ internal fun ToolbarLayoutScreen(
@@ -3760,7 +4518,7 @@ index 90b3a99..645d6c8 100644
              },
          )
 diff --git a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/compose/TrojanGoProfileSettingsScreen.kt b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/compose/TrojanGoProfileSettingsScreen.kt
-index 460ce84..70743dd 100644
+index 460ce84f..70743dd5 100644
 --- a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/compose/TrojanGoProfileSettingsScreen.kt
 +++ b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/compose/TrojanGoProfileSettingsScreen.kt
 @@ -20,7 +20,7 @@ import io.nekohasekai.sagernet.database.DataStore
@@ -3773,7 +4531,7 @@ index 460ce84..70743dd 100644
      val networkValues = stringArrayResource(R.array.trojan_go_networks_value).toList()
      val encryptionLabels = stringArrayResource(R.array.trojan_go_security_entry).toList()
 diff --git a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/compose/TrustTunnelProfileSettingsScreen.kt b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/compose/TrustTunnelProfileSettingsScreen.kt
-index 5e7dddf..b27b33d 100644
+index 5e7dddf5..b27b33d2 100644
 --- a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/compose/TrustTunnelProfileSettingsScreen.kt
 +++ b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/compose/TrustTunnelProfileSettingsScreen.kt
 @@ -29,7 +29,7 @@ internal fun TrustTunnelProfileSettingsScreen() {
@@ -3786,7 +4544,7 @@ index 5e7dddf..b27b33d 100644
      val protocolValues = stringArrayResource(R.array.trusttunnel_protocol_value).toList()
      val cronetLabels = stringArrayResource(R.array.trusttunnel_cronet_stack_entry).toList()
 diff --git a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/compose/TuicProfileSettingsScreen.kt b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/compose/TuicProfileSettingsScreen.kt
-index 3b9e4da..e65f072 100644
+index 3b9e4da7..e65f0729 100644
 --- a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/compose/TuicProfileSettingsScreen.kt
 +++ b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/compose/TuicProfileSettingsScreen.kt
 @@ -20,7 +20,7 @@ import io.nekohasekai.sagernet.database.DataStore
@@ -3799,10 +4557,23 @@ index 3b9e4da..e65f072 100644
      val relayValues = stringArrayResource(R.array.tuic_udp_relay_mode_value).toList()
      val congestionLabels = stringArrayResource(R.array.tuic_congestion_controller_entry).toList()
 diff --git a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/profile/ProfileSettingsActivity.kt b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/profile/ProfileSettingsActivity.kt
-index 0640b4c..14b0305 100644
+index 0640b4c2..ab791ec9 100644
 --- a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/profile/ProfileSettingsActivity.kt
 +++ b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/profile/ProfileSettingsActivity.kt
-@@ -314,7 +314,7 @@ abstract class ProfileSettingsActivity<T : AbstractBean> :
+@@ -114,6 +114,12 @@ abstract class ProfileSettingsActivity<T : AbstractBean> :
+ 
+     override fun onCreate(savedInstanceState: Bundle?) {
+         super.onCreate(savedInstanceState)
++        val requestedProfile = intent.getLongExtra(EXTRA_PROFILE_ID, 0L).takeIf { it > 0L }
++            ?.let { io.nekohasekai.sagernet.database.AppData.profiles.getById(it) }
++        if (requestedProfile != null && io.nekohasekai.sagernet.ui.MobileTinaProtection.isProtected(requestedProfile)) {
++            finish()
++            return
++        }
+         setContentView(ComposeView(this).apply {
+             setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnViewTreeLifecycleDestroyed)
+             setContent {
+@@ -314,7 +320,7 @@ abstract class ProfileSettingsActivity<T : AbstractBean> :
          showComposeGroupMoveDialog(
              title = getText(R.string.move),
              groups = groups,
@@ -3811,7 +4582,7 @@ index 0640b4c..14b0305 100644
          ) { newGroupId ->
              runOnDefaultDispatcher {
                  val oldGroupId = entity.groupId
-@@ -337,7 +337,7 @@ abstract class ProfileSettingsActivity<T : AbstractBean> :
+@@ -337,7 +343,7 @@ abstract class ProfileSettingsActivity<T : AbstractBean> :
              title = getText(R.string.unsaved_changes_prompt),
              positiveButton = getText(R.string.yes),
              negativeButton = getText(R.string.no),
@@ -3821,7 +4592,7 @@ index 0640b4c..14b0305 100644
              onNegative = ::finish,
          )
 diff --git a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/profile/ProxySetSettingsActivity.kt b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/profile/ProxySetSettingsActivity.kt
-index d9706db..5b58441 100644
+index d9706db7..5b584411 100644
 --- a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/profile/ProxySetSettingsActivity.kt
 +++ b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/profile/ProxySetSettingsActivity.kt
 @@ -204,7 +204,7 @@ class ProxySetSettingsActivity : ProfileSettingsActivity<ProxySetBean>() {
@@ -3843,7 +4614,7 @@ index d9706db..5b58441 100644
                  DataStore.profileCacheStore.putString(KEY_GROUP, groups[it].id.toString())
                  uiRevision++
 diff --git a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/toolbar/ProfileToolbarActionCatalog.kt b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/toolbar/ProfileToolbarActionCatalog.kt
-index 04779ae..08c0d92 100644
+index 04779ae7..08c0d927 100644
 --- a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/toolbar/ProfileToolbarActionCatalog.kt
 +++ b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/toolbar/ProfileToolbarActionCatalog.kt
 @@ -28,7 +28,6 @@ object ProfileToolbarActionCatalog {
@@ -3855,7 +4626,7 @@ index 04779ae..08c0d92 100644
          toggle(ProfileToolbarActionId.GLOBAL_MODE, R.string.global_mode, R.drawable.baseline_public_24),
          action(ProfileToolbarActionId.CLASH_MODE, R.string.clash_mode, R.drawable.ic_baseline_multiple_stop_24),
 diff --git a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/toolbar/ProfileToolbarLayout.kt b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/toolbar/ProfileToolbarLayout.kt
-index 1f20d29..aeb5449 100644
+index 1f20d29a..aeb54499 100644
 --- a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/toolbar/ProfileToolbarLayout.kt
 +++ b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/toolbar/ProfileToolbarLayout.kt
 @@ -10,7 +10,6 @@ enum class ProfileToolbarActionId(val value: String) {
@@ -3867,7 +4638,7 @@ index 1f20d29..aeb5449 100644
      GLOBAL_MODE("global_mode"),
      CLASH_MODE("clash_mode"),
 diff --git a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/utils/AppLocale.kt b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/utils/AppLocale.kt
-index 9499eed..1f04346 100644
+index 9499eede..1f043464 100644
 --- a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/utils/AppLocale.kt
 +++ b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/utils/AppLocale.kt
 @@ -5,16 +5,8 @@ import androidx.core.os.LocaleListCompat
@@ -3890,7 +4661,7 @@ index 9499eed..1f04346 100644
      }
  }
 diff --git a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/utils/Theme.kt b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/utils/Theme.kt
-index e94d18a..5052ce1 100644
+index e94d18ac..5052ce15 100644
 --- a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/utils/Theme.kt
 +++ b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/utils/Theme.kt
 @@ -32,9 +32,10 @@ object Theme {
@@ -3979,7 +4750,7 @@ index e94d18a..5052ce1 100644
      fun applyNightTheme() {
          AppCompatDelegate.setDefaultNightMode(getNightMode())
 diff --git a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/widget/RulesetEditTextPreferenceDialogFragment.kt b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/widget/RulesetEditTextPreferenceDialogFragment.kt
-index 67b4e26..01180a6 100644
+index 67b4e266..e866ac91 100644
 --- a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/widget/RulesetEditTextPreferenceDialogFragment.kt
 +++ b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/widget/RulesetEditTextPreferenceDialogFragment.kt
 @@ -192,7 +192,7 @@ class RouteEditTextPreferenceDialogFragment : DialogFragment() {
@@ -3991,8 +4762,17 @@ index 67b4e26..01180a6 100644
                              }
                              Spacer(Modifier.width(8.dp))
                              TextButton(
+@@ -202,7 +202,7 @@ class RouteEditTextPreferenceDialogFragment : DialogFragment() {
+                                     dialog.dismiss()
+                                 },
+                             ) {
+-                                Text(stringResource(android.R.string.ok))
++                                Text(stringResource(io.nekohasekai.sagernet.R.string.mobiletina_ok))
+                             }
+                         },
+                     ) {
 diff --git a/workspace/NekoBoxForAndroid/app/src/main/java/moe/matsuri/nb4a/proxy/byedpi/ByeDPIBean.java b/workspace/NekoBoxForAndroid/app/src/main/java/moe/matsuri/nb4a/proxy/byedpi/ByeDPIBean.java
-index 2c55ec1..841f5eb 100644
+index 2c55ec14..841f5eb2 100644
 --- a/workspace/NekoBoxForAndroid/app/src/main/java/moe/matsuri/nb4a/proxy/byedpi/ByeDPIBean.java
 +++ b/workspace/NekoBoxForAndroid/app/src/main/java/moe/matsuri/nb4a/proxy/byedpi/ByeDPIBean.java
 @@ -26,7 +26,7 @@ public class ByeDPIBean extends AbstractBean {
@@ -4005,7 +4785,7 @@ index 2c55ec1..841f5eb 100644
      }
  
 diff --git a/workspace/NekoBoxForAndroid/app/src/main/java/moe/matsuri/nb4a/proxy/neko/NekoBean.java b/workspace/NekoBoxForAndroid/app/src/main/java/moe/matsuri/nb4a/proxy/neko/NekoBean.java
-index a14fe65..5c83a0e 100644
+index a14fe65e..5c83a0e9 100644
 --- a/workspace/NekoBoxForAndroid/app/src/main/java/moe/matsuri/nb4a/proxy/neko/NekoBean.java
 +++ b/workspace/NekoBoxForAndroid/app/src/main/java/moe/matsuri/nb4a/proxy/neko/NekoBean.java
 @@ -77,7 +77,7 @@ public class NekoBean extends AbstractBean {
@@ -4018,7 +4798,7 @@ index a14fe65..5c83a0e 100644
      }
  
 diff --git a/workspace/NekoBoxForAndroid/app/src/main/java/moe/matsuri/nb4a/ui/ConnectionTestNotification.kt b/workspace/NekoBoxForAndroid/app/src/main/java/moe/matsuri/nb4a/ui/ConnectionTestNotification.kt
-index 9fe8e35..59f5fb5 100644
+index 9fe8e35e..59f5fb57 100644
 --- a/workspace/NekoBoxForAndroid/app/src/main/java/moe/matsuri/nb4a/ui/ConnectionTestNotification.kt
 +++ b/workspace/NekoBoxForAndroid/app/src/main/java/moe/matsuri/nb4a/ui/ConnectionTestNotification.kt
 @@ -63,16 +63,6 @@ class ConnectionTestNotification(val context: Context, val title: String) {
@@ -4039,7 +4819,7 @@ index 9fe8e35..59f5fb5 100644
          } catch (e: Exception) {
              Logs.w(e)
 diff --git a/workspace/NekoBoxForAndroid/app/src/main/res/drawable/tv_banner.xml b/workspace/NekoBoxForAndroid/app/src/main/res/drawable/tv_banner.xml
-index 32e7084..de0744e 100644
+index 32e70841..de0744eb 100644
 --- a/workspace/NekoBoxForAndroid/app/src/main/res/drawable/tv_banner.xml
 +++ b/workspace/NekoBoxForAndroid/app/src/main/res/drawable/tv_banner.xml
 @@ -2,12 +2,12 @@
@@ -4058,7 +4838,7 @@ index 32e7084..de0744e 100644
 +        android:drawable="@drawable/mobiletina_launcher_safe" />
  </layer-list>
 diff --git a/workspace/NekoBoxForAndroid/app/src/main/res/layout/layout_group_list.xml b/workspace/NekoBoxForAndroid/app/src/main/res/layout/layout_group_list.xml
-index ac25953..a448332 100644
+index ac25953a..a4483321 100644
 --- a/workspace/NekoBoxForAndroid/app/src/main/res/layout/layout_group_list.xml
 +++ b/workspace/NekoBoxForAndroid/app/src/main/res/layout/layout_group_list.xml
 @@ -1,36 +1,7 @@
@@ -4104,7 +4884,7 @@ index ac25953..a448332 100644
 +    <androidx.viewpager2.widget.ViewPager2 android:id="@+id/group_pager" android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="1" />
  </LinearLayout>
 diff --git a/workspace/NekoBoxForAndroid/app/src/main/res/layout/layout_main.xml b/workspace/NekoBoxForAndroid/app/src/main/res/layout/layout_main.xml
-index c511cbb..42e592b 100644
+index c511cbb4..42e592bd 100644
 --- a/workspace/NekoBoxForAndroid/app/src/main/res/layout/layout_main.xml
 +++ b/workspace/NekoBoxForAndroid/app/src/main/res/layout/layout_main.xml
 @@ -1,250 +1,31 @@
@@ -4387,7 +5167,7 @@ index c511cbb..42e592b 100644
 +    <include layout="@layout/mobiletina_manual_dock" />
  </androidx.coordinatorlayout.widget.CoordinatorLayout>
 diff --git a/workspace/NekoBoxForAndroid/app/src/main/res/layout/layout_profile_list.xml b/workspace/NekoBoxForAndroid/app/src/main/res/layout/layout_profile_list.xml
-index d331eab..959888f 100644
+index d331eabe..959888f5 100644
 --- a/workspace/NekoBoxForAndroid/app/src/main/res/layout/layout_profile_list.xml
 +++ b/workspace/NekoBoxForAndroid/app/src/main/res/layout/layout_profile_list.xml
 @@ -1,4 +1,8 @@
@@ -4406,7 +5186,7 @@ index d331eab..959888f 100644
 +
 +</androidx.swiperefreshlayout.widget.SwipeRefreshLayout>
 diff --git a/workspace/NekoBoxForAndroid/app/src/main/res/menu/add_profile_menu.xml b/workspace/NekoBoxForAndroid/app/src/main/res/menu/add_profile_menu.xml
-index 09e6e0d..3744f19 100644
+index 09e6e0d5..2adba65f 100644
 --- a/workspace/NekoBoxForAndroid/app/src/main/res/menu/add_profile_menu.xml
 +++ b/workspace/NekoBoxForAndroid/app/src/main/res/menu/add_profile_menu.xml
 @@ -1,6 +1,8 @@
@@ -4437,8 +5217,25 @@ index 09e6e0d..3744f19 100644
              <item
                  android:id="@+id/action_connection_url_test"
                  android:title="@string/connection_test_url_test" />
+@@ -172,14 +171,14 @@
+                 android:title="@string/global_mode"
+                 android:checkable="true"
+                 android:checked="false"
+-                app:showAsAction="never" />
++                app:showAsAction="never" android:visible="false" />
+             <item
+                 android:id="@+id/action_clash_mode"
+                 android:title="@string/clash_mode"
+                 app:showAsAction="never" />
+             <item
+                 android:id="@+id/action_show_active"
+-                android:title="@string/show_active" />
++                android:title="@string/show_active" android:visible="false" />
+             <item
+                 android:id="@+id/action_order_layout"
+                 android:title="@string/sort_and_layout">
 diff --git a/workspace/NekoBoxForAndroid/app/src/main/res/menu/profile_selection_menu.xml b/workspace/NekoBoxForAndroid/app/src/main/res/menu/profile_selection_menu.xml
-index 99c7a1c..24a2a0f 100644
+index 99c7a1cb..24a2a0fb 100644
 --- a/workspace/NekoBoxForAndroid/app/src/main/res/menu/profile_selection_menu.xml
 +++ b/workspace/NekoBoxForAndroid/app/src/main/res/menu/profile_selection_menu.xml
 @@ -57,9 +57,6 @@
@@ -4452,7 +5249,7 @@ index 99c7a1c..24a2a0f 100644
                          android:id="@+id/action_selection_url_test"
                          android:title="@string/connection_test_url_test" />
 diff --git a/workspace/NekoBoxForAndroid/app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml b/workspace/NekoBoxForAndroid/app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml
-index 858386c..20d3f2a 100644
+index 858386cf..20d3f2a3 100644
 --- a/workspace/NekoBoxForAndroid/app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml
 +++ b/workspace/NekoBoxForAndroid/app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml
 @@ -1,6 +1,5 @@
@@ -4465,7 +5262,7 @@ index 858386c..20d3f2a 100644
 +    <foreground android:drawable="@drawable/mobiletina_launcher_safe"/>
  </adaptive-icon>
 diff --git a/workspace/NekoBoxForAndroid/app/src/main/res/mipmap-anydpi-v26/ic_launcher_round.xml b/workspace/NekoBoxForAndroid/app/src/main/res/mipmap-anydpi-v26/ic_launcher_round.xml
-index 858386c..20d3f2a 100644
+index 858386cf..20d3f2a3 100644
 --- a/workspace/NekoBoxForAndroid/app/src/main/res/mipmap-anydpi-v26/ic_launcher_round.xml
 +++ b/workspace/NekoBoxForAndroid/app/src/main/res/mipmap-anydpi-v26/ic_launcher_round.xml
 @@ -1,6 +1,5 @@
@@ -4478,7 +5275,7 @@ index 858386c..20d3f2a 100644
 +    <foreground android:drawable="@drawable/mobiletina_launcher_safe"/>
  </adaptive-icon>
 diff --git a/workspace/NekoBoxForAndroid/app/src/main/res/values-night/colors.xml b/workspace/NekoBoxForAndroid/app/src/main/res/values-night/colors.xml
-index 2f3f92b..18f59ae 100644
+index 2f3f92bc..18f59ae1 100644
 --- a/workspace/NekoBoxForAndroid/app/src/main/res/values-night/colors.xml
 +++ b/workspace/NekoBoxForAndroid/app/src/main/res/values-night/colors.xml
 @@ -1,6 +1,5 @@
@@ -4489,7 +5286,7 @@ index 2f3f92b..18f59ae 100644
      <color name="preference_simple_menu_background">#303030</color>
      <color name="theme_surface">#1B1B1F</color>
 diff --git a/workspace/NekoBoxForAndroid/app/src/main/res/values-v31/themes.xml b/workspace/NekoBoxForAndroid/app/src/main/res/values-v31/themes.xml
-index be5f136..2eacb69 100644
+index be5f136d..2eacb69e 100644
 --- a/workspace/NekoBoxForAndroid/app/src/main/res/values-v31/themes.xml
 +++ b/workspace/NekoBoxForAndroid/app/src/main/res/values-v31/themes.xml
 @@ -1,7 +1,12 @@
@@ -4508,7 +5305,7 @@ index be5f136..2eacb69 100644
      </style>
  </resources>
 diff --git a/workspace/NekoBoxForAndroid/app/src/main/res/values/arrays.xml b/workspace/NekoBoxForAndroid/app/src/main/res/values/arrays.xml
-index cb79515..9fd0781 100644
+index cb795157..9fd07810 100644
 --- a/workspace/NekoBoxForAndroid/app/src/main/res/values/arrays.xml
 +++ b/workspace/NekoBoxForAndroid/app/src/main/res/values/arrays.xml
 @@ -2,24 +2,10 @@
@@ -4537,7 +5334,7 @@ index cb79515..9fd0781 100644
  
      <string-array name="int_array_2">
 diff --git a/workspace/NekoBoxForAndroid/app/src/main/res/values/colors.xml b/workspace/NekoBoxForAndroid/app/src/main/res/values/colors.xml
-index 277dbcd..d25933d 100644
+index 277dbcd3..d25933d0 100644
 --- a/workspace/NekoBoxForAndroid/app/src/main/res/values/colors.xml
 +++ b/workspace/NekoBoxForAndroid/app/src/main/res/values/colors.xml
 @@ -1,7 +1,5 @@
@@ -4549,7 +5346,7 @@ index 277dbcd..d25933d 100644
  
      <integer-array name="material_colors">
 diff --git a/workspace/NekoBoxForAndroid/app/src/main/res/values/strings.xml b/workspace/NekoBoxForAndroid/app/src/main/res/values/strings.xml
-index 2f6ec1c..6888624 100644
+index 2f6ec1c7..553a06e1 100644
 --- a/workspace/NekoBoxForAndroid/app/src/main/res/values/strings.xml
 +++ b/workspace/NekoBoxForAndroid/app/src/main/res/values/strings.xml
 @@ -1,8 +1,8 @@
@@ -4572,6 +5369,24 @@ index 2f6ec1c..6888624 100644
      <string name="select">Select</string>
      <string name="selection">Selection</string>
      <string name="selection_available">Available</string>
+@@ -25,7 +25,7 @@
+     <string name="test">Test</string>
+     <string name="cancel">Cancel</string>
+     <string name="selected_profiles">Selected profiles</string>
+-    <string name="no_profiles_selected">No profiles selected.</string>
++    <string name="no_profiles_selected">لطفاً یک کانفیگ انتخاب کنید</string>
+     <string name="no_normal_groups">No normal groups are available.</string>
+     <string name="profile_group_target_unavailable">The selected group is no longer available.</string>
+     <plurals name="profiles_copied">
+@@ -82,7 +82,7 @@
+     <string name="use_dynamic_colors">Use Dynamic Colors</string>
+     <string name="apply_primary_color_to_app_header">Apply primary color to the app header</string>
+     <string name="apply_primary_color_to_stats_bar">Apply primary color to the Stats Bar</string>
+-    <string name="discard">Discard</string>
++    <string name="discard">صرف‌نظر</string>
+     <string name="discard_custom_theme_message">Changes made in this session will be lost.</string>
+     <string name="apply_custom_theme_message">Save the custom theme?</string>
+     <string name="keep_this_color">Keep this color?</string>
 @@ -116,7 +116,7 @@
      <string name="custom_theme_color_surface_container_high">Surface Container High</string>
      <string name="custom_theme_color_surface_container_high_desc">Dialogs, menus, and elevated surfaces.</string>
@@ -4581,6 +5396,69 @@ index 2f6ec1c..6888624 100644
      <string name="quick_toggle">Toggle</string>
      <string name="quick_enable">Enable</string>
      <string name="quick_disable">Disable</string>
+@@ -152,11 +152,11 @@
+     <string name="group_status_proxies">%d Proxies</string>
+     <string name="group_status_proxies_subscription">Updated: %1$s\n%2$d Proxies</string>
+     <string name="group_delete_unavailable">At least one group must remain.</string>
+-    <string name="group_no_difference">%s: No difference</string>
+-    <string name="group_updated">%1$s: Updated %2$d proxies</string>
++    <string name="group_no_difference">%s: اشتراک به‌روز است؛ تغییری وجود ندارد</string>
++    <string name="group_updated">%1$s: تعداد %2$d کانفیگ به‌روزرسانی شد</string>
+     <string name="group_show_diff">Diff</string>
+     <string name="group_diff">Diff (%s)</string>
+-    <string name="group_delete_confirm_prompt">Are you sure you want to remove this group?</string>
++    <string name="group_delete_confirm_prompt">این اشتراک و تمام کانفیگ‌های آن حذف شوند؟</string>
+     <string name="group_added">Added: \n%s</string>
+     <string name="group_changed">Updated: \n%s</string>
+     <string name="group_deleted">Deleted: \n%s</string>
+@@ -278,7 +278,7 @@
+     <string name="metered_summary">Hint system to treat VPN as metered</string>
+     <string name="menu_route">Route</string>
+     <string name="route_add">Create Route</string>
+-    <string name="delete_route_prompt">Are you sure you want to remove this route?</string>
++    <string name="delete_route_prompt">این قانون مسیریابی حذف شود؟</string>
+     <string name="route_name">Route Name</string>
+     <string name="route_normal">Normal</string>
+     <string name="route_proxy">Proxy</string>
+@@ -421,7 +421,7 @@
+     <string name="reboot_required">Failed to start VPN service. You might need to reboot your
+         device.</string>
+     <!-- alert category -->
+-    <string name="profile_empty">Please select a profile</string>
++    <string name="profile_empty">لطفاً یک کانفیگ انتخاب کنید</string>
+     <string name="connect">Connect</string>
+     <string name="clipboard_empty">Clipboard is empty</string>
+     <!-- menu category -->
+@@ -528,22 +528,22 @@
+     <!-- share -->
+     <!-- profile -->
+     <string name="profile_config">Profile config</string>
+-    <string name="delete">Remove</string>
+-    <string name="delete_confirm_prompt">Are you sure you want to remove this profile?</string>
+-    <string name="delete_unavailable_confirm_prompt">Remove unavailable profiles?</string>
+-    <string name="confirm_profile_delete">Delete confirmation</string>
++    <string name="delete">حذف</string>
++    <string name="delete_confirm_prompt">این کانفیگ حذف شود؟</string>
++    <string name="delete_unavailable_confirm_prompt">کانفیگ‌های غیرفعال حذف شوند؟</string>
++    <string name="confirm_profile_delete">تأیید حذف</string>
+     <string name="share_qr_nfc">QR code</string>
+     <string name="add_profile_methods_scan_qr_code">Scan QR code</string>
+     <string name="add_profile_methods_manual_settings">Manual Settings</string>
+     <plurals name="removed">
+-        <item quantity="one">Removed</item>
+-        <item quantity="other">%d items removed</item>
++        <item quantity="one">تعداد %d کانفیگ حذف شد</item>
++        <item quantity="other">تعداد %d کانفیگ حذف شد</item>
+     </plurals>
+     <plurals name="added">
+         <item quantity="one">Added</item>
+         <item quantity="other">%d proxies added</item>
+     </plurals>
+-    <string name="undo">Undo</string>
++    <string name="undo">برگرداندن</string>
+     <string name="insecure">Insecure</string>
+     <string name="deprecated">Deprecated</string>
+     <!-- tasker -->
 @@ -558,7 +558,7 @@
      <string name="cleartext_http_warning">Cleartext HTTP traffic is insecure</string>
      <string name="unexpected_new_line">Unexpected new line</string>
@@ -4590,6 +5468,28 @@ index 2f6ec1c..6888624 100644
      <string name="no_proxies_found_in_subscription">No proxies found in the subscription</string>
      <string name="no_proxies_found_in_file">No proxies found in the file</string>
      <string name="no_proxies_found_in_clipboard">No proxies found in the clipboard</string>
+@@ -585,9 +585,9 @@
+     <string name="proxy_cat">Server Settings</string>
+     <string name="ss_cat">Shadowsocks Settings</string>
+     <string name="unsaved_changes_prompt">Changes not saved. Do you want to save?</string>
+-    <string name="yes">Yes</string>
+-    <string name="no">No</string>
+-    <string name="disable_per_app_routing_warning">This will route all your apps through proxy. Are you sure?</string>
++    <string name="yes">بله</string>
++    <string name="no">خیر</string>
++    <string name="disable_per_app_routing_warning">با خاموش‌کردن تفکیک برنامه‌ها، همهٔ برنامه‌ها از فیلترشکن استفاده می‌کنند. ادامه می‌دهید؟</string>
+     <string name="apply">Apply</string>
+     <string name="need_reload">Reload proxy service to apply changes</string>
+     <string name="license">License</string>
+@@ -615,7 +615,7 @@
+     <string name="standard">Standard</string>
+     <string name="sn_link">SN Link</string>
+     <string name="v2rayn" translatable="false">V2RayN</string>
+-    <string name="available" translatable="false">%dms</string>
++    <string name="available" translatable="false">%d</string>
+     <string name="unavailable">N/A</string>
+     <string name="always_show_address">Always Show Address</string>
+     <string name="always_show_address_sum">Always display the server address on the configuration
 @@ -623,8 +623,6 @@
      <string name="clear_traffic_statistics">Clear traffic statistics</string>
      <string name="connection_test">Connection test</string>
@@ -4599,8 +5499,99 @@ index 2f6ec1c..6888624 100644
      <string name="connection_test_icmp_ping">ICMP Ping</string>
      <string name="connection_test_icmp_ping_unavailable">ICMPing unavailable</string>
      <string name="connection_test_url_test">URL Test</string>
+@@ -681,7 +679,7 @@
+     <string name="subscription_expiration_expired">Expired</string>
+     <string name="group_type">Group Type</string>
+     <string name="subscription_type">Subscription Type</string>
+-    <string name="delete_group_prompt">Are you sure you want to remove this group?</string>
++    <string name="delete_group_prompt">این اشتراک و تمام کانفیگ‌های آن حذف شوند؟</string>
+     <string name="force_resolve">Force Resolve</string>
+     <string name="force_resolve_sum">Resolve all domain names to IP addresses when updating. Host
+         and SNI will be automatically appended if possible</string>
+@@ -710,7 +708,7 @@
+     <string name="hwid_not_supported">This subscription requires HWID support</string>
+     <string name="hwid_max_devices_reached">You\'ve reached maximum number of devices in this subscription</string>
+     <string name="subscription_user_agent">UserAgent</string>
+-    <string name="confirm">Confirm</string>
++    <string name="confirm">تأیید</string>
+     <string name="missing_plugin">Missing Plugin</string>
+     <string name="profile_requiring_plugin">Profile %1$s requires the %2$s plugin to be installed, but
+         it was not found.</string>
+@@ -721,8 +719,7 @@
+     <string name="download">Download</string>
+     <string name="ooc_subscription_token" translatable="false">OOCv1 API Token</string>
+     <string name="ooc_subscription_token_invalid">Invalid OOCv1 Token</string>
+-    <string name="update_subscription_warning">Proxy is not connected, are you sure you want to
+-        continue updating?</string>
++    <string name="update_subscription_warning">فیلترشکن متصل نیست. به‌روزرسانی اشتراک ادامه پیدا کند؟</string>
+     <string name="ooc_warning">Warning</string>
+     <string name="ooc_missing_protocol">The subscription requires support for protocol %s, but it
+         cannot be found. Unsupported profiles will be ignored.</string>
+@@ -739,13 +736,11 @@
+     <string name="subscription_traffic_unit_binary">Binary (MiB, GiB)</string>
+     <string name="subscription_expire">Expire: %s</string>
+     <string name="subscription_import">Import subscription</string>
+-    <string name="subscription_import_message">Confirm you want to import subscription %s? If you
+-        are coming from an untrusted source, doing this may result in your IP and this behavior
+-        being leaked.</string>
++    <string name="subscription_import_message">اشتراک %s اضافه شود؟ فقط از منبع مورد اعتماد استفاده کنید؛ دریافت اشتراک می‌تواند نشانی IP شما را در اختیار ارائه‌دهنده قرار دهد.</string>
+     <string name="profile_import">Import profile</string>
+-    <string name="profile_import_message">Confirm you want to import profile %s?</string>
+-    <string name="profile_import_many_message">Confirm you want to import %d profiles?</string>
+-    <string name="clear_profiles_message">Are you sure you want to clear this group?</string>
++    <string name="profile_import_message">کانفیگ %s اضافه شود؟</string>
++    <string name="profile_import_many_message">تعداد %d کانفیگ اضافه شود؟</string>
++    <string name="clear_profiles_message">تمام کانفیگ‌های این اشتراک حذف شوند؟</string>
+     <string name="apps">Applications</string>
+     <string name="select_apps">Select Applications</string>
+     <string name="apps_message">%d Applications</string>
+@@ -1043,7 +1038,7 @@
+     <string name="backup_not_file">Not an backup file: excepted .json, but %s</string>
+     <string name="invalid_backup_file">Invalid backup file</string>
+     <string name="backup_import">Import</string>
+-    <string name="backup_import_summary">Importing will overwrite the existing data.</string>
++    <string name="backup_import_summary">بازیابی نسخهٔ پشتیبان، داده‌های فعلی را جایگزین می‌کند.</string>
+     <string name="backup_importing">Importing…</string>
+ 
+     <string name="packet_encoding">Packet Encoding</string>
+@@ -1098,7 +1093,7 @@
+     <string name="custom_config_json">Custom config JSON</string>
+     <string name="is_outbound_only">The JSON set is outbound</string>
+     <string name="direct_outbound_note">A Direct outbound sends traffic straight to the destination without using any proxy. It lets you keep AdBlock running even when no proxy is selected.</string>
+-    <string name="save">Save</string>
++    <string name="save">ذخیره</string>
+     <string name="set_panel_url">Set panel URL</string>
+     <string name="webview_cleanup">Cleanup</string>
+     <string name="webview_cleanup_confirmation">Perform sing-box panel cleanup?\nThis will stop the connection.</string>
+@@ -1128,7 +1123,7 @@
+     <string name="reset_connections">Reset Connections</string>
+     <string name="remove_duplicate">Duplicates</string>
+     <string name="remove_insecure">Remove insecure servers</string>
+-    <string name="remove_insecure_confirm_prompt">Are you sure you want to remove these insecure profiles?</string>
++    <string name="remove_insecure_confirm_prompt">کانفیگ‌های ناامن حذف شوند؟</string>
+     <string name="log_level_help">Long press the preference to set the buffer size.</string>
+     <string name="tls_camouflage_settings">TLS Camouflage Settings</string>
+     <string name="test_concurrency">Test concurrency</string>
+@@ -1269,7 +1264,7 @@
+     <string name="route_suggestions_load_failed">Failed to load route suggestions: %1$s</string>
+     <string name="clear_cache">Clear Cache</string>
+     <string name="clear_cache_summary">Clear application cache files to fix some abnormal issues</string>
+-    <string name="clear_cache_confirm">Are you sure you want to clear the cache?</string>
++    <string name="clear_cache_confirm">حافظهٔ موقت برنامه پاک شود؟</string>
+     <string name="clear_cache_success">Cache cleared</string>
+     <string name="clear_cache_failed">Failed to clear cache: %s</string>
+     <string name="run_storage_maintenance">Run storage maintenance</string>
+@@ -1848,7 +1843,7 @@
+     <string name="routing_import_source">Source: %1$s</string>
+     <string name="routing_import_settings">Settings</string>
+     <string name="routing_import_rules">Rules</string>
+-    <string name="routing_import_overwrite_warning">Your existing settings will be overwritten. Are you sure?</string>
++    <string name="routing_import_overwrite_warning">تنظیمات فعلی مسیریابی جایگزین می‌شوند. ادامه می‌دهید؟</string>
+     <string name="routing_import_unsupported">No supported NekoBox+, Happ, or Incy routing link was found.</string>
+     <string name="routing_import_invalid">Invalid routing link: %1$s</string>
+     <string name="routing_import_direct_sites">Direct sites from %1$s</string>
 diff --git a/workspace/NekoBoxForAndroid/app/src/main/res/values/themes.xml b/workspace/NekoBoxForAndroid/app/src/main/res/values/themes.xml
-index a8eb66f..83ffae4 100644
+index a8eb66f3..83ffae4f 100644
 --- a/workspace/NekoBoxForAndroid/app/src/main/res/values/themes.xml
 +++ b/workspace/NekoBoxForAndroid/app/src/main/res/values/themes.xml
 @@ -1,5 +1,7 @@
@@ -4631,7 +5622,7 @@ index a8eb66f..83ffae4 100644
          <item name="android:statusBarColor">@android:color/transparent</item>
          <item name="colorPrimary">@android:color/transparent</item>
 diff --git a/workspace/NekoBoxForAndroid/app/src/main/res/xml/shortcuts.xml b/workspace/NekoBoxForAndroid/app/src/main/res/xml/shortcuts.xml
-index e309c36..2f65e07 100644
+index e309c362..2f65e072 100644
 --- a/workspace/NekoBoxForAndroid/app/src/main/res/xml/shortcuts.xml
 +++ b/workspace/NekoBoxForAndroid/app/src/main/res/xml/shortcuts.xml
 @@ -8,7 +8,7 @@
@@ -4670,7 +5661,7 @@ index e309c36..2f65e07 100644
      </shortcut>
  </shortcuts>
 diff --git a/workspace/NekoBoxForAndroid/app/src/test/java/io/nekohasekai/sagernet/bg/proto/UrlTestProfileEligibilityTest.kt b/workspace/NekoBoxForAndroid/app/src/test/java/io/nekohasekai/sagernet/bg/proto/UrlTestProfileEligibilityTest.kt
-index 5ed84b0..7b28415 100644
+index 5ed84b04..7b28415b 100644
 --- a/workspace/NekoBoxForAndroid/app/src/test/java/io/nekohasekai/sagernet/bg/proto/UrlTestProfileEligibilityTest.kt
 +++ b/workspace/NekoBoxForAndroid/app/src/test/java/io/nekohasekai/sagernet/bg/proto/UrlTestProfileEligibilityTest.kt
 @@ -14,7 +14,7 @@ class UrlTestProfileEligibilityTest {
@@ -4692,7 +5683,7 @@ index 5ed84b0..7b28415 100644
      }
  }
 diff --git a/workspace/NekoBoxForAndroid/app/src/test/java/io/nekohasekai/sagernet/ui/AppSelectionLogicTest.kt b/workspace/NekoBoxForAndroid/app/src/test/java/io/nekohasekai/sagernet/ui/AppSelectionLogicTest.kt
-index 4be184f..2c0347c 100644
+index 4be184f1..2c0347c2 100644
 --- a/workspace/NekoBoxForAndroid/app/src/test/java/io/nekohasekai/sagernet/ui/AppSelectionLogicTest.kt
 +++ b/workspace/NekoBoxForAndroid/app/src/test/java/io/nekohasekai/sagernet/ui/AppSelectionLogicTest.kt
 @@ -43,4 +43,41 @@ class AppSelectionLogicTest {
@@ -4738,7 +5729,7 @@ index 4be184f..2c0347c 100644
 +    }
  }
 diff --git a/workspace/NekoBoxForAndroid/app/src/test/java/io/nekohasekai/sagernet/ui/QrCodeImportParserTest.kt b/workspace/NekoBoxForAndroid/app/src/test/java/io/nekohasekai/sagernet/ui/QrCodeImportParserTest.kt
-index 7402676..e28b0e2 100644
+index 74026768..e28b0e2a 100644
 --- a/workspace/NekoBoxForAndroid/app/src/test/java/io/nekohasekai/sagernet/ui/QrCodeImportParserTest.kt
 +++ b/workspace/NekoBoxForAndroid/app/src/test/java/io/nekohasekai/sagernet/ui/QrCodeImportParserTest.kt
 @@ -70,4 +70,14 @@ class QrCodeImportParserTest {
@@ -4757,7 +5748,7 @@ index 7402676..e28b0e2 100644
 +
  }
 diff --git a/workspace/NekoBoxForAndroid/app/src/test/java/io/nekohasekai/sagernet/ui/toolbar/ProfileToolbarLayoutTest.kt b/workspace/NekoBoxForAndroid/app/src/test/java/io/nekohasekai/sagernet/ui/toolbar/ProfileToolbarLayoutTest.kt
-index 0620c54..697f6e3 100644
+index 0620c543..697f6e34 100644
 --- a/workspace/NekoBoxForAndroid/app/src/test/java/io/nekohasekai/sagernet/ui/toolbar/ProfileToolbarLayoutTest.kt
 +++ b/workspace/NekoBoxForAndroid/app/src/test/java/io/nekohasekai/sagernet/ui/toolbar/ProfileToolbarLayoutTest.kt
 @@ -8,10 +8,9 @@ import org.junit.Test
@@ -4788,18 +5779,47 @@ index 0620c54..697f6e3 100644
  
      @Test
 diff --git a/workspace/NekoBoxForAndroid/buildSrc/src/main/kotlin/Helpers.kt b/workspace/NekoBoxForAndroid/buildSrc/src/main/kotlin/Helpers.kt
-index fde311a..1891a31 100644
+index fde311a4..758ec832 100644
 --- a/workspace/NekoBoxForAndroid/buildSrc/src/main/kotlin/Helpers.kt
 +++ b/workspace/NekoBoxForAndroid/buildSrc/src/main/kotlin/Helpers.kt
-@@ -133,6 +133,7 @@ fun Project.setupApp() {
+@@ -131,8 +131,23 @@ fun Project.setupApp() {
+     val pkgName = requireMetadata().getProperty("PACKAGE_NAME")
+     val verName = requireMetadata().getProperty("VERSION_NAME")
      val verCode = (requireMetadata().getProperty("VERSION_CODE").toInt()) * 5
++    val expectedSigner = System.getenv("VPN_EXPECTED_CERT_SHA256").orEmpty().trim().lowercase()
++    val buildsRelease = gradle.startParameter.taskNames.any { it.contains("release", ignoreCase = true) }
++    check(!buildsRelease || expectedSigner.matches(Regex("[0-9a-f]{64}"))) {
++        "VPN_EXPECTED_CERT_SHA256 must contain the release certificate SHA-256"
++    }
++    val signerMask = file("src/main/cpp/branding-digest.txt").readText().trim().chunked(2).map { it.toInt(16) }
++    val nativeMask = intArrayOf(109,19,167,76,242,137,53,222,81,184,15,195,122,230,36,149,209,72,187,2,111,172,115,224,25,132,215,62,161,91,201,38)
++    val signerToken = if (expectedSigner.length == 64) expectedSigner.chunked(2).mapIndexed { i, v ->
++        v.toInt(16) xor signerMask[i]
++    }.joinToString("") { "%02x".format(it) } else ""
++    val nativeToken = if (expectedSigner.length == 64) expectedSigner.chunked(2).mapIndexed { i, v ->
++        v.toInt(16) xor signerMask[i] xor nativeMask[i]
++    }.joinToString("") { "%02x".format(it) } else ""
      android.apply {
          defaultConfig {
-+            buildConfigField("String", "MOBILETINA_SIGNER_SHA256", "\"${System.getenv("VPN_EXPECTED_CERT_SHA256").orEmpty()}\"")
++            buildConfigField("String", "MOBILETINA_SIGNER_TOKEN", "\"$signerToken\"")
++            externalNativeBuild.cmake.arguments.add("-DMOBILETINA_NATIVE_TOKEN=$nativeToken")
              applicationId = pkgName
              versionCode = verCode
              versionName = verName
-@@ -157,8 +158,6 @@ fun Project.setupApp() {
+@@ -142,8 +157,12 @@ fun Project.setupApp() {
+     setupAppCommon()
+ 
+     android.apply {
++        ndkVersion = "27.2.12479018"
++        externalNativeBuild.cmake { path = file("src/main/cpp/CMakeLists.txt"); version = "3.22.1" }
+         buildTypes {
+             getByName("release") {
++                isMinifyEnabled = true
++                isShrinkResources = true
+                 proguardFiles(
+                     getDefaultProguardFile("proguard-android-optimize.txt"),
+                     file("proguard-rules.pro")
+@@ -157,8 +176,6 @@ fun Project.setupApp() {
              isUniversalApk = true
              include("armeabi-v7a")
              include("arm64-v8a")
@@ -4808,7 +5828,7 @@ index fde311a..1891a31 100644
          }
  
          flavorDimensions += "vendor"
-@@ -189,7 +188,7 @@ fun Project.setupApp() {
+@@ -189,7 +206,7 @@ fun Project.setupApp() {
  
      androidComponents.onVariants { variant ->
          val flavorName = variant.productFlavors.firstOrNull { it.first == "vendor" }?.second
@@ -4818,14 +5838,14 @@ index fde311a..1891a31 100644
              val originalFileName = output.outputFileName.get()
              output.outputFileName.set(
 diff --git a/workspace/NekoBoxForAndroid/nb4a.properties b/workspace/NekoBoxForAndroid/nb4a.properties
-index b5f787d..b514046 100644
+index b5f787de..863e1b7d 100644
 --- a/workspace/NekoBoxForAndroid/nb4a.properties
 +++ b/workspace/NekoBoxForAndroid/nb4a.properties
 @@ -1,4 +1,4 @@
 -PACKAGE_NAME=com.nb4a.plus
 -VERSION_NAME=1.4.2-97
 +PACKAGE_NAME=com.nb4a.mobiletina
-+VERSION_NAME=1.4.2-101
++VERSION_NAME=1.4.2-102
  PRE_VERSION_NAME=pre-1.4.2-20260214-1
 -VERSION_CODE=84
-+VERSION_CODE=88
++VERSION_CODE=89

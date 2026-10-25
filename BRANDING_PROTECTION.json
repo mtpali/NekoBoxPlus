@@ -1,0 +1,45 @@
+{
+  "schema": 1,
+  "reference_commit": "6a4169e3a5951549ba1960ca95e9c4ca873fd772",
+  "digest_sha256": "98aa6114f619ca05de0959bb44a6b9ae4113a47198073f71a59ad527f2eb2c04",
+  "assets": [
+    {
+      "file": "mt_auto_white.bin",
+      "ciphertext_sha256": "31559e15bbb938ee39366e001253bea82e6aac8febdd5cd701fe0f3a4a2f81be"
+    },
+    {
+      "file": "mt_auto_yellow.bin",
+      "ciphertext_sha256": "47bbaf34631f28cd3172bda7352045a5e9961ef1c2fbc51b19b7a5327b417e6e"
+    },
+    {
+      "file": "mt_auto_blue.bin",
+      "ciphertext_sha256": "af886676d87db92350744e24c7c763bc724f1529692a418929a00da82211afaa"
+    },
+    {
+      "file": "mt_auto_red.bin",
+      "ciphertext_sha256": "f340e3ce1ed1ac1c8100f9166f9c8cdd5e6022af28eaa8bcfc059ba463b01e86"
+    },
+    {
+      "file": "mt_nav.bin",
+      "ciphertext_sha256": "d03a1fbcb28ca14031fe1d8141c00f240d58c8d1e33372677a81cc4c0565a57a"
+    }
+  ],
+  "header_plaintext_sha256": "b93ea494eb517d9fe940e7780dd2eab58ed5fd3994f6dd876114b8a4db4039c8",
+  "protected_text_methods": [
+    "aboutTitle",
+    "aboutSubtitle",
+    "branchOne",
+    "branchTwo",
+    "pageThree",
+    "developer",
+    "storesTitle",
+    "storeOne",
+    "storeTwo",
+    "instagramOne",
+    "instagramTwo",
+    "instagramThree",
+    "telegram",
+    "brandTitle",
+    "profilePrefix"
+  ]
+}

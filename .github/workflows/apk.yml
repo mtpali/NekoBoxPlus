@@ -26,12 +26,13 @@ jobs:
       - uses: android-actions/setup-android@v3
         with:
           packages: platform-tools
-      - run: sdkmanager 'platforms;android-37.0' 'build-tools;36.0.0'
+      - run: sdkmanager 'platforms;android-37.0' 'build-tools;36.0.0' 'ndk;27.2.12479018' 'cmake;3.22.1'
       - uses: gradle/actions/setup-gradle@v4
       - name: Prepare custom application
         run: |
           python3 scripts/prepare-app.py
           python3 scripts/audit-source.py
+          python3 scripts/test-native-guard.py | tee native-guard-validation.txt
           echo "VPN_EXPECTED_CERT_SHA256=$(cat RELEASE_CERT_SHA256)" >> "$GITHUB_ENV"
       - name: Find native core
         id: native
@@ -66,7 +67,7 @@ jobs:
           cp upstream/workspace/NekoBoxForAndroid/app/build/outputs/mapping/plusRelease/mapping.txt dist/validation/
           cp -r upstream/workspace/NekoBoxForAndroid/app/build/test-results/testPlusDebugUnitTest dist/validation/
           cp "$ANDROID_HOME/build-tools/36.0.0/lib/apksigner.jar" dist/signing-tools/
-          cp RELEASE_CERT_SHA256 UPSTREAM_COMMIT dist/validation/
+          cp RELEASE_CERT_SHA256 UPSTREAM_COMMIT BRANDING_PROTECTION.json native-guard-validation.txt dist/validation/
           printf '%s\n' "$GITHUB_SHA" > dist/validation/SOURCE_COMMIT
       - uses: actions/upload-artifact@v4
         if: success()

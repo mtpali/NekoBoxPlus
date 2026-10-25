@@ -22,6 +22,7 @@ import com.google.android.material.button.MaterialButton
 import io.nekohasekai.sagernet.R
 import io.nekohasekai.sagernet.database.preference.RoomPreferenceDataStore
 import io.nekohasekai.sagernet.utils.MobileTinaWelcomeContent
+import io.nekohasekai.sagernet.utils.MobileTinaAboutContent
 import androidx.core.content.res.ResourcesCompat
 import java.security.MessageDigest
 
@@ -79,7 +80,7 @@ internal object MobileTinaFirstLaunchDialog {
 
         lines.forEach { value ->
             val handle = value.substringAfter(':', "").trim()
-                .takeIf { it in setOf("mobile.tina", "mobile.tina2", "mobile.tinaa") }
+                .takeIf { it in MobileTinaAboutContent.socialHandles() }
             root.addView(TextView(activity).apply {
                 text = if (handle == null) value else SpannableString(value).apply {
                     val start = value.indexOf(handle)
@@ -104,11 +105,11 @@ internal object MobileTinaFirstLaunchDialog {
                     setOnClickListener {
                         try {
                             activity.startActivity(Intent(Intent.ACTION_VIEW,
-                                Uri.parse("instagram://user?username=$handle")))
+                                Uri.parse(MobileTinaAboutContent.profileAppUrl(handle))))
                         } catch (_: ActivityNotFoundException) {
                             runCatching {
                                 activity.startActivity(Intent(Intent.ACTION_VIEW,
-                                    Uri.parse("https://www.instagram.com/$handle/")))
+                                    Uri.parse(MobileTinaAboutContent.profileWebUrl(handle))))
                             }
                         }
                     }

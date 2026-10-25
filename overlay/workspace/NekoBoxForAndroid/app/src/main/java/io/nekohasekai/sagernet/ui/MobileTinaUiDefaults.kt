@@ -25,7 +25,24 @@ object MobileTinaUiDefaults {
         DataStore.configurationStore.putBoolean(key, true)
     }
 
+    internal fun defaultAppSelection(): String = AppSelectionLogic.pinnedPackages.filter { name ->
+        runCatching { io.nekohasekai.sagernet.SagerNet.application.packageManager.getApplicationInfo(name, 0) }.isSuccess
+    }.joinToString("\n")
+
     fun apply() {
+        val appsKey = "mobiletinaAppSelectionV102"
+        if (!DataStore.configurationStore.getBoolean(appsKey, false)) {
+            DataStore.proxyApps = true
+            DataStore.bypass = false
+            DataStore.individual = defaultAppSelection()
+            DataStore.configurationStore.putBoolean(appsKey, true)
+        }
+        val trafficKey = "mobiletinaTrafficV102"
+        if (!DataStore.configurationStore.getBoolean(trafficKey, false)) {
+            DataStore.profileTrafficStatistics = true
+            if (DataStore.profileTrafficUpdateInterval <= 0) DataStore.profileTrafficUpdateInterval = 1000
+            DataStore.configurationStore.putBoolean(trafficKey, true)
+        }
         val phoneModeKey = "mobiletinaFollowPhoneThemeV1"
         if (!DataStore.configurationStore.getBoolean(phoneModeKey, false)) {
             DataStore.nightTheme = 0
@@ -35,7 +52,7 @@ object MobileTinaUiDefaults {
         if (DataStore.configurationStore.getBoolean(MIGRATED, false)) return
         if (DataStore.appTheme == Theme.BLUE) DataStore.appTheme = Theme.SIMPLE
         // The previous first-run setup forced this on. Keep the saved app selection.
-        DataStore.proxyApps = false
+        DataStore.proxyApps = true
         DataStore.appLanguage = "en"
         DataStore.configurationStore.putBoolean(MIGRATED, true)
     }

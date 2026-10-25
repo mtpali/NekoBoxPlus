@@ -46,11 +46,16 @@
     <string name="mobiletina_clear_all_confirm" translatable="false">پاکسازی</string>
     <string name="mobiletina_clear_all_done" translatable="false">تمام سرورها و اشتراک‌ها پاک شدند</string>
     <string name="mobiletina_clear_stop_failed">Stop the VPN connection and try again.</string>
-    <string name="mobiletina_usage_brand" translatable="false">instagram : mobile.tina</string>
     <string name="mobiletina_usage_remaining" translatable="false">حجم باقی‌مانده</string>
     <string name="mobiletina_cancel" translatable="false">بیخیال</string>
     <string name="mobiletina_notification_stop" translatable="false">خاموش کردن فیلترشکن</string>
-    <string name="mobiletina_default_subscription" translatable="false">instagram : mobile.tina</string>
     <string name="mobiletina_settings_tools">Tools and shortcuts</string>
     <string name="mobiletina_traffic_summary" translatable="false">%1$.1f GB / %2$.1f GB</string>
+    <string name="mobiletina_delete_configs">حذف کانفیگ ها</string>
+    <string name="mobiletina_delete_configs_confirm">تمام کانفیگ‌های اشتراک فعلی حذف شوند؟ لینک اشتراک باقی می‌ماند.</string>
+    <string name="mobiletina_no_matching_configs">کانفیگی برای حذف وجود ندارد</string>
+    <string name="mobiletina_cleanup_stop_failed">اتصال هنوز خاموش نشده است؛ دوباره تلاش کنید</string>
+    <string name="mobiletina_ok">باشه</string>
+    <string name="mobiletina_protected">این اشتراک محافظت‌شده است</string>
+    <string name="mobiletina_delete_count_confirm">تعداد %d کانفیگ حذف شود؟</string>
 </resources>
