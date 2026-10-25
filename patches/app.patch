@@ -1671,7 +1671,7 @@ index ffcfebde..222f62a8 100644
          )
      }
 diff --git a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/ConfigurationFragment.kt b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/ConfigurationFragment.kt
-index 936c0574..f14881e9 100644
+index 936c0574..40d5b6dc 100644
 --- a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/ConfigurationFragment.kt
 +++ b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/ConfigurationFragment.kt
 @@ -45,6 +45,8 @@ import androidx.appcompat.widget.Toolbar
@@ -1699,7 +1699,15 @@ index 936c0574..f14881e9 100644
  import androidx.recyclerview.widget.RecyclerView
  import androidx.viewpager2.adapter.FragmentStateAdapter
  import androidx.viewpager2.widget.ViewPager2
-@@ -115,11 +120,11 @@ import io.nekohasekai.sagernet.ktx.tryToShow
+@@ -73,6 +78,7 @@ import io.nekohasekai.sagernet.SagerNet
+ import io.nekohasekai.sagernet.aidl.TrafficData
+ import io.nekohasekai.sagernet.bg.BaseService
+ import io.nekohasekai.sagernet.bg.proto.UrlTest
++import io.nekohasekai.sagernet.database.AppData
+ import io.nekohasekai.sagernet.database.DataStore
+ import io.nekohasekai.sagernet.database.GroupManager
+ import io.nekohasekai.sagernet.database.ProfileManager
+@@ -115,11 +121,11 @@ import io.nekohasekai.sagernet.ktx.tryToShow
  import io.nekohasekai.sagernet.ktx.triggerFullRestart
  import io.nekohasekai.sagernet.ui.profile.ChainSettingsActivity
  import io.nekohasekai.sagernet.ui.compose.NekoComposeTheme
@@ -1712,7 +1720,7 @@ index 936c0574..f14881e9 100644
  import io.nekohasekai.sagernet.ui.compose.doubleProfileMinimumHeightDp
  import io.nekohasekai.sagernet.ui.compose.showComposeItemDialog
  import io.nekohasekai.sagernet.ui.compose.showComposeMessageDialog
-@@ -155,6 +160,8 @@ import io.nekohasekai.sagernet.widget.QRCodeDialog
+@@ -155,6 +161,8 @@ import io.nekohasekai.sagernet.widget.QRCodeDialog
  import io.nekohasekai.sagernet.widget.ProfileListRecyclerView
  import io.nekohasekai.sagernet.widget.TvProfileFocusTarget
  import io.nekohasekai.sagernet.widget.UndoSnackbarManager
@@ -1721,7 +1729,7 @@ index 936c0574..f14881e9 100644
  import kotlinx.coroutines.Job
  import kotlinx.coroutines.isActive
  import kotlinx.coroutines.sync.Mutex
-@@ -344,6 +351,13 @@ class ConfigurationFragment @JvmOverloads constructor(
+@@ -344,6 +352,13 @@ class ConfigurationFragment @JvmOverloads constructor(
      override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
          super.onViewCreated(view, savedInstanceState)
          setupQuickToolbar(view)
@@ -1735,7 +1743,7 @@ index 936c0574..f14881e9 100644
  
          if (!select) {
              if (profileSelectionMode) setupProfileSelectionToolbarMenu() else setupProfileToolbarMenu()
-@@ -842,6 +856,7 @@ class ConfigurationFragment @JvmOverloads constructor(
+@@ -842,6 +857,7 @@ class ConfigurationFragment @JvmOverloads constructor(
                      val subscriptions = mutableListOf<SubscriptionLinkImportPolicy.Candidate>()
                      var qrImportError: Exception? = null
                      var happCryptFound = false
@@ -1743,7 +1751,7 @@ index 936c0574..f14881e9 100644
                      when (
                          ProfileFileImportPolicy.classify(
                              fileName,
-@@ -856,8 +871,8 @@ class ConfigurationFragment @JvmOverloads constructor(
+@@ -856,8 +872,8 @@ class ConfigurationFragment @JvmOverloads constructor(
                                  val entry = zip.nextEntry ?: break
                                  if (entry.isDirectory) continue
                                  val fileText = zip.bufferedReader().readText()
@@ -1754,7 +1762,7 @@ index 936c0574..f14881e9 100644
                                  zip.closeEntry()
                              }
                              zip.closeQuietly()
-@@ -886,6 +901,9 @@ class ConfigurationFragment @JvmOverloads constructor(
+@@ -886,6 +902,9 @@ class ConfigurationFragment @JvmOverloads constructor(
                                          is QrCodeImportResult.Subscription -> {
                                              subscriptions.add(result.candidate)
                                          }
@@ -1764,7 +1772,7 @@ index 936c0574..f14881e9 100644
                                          QrCodeImportResult.Empty -> Unit
                                      }
                                  } catch (error: Exception) {
-@@ -899,8 +917,8 @@ class ConfigurationFragment @JvmOverloads constructor(
+@@ -899,8 +918,8 @@ class ConfigurationFragment @JvmOverloads constructor(
                              val fileText = context.contentResolver.openInputStream(file)!!.use {
                                  it.bufferedReader().readText()
                              }
@@ -1775,7 +1783,7 @@ index 936c0574..f14881e9 100644
                          }
                      }
                      if (proxies.isNotEmpty()) {
-@@ -916,7 +934,7 @@ class ConfigurationFragment @JvmOverloads constructor(
+@@ -916,7 +935,7 @@ class ConfigurationFragment @JvmOverloads constructor(
                              context.happCryptUnsupportedDialog().show()
                          }
                      }
@@ -1784,7 +1792,7 @@ index 936c0574..f14881e9 100644
                          qrImportError?.let { throw it }
                          onMainDispatcher {
                              snackbar(getString(R.string.no_proxies_found_in_file)).show()
-@@ -953,6 +971,11 @@ class ConfigurationFragment @JvmOverloads constructor(
+@@ -953,6 +972,11 @@ class ConfigurationFragment @JvmOverloads constructor(
  
      override fun onMenuItemClick(item: MenuItem): Boolean {
          when (item.itemId) {
@@ -1796,7 +1804,7 @@ index 936c0574..f14881e9 100644
              R.id.action_select_profiles -> {
                  enterProfileSelectionMode()
                  return true
-@@ -1020,13 +1043,9 @@ class ConfigurationFragment @JvmOverloads constructor(
+@@ -1020,13 +1044,9 @@ class ConfigurationFragment @JvmOverloads constructor(
                  return true
              }
  
@@ -1811,16 +1819,16 @@ index 936c0574..f14881e9 100644
                  return true
              }
  
-@@ -1083,6 +1102,8 @@ class ConfigurationFragment @JvmOverloads constructor(
+@@ -1083,6 +1103,8 @@ class ConfigurationFragment @JvmOverloads constructor(
                  val text = SagerNet.getClipboardText()
                  if (text.isBlank()) {
                      snackbar(getString(R.string.clipboard_empty)).show()
 +                } else if (io.nekohasekai.sagernet.utils.MobileTinaProtectedPayload.decode(text) != null) {
-+                    runOnDefaultDispatcher { MobileTinaProtectedImports.import(mainActivity, text) }
++                    runOnDefaultDispatcher { MobileTinaProtectedImports.import(requireActivity() as MainActivity, text) }
                  } else if (RoutingLinkProcessors.forLink(text) != null) {
                      (requireActivity() as MainActivity).requestRoutingImport(text)
                  } else if (SubscriptionLinkImportPolicy.isHappCryptLink(text)) {
-@@ -1114,7 +1135,7 @@ class ConfigurationFragment @JvmOverloads constructor(
+@@ -1114,7 +1136,7 @@ class ConfigurationFragment @JvmOverloads constructor(
                                  val subscription = SubscriptionBean()
                                  group.subscription = subscription
                                  subscription.link = subscriptionLink
@@ -1829,7 +1837,7 @@ index 936c0574..f14881e9 100644
                                  group.name = ""
                                  startActivity(Intent(requireContext(), GroupSettingsActivity::class.java).apply {
                                      putExtra(GroupSettingsActivity.EXTRA_FROM_CLIPBOARD, true)
-@@ -1321,156 +1342,15 @@ class ConfigurationFragment @JvmOverloads constructor(
+@@ -1321,156 +1343,15 @@ class ConfigurationFragment @JvmOverloads constructor(
              }
  
              R.id.action_connection_test_delete_unavailable -> {
@@ -1989,7 +1997,7 @@ index 936c0574..f14881e9 100644
              }
  
              R.id.action_global_mode -> {
-@@ -1533,7 +1413,7 @@ class ConfigurationFragment @JvmOverloads constructor(
+@@ -1533,7 +1414,7 @@ class ConfigurationFragment @JvmOverloads constructor(
              name = candidate.name ?: "Subscription #${System.currentTimeMillis()}"
              subscription = SubscriptionBean().apply {
                  link = candidate.link
@@ -1998,7 +2006,7 @@ index 936c0574..f14881e9 100644
              }
          })
  
-@@ -1544,13 +1424,7 @@ class ConfigurationFragment @JvmOverloads constructor(
+@@ -1544,13 +1425,7 @@ class ConfigurationFragment @JvmOverloads constructor(
          GroupUpdater.startUpdate(group, true)
      }
  
@@ -2013,7 +2021,7 @@ index 936c0574..f14881e9 100644
  
      fun urlTest() {
          GroupConnectionTestController.startUrlTest(this)
-@@ -1624,6 +1498,10 @@ class ConfigurationFragment @JvmOverloads constructor(
+@@ -1624,6 +1499,10 @@ class ConfigurationFragment @JvmOverloads constructor(
              return
          }
          runOnDefaultDispatcher {
@@ -2024,7 +2032,7 @@ index 936c0574..f14881e9 100644
              try {
                  val result = ProfileManager.transferProfiles(profileIds, targetGroupId, operation)
                  onMainDispatcher {
-@@ -1688,22 +1566,10 @@ class ConfigurationFragment @JvmOverloads constructor(
+@@ -1688,22 +1567,10 @@ class ConfigurationFragment @JvmOverloads constructor(
          }
      }
  
@@ -2050,7 +2058,7 @@ index 936c0574..f14881e9 100644
      }
  
      private fun testSelectedProfilesIcmpPing() = selectedProfiles { profiles ->
-@@ -1713,6 +1579,10 @@ class ConfigurationFragment @JvmOverloads constructor(
+@@ -1713,6 +1580,10 @@ class ConfigurationFragment @JvmOverloads constructor(
  
      private fun exportSelectedProfiles(kind: BatchExportKind, target: BatchExportTarget) =
          selectedProfiles { profiles ->
@@ -2061,7 +2069,7 @@ index 936c0574..f14881e9 100644
              val result = when (kind) {
                  BatchExportKind.Standard -> ProfileBatchExport.standardLinks(profiles)
                  BatchExportKind.Universal -> ProfileBatchExport.universalLinks(profiles)
-@@ -2349,6 +2219,7 @@ class ConfigurationFragment @JvmOverloads constructor(
+@@ -2349,6 +2220,7 @@ class ConfigurationFragment @JvmOverloads constructor(
              })
              itemTouchHelper.attachToRecyclerView(configurationListView)
          }
@@ -2069,7 +2077,7 @@ index 936c0574..f14881e9 100644
          lateinit var configurationListView: RecyclerView
          private var didInitialPositionList = false
          private var lastGroupUpdateStamp: Int? = null
-@@ -2396,6 +2267,9 @@ class ConfigurationFragment @JvmOverloads constructor(
+@@ -2396,6 +2268,9 @@ class ConfigurationFragment @JvmOverloads constructor(
          }
  
          override fun onDestroyView() {
@@ -2079,7 +2087,7 @@ index 936c0574..f14881e9 100644
              lastGroupUpdateStamp = null
              didInitialPositionList = false
              if (::configurationListView.isInitialized) {
-@@ -2602,19 +2476,39 @@ class ConfigurationFragment @JvmOverloads constructor(
+@@ -2602,19 +2477,39 @@ class ConfigurationFragment @JvmOverloads constructor(
              if (!::proxyGroup.isInitialized) return
  
              configurationListView = view.findViewById(R.id.configuration_list)
@@ -2123,7 +2131,7 @@ index 936c0574..f14881e9 100644
              )
              configurationListView.adapter = combinedAdapter
              configurationListView.setItemViewCacheSize(20)
-@@ -3377,7 +3271,9 @@ class ConfigurationFragment @JvmOverloads constructor(
+@@ -3377,7 +3272,9 @@ class ConfigurationFragment @JvmOverloads constructor(
              RecyclerView.Adapter<SubscriptionBannerHolder>() {
  
              private var presentation =
@@ -2134,7 +2142,7 @@ index 936c0574..f14881e9 100644
  
              init {
                  setHasStableIds(true)
-@@ -3423,7 +3319,9 @@ class ConfigurationFragment @JvmOverloads constructor(
+@@ -3423,7 +3320,9 @@ class ConfigurationFragment @JvmOverloads constructor(
              }
  
              fun refresh() {
@@ -2145,7 +2153,7 @@ index 936c0574..f14881e9 100644
                  notifyDataSetChanged()
                  (layoutManager as? FixedGridLayoutManager)
                      ?.spanSizeLookup
-@@ -3605,11 +3503,11 @@ class ConfigurationFragment @JvmOverloads constructor(
+@@ -3605,11 +3504,11 @@ class ConfigurationFragment @JvmOverloads constructor(
                          statusColor = context.getColour(R.color.material_green_500)
                      }
                      entity.status == 2 -> {
@@ -2159,7 +2167,7 @@ index 936c0574..f14881e9 100644
                          statusColor = context.getColour(R.color.material_red_500)
                      }
                  }
-@@ -3623,10 +3521,12 @@ class ConfigurationFragment @JvmOverloads constructor(
+@@ -3623,10 +3522,12 @@ class ConfigurationFragment @JvmOverloads constructor(
                      notificationSwitchPopup = activity is SwitchActivity,
                      batchSelection = batchSelection,
                  )
@@ -2173,7 +2181,7 @@ index 936c0574..f14881e9 100644
                      layout = layout,
                      name = ProfileCountryResolver.presentationName(entity, countryVisible),
                      type = entity.profileCardType(DataStore.shortProfileProtocolInfo),
-@@ -3647,7 +3547,7 @@ class ConfigurationFragment @JvmOverloads constructor(
+@@ -3647,7 +3548,7 @@ class ConfigurationFragment @JvmOverloads constructor(
                      statusVisible = !double || entity.status > 0,
                      batchSelection = batchSelection,
                      batchSelected = parent.isProfileSelected(entity.id),
@@ -2182,7 +2190,7 @@ index 936c0574..f14881e9 100644
                      editEnabled = !isCurrentRunningProfile,
                      showUrlTest = !double && showUrlTest,
                      urlTestEnabled = !UrlTest.isUnsupportedProfile(entity),
-@@ -3703,7 +3603,7 @@ class ConfigurationFragment @JvmOverloads constructor(
+@@ -3703,7 +3604,7 @@ class ConfigurationFragment @JvmOverloads constructor(
              }
  
              private fun edit() {
@@ -2191,7 +2199,7 @@ index 936c0574..f14881e9 100644
                  composeView.context.startActivity(
                      entity.settingIntent(
                          composeView.context,
-@@ -3748,6 +3648,7 @@ class ConfigurationFragment @JvmOverloads constructor(
+@@ -3748,6 +3649,7 @@ class ConfigurationFragment @JvmOverloads constructor(
              }
  
              private fun showShareMenu(action: ProfileShareAction) {
@@ -2199,7 +2207,7 @@ index 936c0574..f14881e9 100644
                  runCatching {
                      when (action) {
                          ProfileShareAction.STANDARD_QR -> showCode(entity.toStdLink())
-@@ -3863,13 +3764,51 @@ class ConfigurationFragment @JvmOverloads constructor(
+@@ -3863,13 +3765,51 @@ class ConfigurationFragment @JvmOverloads constructor(
          toolbarOrNull()?.post { focusTvToolbarAction() }
      }
  
@@ -2252,7 +2260,7 @@ index 936c0574..f14881e9 100644
  
          activeToolbar.post {
              if (toolbarOrNull() !== activeToolbar ||
-@@ -3987,7 +3926,6 @@ class ConfigurationFragment @JvmOverloads constructor(
+@@ -3987,7 +3927,6 @@ class ConfigurationFragment @JvmOverloads constructor(
              ProfileToolbarActionId.DELETE_UNAVAILABLE -> R.id.action_connection_test_delete_unavailable
              ProfileToolbarActionId.REMOVE_INSECURE -> R.id.action_remove_insecure
              ProfileToolbarActionId.ICMP_PING -> R.id.action_connection_icmp_ping
@@ -2260,7 +2268,7 @@ index 936c0574..f14881e9 100644
              ProfileToolbarActionId.URL_TEST -> R.id.action_connection_url_test
              ProfileToolbarActionId.GLOBAL_MODE -> R.id.action_global_mode
              ProfileToolbarActionId.CLASH_MODE -> R.id.action_clash_mode
-@@ -4146,6 +4084,7 @@ class ConfigurationFragment @JvmOverloads constructor(
+@@ -4146,6 +4085,7 @@ class ConfigurationFragment @JvmOverloads constructor(
          activeToolbar.inflateMenu(R.menu.profile_selection_menu)
          activeToolbar.setOnMenuItemClickListener(this)
          updateSelectionMenuEnabledState()
@@ -2268,7 +2276,7 @@ index 936c0574..f14881e9 100644
      }
  
      private fun enterProfileSelectionMode() {
-@@ -4205,7 +4144,6 @@ class ConfigurationFragment @JvmOverloads constructor(
+@@ -4205,7 +4145,6 @@ class ConfigurationFragment @JvmOverloads constructor(
              R.id.action_selection_clear_traffic,
              R.id.action_selection_clear_tests,
              R.id.action_selection_icmp_ping,
@@ -2276,7 +2284,7 @@ index 936c0574..f14881e9 100644
              R.id.action_selection_url_test,
              R.id.action_selection_group_copy,
              R.id.action_selection_group_move,
-@@ -4217,6 +4155,15 @@ class ConfigurationFragment @JvmOverloads constructor(
+@@ -4217,6 +4156,15 @@ class ConfigurationFragment @JvmOverloads constructor(
              R.id.action_selection_config_file,
              R.id.action_selection_delete,
          ).forEach { menu.findItem(it)?.isEnabled = enabled }
@@ -2292,7 +2300,7 @@ index 936c0574..f14881e9 100644
      }
  
      private fun setupSearchView() {
-@@ -4225,12 +4172,14 @@ class ConfigurationFragment @JvmOverloads constructor(
+@@ -4225,12 +4173,14 @@ class ConfigurationFragment @JvmOverloads constructor(
              object : MenuItem.OnActionExpandListener {
                  override fun onMenuItemActionExpand(item: MenuItem): Boolean {
                      profileSearchExpanded = true
