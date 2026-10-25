@@ -1812,7 +1812,7 @@ index b0c82cf..2cf5ce1 100644
 +    private val context = service as Service
 +    private val lock = Mutex()
 +    private var currentTitle = title
-+    private var currentText = context.getString(R.string.mobiletina_status_connecting)
++    private var currentText = ""
      var listenPostSpeed = true
  
 -    suspend fun postNotificationSpeedUpdate(stats: SpeedDisplayData) {
