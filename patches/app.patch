@@ -5461,9 +5461,16 @@ index 32891b1..cdf426a 100644
 diff --git a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/group/GroupUpdater.kt b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/group/GroupUpdater.kt
 --- a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/group/GroupUpdater.kt
 +++ b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/group/GroupUpdater.kt
-@@ -145,1 +145,1 @@
+@@ -173,9 +173,9 @@
+                         false
+                     } catch (e: CancellationException) {
+                         throw e
+                     } catch (e: Throwable) {
+                         Logs.w(e)
 -                        userInterface?.onUpdateFailure(proxyGroup, e.readableMessage)
 +                        userInterface?.onUpdateFailure(proxyGroup, app.getString(R.string.mobiletina_import_error))
+                         false
+                     }
 
 diff --git a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/MainActivity.kt b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/MainActivity.kt
 index c403caa..d3bebe6 100644
