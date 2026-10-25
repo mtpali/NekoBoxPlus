@@ -6994,15 +6994,12 @@ index 478d87c..0025945 100644
                      }
                  },
                  actions = {
-@@ -130,3 +132,9 @@ internal fun GroupSettingsScreen(
+@@ -130,3 +132,6 @@ internal fun GroupSettingsScreen(
                      if (canDelete) IconButton(onClick = onDelete) {
                          Icon(painterResource(R.drawable.ic_action_delete), stringResource(R.string.delete))
                      }
 +                    if (canShowQrCode) IconButton(onClick = onShowQrCode) {
 +                        Icon(painterResource(R.drawable.mobiletina_qr_code), stringResource(io.nekohasekai.sagernet.R.string.mobiletina_qr))
-+                    }
-+                    IconButton(onClick = onSave) {
-+                        Icon(painterResource(R.drawable.ic_action_done), stringResource(R.string.apply))
 +                    }
 @@ -391,7 +396,7 @@ internal fun GroupSettingsScreen(
                  TextButton(onClick = {
