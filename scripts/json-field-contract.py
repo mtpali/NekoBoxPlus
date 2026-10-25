@@ -142,6 +142,19 @@ def verify(apk):
             expected[name] = fields
     count = sum(len(fields) for fields in expected.values())
     assert count > 50 and expected.get(TUN), 'Pre-R8 serialized model classes missing'
+    original = expected
+    mapping_path = build / 'outputs/mapping/plusRelease/mapping.txt'
+    mapping = dict(re.findall(r'^([^#\s]+) -> ([^:]+):$', mapping_path.read_text(), re.M))
+    descriptors = {'L' + before.replace('.', '/') + ';': 'L' + after.replace('.', '/') + ';'
+                   for before, after in mapping.items()}
+
+    def final_type(descriptor):
+        return re.sub(r'L[^;]+;', lambda match: descriptors.get(match[0], match[0]), descriptor)
+
+    # R8 may rename a field's reference type (e.g. JsonElement); the JSON key
+    # must stay unchanged, while the reference must match that exact new type.
+    expected = {owner: {(name, final_type(kind)) for name, kind in fields}
+                for owner, fields in original.items()}
     actual = {}
     with zipfile.ZipFile(apk) as archive:
         for name in archive.namelist():
@@ -156,6 +169,9 @@ def verify(apk):
         assert not missing, 'Core JSON field missing or renamed: ' + owner + ' ' + repr(sorted(missing))
     report = {'schema': 1, 'comparison': 'pre-R8 class fields vs declared release DEX fields',
               'classes': len(expected), 'fields': count,
+              'reference_types_follow_r8_mapping': True,
+              'pre_r8': {name: [list(item) for item in sorted(fields)]
+                         for name, fields in sorted(original.items()) if fields},
               'expected': {name: [list(item) for item in sorted(fields)]
                            for name, fields in sorted(expected.items()) if fields}}
     target = build / 'outputs/mapping/plusRelease/json-field-contract.json'

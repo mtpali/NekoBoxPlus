@@ -81,6 +81,8 @@ jobs:
         with:
           name: VPN-build-diagnostics
           path: |
+            dist/
+            upstream/workspace/NekoBoxForAndroid/app/build/outputs/mapping/plusRelease/
             upstream/workspace/NekoBoxForAndroid/app/build/reports/
             upstream/workspace/NekoBoxForAndroid/app/build/test-results/
           if-no-files-found: ignore
