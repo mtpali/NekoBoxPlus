@@ -362,9 +362,28 @@ internal object MobileTinaSubscriptionExpiry {
         if (DataStore.selectedGroup == groupId) DataStore.selectedProxy = replacement.id
         if (activeGroup == groupId) DataStore.currentProfile = 0
         app.sendBroadcast(Intent(ACTION_DATA_CHANGED).setPackage(app.packageName).putExtra("group", groupId))
+        postExpiredNotification()
         scope.launch { SubscriptionUpdater.reconfigureUpdater() }
         withContext(Dispatchers.Main) { Toast.makeText(app, R.string.mobiletina_expired, Toast.LENGTH_LONG).show() }
         true
+    }
+
+    private fun postExpiredNotification() {
+        val manager = app.getSystemService(android.content.Context.NOTIFICATION_SERVICE) as android.app.NotificationManager
+        val channelId = "mobiletina-expiry-status"
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+            manager.createNotificationChannel(android.app.NotificationChannel(
+                channelId, app.getString(R.string.mobiletina_expired), android.app.NotificationManager.IMPORTANCE_DEFAULT
+            ))
+        }
+        val notification = androidx.core.app.NotificationCompat.Builder(app, channelId)
+            .setSmallIcon(android.R.drawable.stat_sys_warning)
+            .setContentTitle(app.getString(R.string.mobiletina_app_title))
+            .setContentText(app.getString(R.string.mobiletina_expired))
+            .setStyle(androidx.core.app.NotificationCompat.BigTextStyle().bigText(app.getString(R.string.mobiletina_expired)))
+            .setAutoCancel(true)
+            .build()
+        manager.notify(10525, notification)
     }
 
     private suspend fun confirmStopped(): Boolean {
