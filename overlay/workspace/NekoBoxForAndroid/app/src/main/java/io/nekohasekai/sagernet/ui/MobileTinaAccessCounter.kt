@@ -10,7 +10,7 @@ internal class MobileTinaAccessCounter {
         group = groupId
         previous = elapsedMillis
         taps++
-        if (taps < 10) return false
+        if (taps < 15) return false
         taps = 0
         return true
     }
