@@ -4,17 +4,17 @@ import org.junit.Assert.*
 import org.junit.Test
 
 class MobileTinaAccessCounterTest {
-    @Test fun tenTapsBelongToOneGroupAndOneSequence() {
+    @Test fun fifteenTapsBelongToOneGroupAndOneSequence() {
         val counter = MobileTinaAccessCounter()
-        repeat(9) { assertFalse(counter.tap(1L, it * 100L)) }
-        assertFalse(counter.tap(2L, 1000L))
-        repeat(8) { assertFalse(counter.tap(2L, 1100L + it * 100L)) }
-        assertTrue(counter.tap(2L, 2000L))
-        assertFalse(counter.tap(2L, 2100L))
+        repeat(14) { assertFalse(counter.tap(1L, it * 100L)) }
+        assertFalse(counter.tap(2L, 1500L))
+        repeat(13) { assertFalse(counter.tap(2L, 1600L + it * 100L)) }
+        assertTrue(counter.tap(2L, 2900L))
+        assertFalse(counter.tap(2L, 3000L))
     }
     @Test fun pauseOrClockRollbackStartsANewSequence() {
         val counter = MobileTinaAccessCounter()
-        repeat(9) { counter.tap(1L, 100L + it * 100L) }
+        repeat(14) { counter.tap(1L, 100L + it * 100L) }
         assertFalse(counter.tap(1L, 5000L))
         assertFalse(counter.tap(1L, 100L))
     }
