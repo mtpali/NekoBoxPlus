@@ -2632,7 +2632,7 @@ index 32891b11..b523d2a3 100644
              onNegative = ::finish,
          )
 diff --git a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/MainActivity.kt b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/MainActivity.kt
-index c403caa..afd64cb 100644
+index c403caa..4e64a83 100644
 --- a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/MainActivity.kt
 +++ b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/MainActivity.kt
 @@ -12,6 +12,7 @@ import android.os.Build
@@ -2643,7 +2643,7 @@ index c403caa..afd64cb 100644
  import android.view.KeyEvent
  import android.view.View
  import android.view.ViewGroup
-@@ -29,11 +30,20 @@ import androidx.core.content.ContextCompat
+@@ -29,11 +30,19 @@ import androidx.core.content.ContextCompat
  import androidx.core.graphics.Insets
  import androidx.core.view.ViewCompat
  import androidx.core.view.WindowInsetsCompat
@@ -2654,7 +2654,6 @@ index c403caa..afd64cb 100644
 +import androidx.activity.viewModels
 +import androidx.lifecycle.repeatOnLifecycle
  import androidx.lifecycle.lifecycleScope
-+import androidx.lifecycle.withResumed
  import androidx.preference.PreferenceDataStore
 +import com.google.android.material.dialog.MaterialAlertDialogBuilder
 +import io.nekohasekai.sagernet.database.AppData
@@ -2664,7 +2663,7 @@ index c403caa..afd64cb 100644
  import com.google.android.material.snackbar.Snackbar
  import io.nekohasekai.sagernet.AppLogLevel
  import io.nekohasekai.sagernet.BuildConfig
-@@ -115,6 +125,8 @@ class MainActivity :
+@@ -115,6 +124,8 @@ class MainActivity :
          }
      }
  
@@ -2673,7 +2672,7 @@ index c403caa..afd64cb 100644
      lateinit var binding: LayoutMainBinding
      private val shellState = MainShellState()
      private var bottomControlsVisibleForCurrentFragment = false
-@@ -178,8 +190,22 @@ class MainActivity :
+@@ -178,8 +189,22 @@ class MainActivity :
          return super.dispatchKeyEvent(event)
      }
  
@@ -2696,7 +2695,7 @@ index c403caa..afd64cb 100644
          MessageStore.setCurrentActivity(this)
          val openSettingsOnCreate = consumeOpenSettingsOnCreate()
  
-@@ -188,6 +214,20 @@ class MainActivity :
+@@ -188,6 +213,20 @@ class MainActivity :
          syncProxyAppsDrawerItem()
          // Keep the fragment host synchronously attached; Compose owns the drawer overlay.
          setContentView(binding.root)
@@ -2717,7 +2716,7 @@ index c403caa..afd64cb 100644
          val drawerOverlay = DrawerOverlayComposeView(this).apply {
              drawerActive = { shellState.drawerRequestedOpen || shellState.drawerIsOpen }
              setContent {
-@@ -208,28 +248,13 @@ class MainActivity :
+@@ -208,28 +247,13 @@ class MainActivity :
          )
  
          binding.fab.setOnClickListener {
@@ -2753,7 +2752,7 @@ index c403caa..afd64cb 100644
                  }
              }
          }
-@@ -244,8 +269,7 @@ class MainActivity :
+@@ -244,8 +268,7 @@ class MainActivity :
          }
  
          if (savedInstanceState == null && !openSettingsOnCreate) {
@@ -2763,7 +2762,7 @@ index c403caa..afd64cb 100644
          }
          onBackPressedDispatcher.addCallback {
              if (shellState.drawerIsOpen) {
-@@ -256,8 +280,13 @@ class MainActivity :
+@@ -256,8 +279,13 @@ class MainActivity :
              if ((fragment as? ToolbarFragment)?.onBackPressed() == true) {
                  return@addCallback
              }
@@ -2778,7 +2777,7 @@ index c403caa..afd64cb 100644
              } else {
                  displayFragmentWithId(R.id.nav_configuration)
              }
-@@ -317,6 +346,31 @@ class MainActivity :
+@@ -317,6 +345,31 @@ class MainActivity :
          }
      }
  
@@ -2810,7 +2809,7 @@ index c403caa..afd64cb 100644
      private fun setupLegacyNavigationBarInsets() {
          val coordinatorInitialLeft = binding.coordinator.paddingLeft
          val coordinatorInitialRight = binding.coordinator.paddingRight
-@@ -363,48 +417,17 @@ class MainActivity :
+@@ -363,48 +416,17 @@ class MainActivity :
      }
  
      private suspend fun performProxyAppsFirstSetup() {
@@ -2863,7 +2862,7 @@ index c403caa..afd64cb 100644
      }
  
      private fun requestProxyAppsToggle(enabled: Boolean) {
-@@ -441,10 +464,137 @@ class MainActivity :
+@@ -441,10 +463,137 @@ class MainActivity :
  
      fun closeDrawer() = shellState.closeDrawer()
  
@@ -3001,15 +3000,14 @@ index c403caa..afd64cb 100644
  
          if (DataStore.hideFromRecentApps) {
              applyHideFromRecentApps(DataStore.hideFromRecentApps)
-@@ -476,7 +626,37 @@ class MainActivity :
+@@ -476,7 +625,36 @@ class MainActivity :
              restoreConnectionTestDialog()
              return
          }
 +        val scannedProtected = intent.getStringArrayListExtra(ScannerActivity.EXTRA_PROTECTED_QR_TEXTS)
 +        if (!scannedProtected.isNullOrEmpty()) {
 +            setIntent(Intent(intent).apply { removeExtra(ScannerActivity.EXTRA_PROTECTED_QR_TEXTS) })
-+            lifecycleScope.launch {
-+                lifecycle.withResumed { Unit }
++            lifecycleScope.launchWhenResumed {
 +                for (text in scannedProtected) {
 +                    try { MobileTinaProtectedImports.import(this@MainActivity, text) }
 +                    catch (e: kotlinx.coroutines.CancellationException) { throw e }
@@ -3039,7 +3037,7 @@ index c403caa..afd64cb 100644
  
          RoutingLinkProcessors.forLink(uri.toString())?.let { processor ->
              setIntent(Intent(intent).setAction(null).setData(null))
-@@ -746,7 +926,7 @@ class MainActivity :
+@@ -746,7 +924,7 @@ class MainActivity :
          if (name.isNullOrBlank()) return
  
          group.name = group.name.takeIf { !it.isNullOrBlank() }
@@ -3048,7 +3046,7 @@ index c403caa..afd64cb 100644
  
          onMainDispatcher {
              displayFragmentWithId(R.id.nav_group)
-@@ -755,7 +935,7 @@ class MainActivity :
+@@ -755,7 +933,7 @@ class MainActivity :
                  title = getText(R.string.subscription_import),
                  message = getString(R.string.subscription_import_message, name),
                  positiveButton = getText(R.string.yes),
@@ -3057,7 +3055,7 @@ index c403caa..afd64cb 100644
                  onPositive = {
                      runOnDefaultDispatcher {
                          finishImportSubscription(group)
-@@ -804,7 +984,7 @@ class MainActivity :
+@@ -804,7 +982,7 @@ class MainActivity :
                  title = getText(R.string.profile_import),
                  message = message,
                  positiveButton = getText(R.string.yes),
@@ -3066,7 +3064,7 @@ index c403caa..afd64cb 100644
                  onPositive = {
                      runOnDefaultDispatcher {
                          finishImportProfiles(profiles)
-@@ -916,8 +1096,10 @@ class MainActivity :
+@@ -916,8 +1094,10 @@ class MainActivity :
          syncState: Boolean = true,
      ) {
          if (fragment == null) return
@@ -3078,7 +3076,7 @@ index c403caa..afd64cb 100644
              (fragment is SettingsFragment && DataStore.showBottomBarInSettings)
          binding.stats.useExternalScrollDriver =
              fragment is ConfigurationFragment || fragment is SettingsFragment
-@@ -959,6 +1141,14 @@ class MainActivity :
+@@ -959,6 +1139,14 @@ class MainActivity :
          @IdRes id: Int,
      ): Boolean {
          when (id) {
@@ -3093,7 +3091,7 @@ index c403caa..afd64cb 100644
              R.id.nav_configuration -> {
                  displayFragment(ConfigurationFragment())
              }
-@@ -1018,6 +1208,7 @@ class MainActivity :
+@@ -1018,6 +1206,7 @@ class MainActivity :
          val previousState = renderedServiceState
          renderedServiceState = state
          DataStore.serviceState = state
@@ -3101,7 +3099,7 @@ index c403caa..afd64cb 100644
  
          if (bottomControlsVisibleForCurrentFragment) {
              binding.fab.changeState(state, previousState, animate)
-@@ -1141,6 +1332,12 @@ class MainActivity :
+@@ -1141,6 +1330,12 @@ class MainActivity :
          connection.connect(this, this)
      }
  
@@ -3114,7 +3112,7 @@ index c403caa..afd64cb 100644
      private val connect =
          registerForActivityResult(VpnRequestActivity.StartService()) {
              if (it) snackbar(R.string.vpn_permission_denied).show()
-@@ -1227,6 +1424,10 @@ class MainActivity :
+@@ -1227,6 +1422,10 @@ class MainActivity :
      }
  
      override fun onDestroy() {
