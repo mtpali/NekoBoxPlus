@@ -121,3 +121,27 @@ print('Verified GitHub-first trusted clock, no device-date expiration fallback a
 
 assert 'MobileTinaSubscriptionExpiry.deferVerification(group, trigger, revision!!)' in expiry_source
 assert 'private fun scheduleFallback(record: Record, wait: Long)' in expiry_source
+
+# Release106: operate on the live background service, preserve the expired profile ID,
+# and update both Android entry points (legacy home shortcut and Quick Settings tile).
+assert 'confirmStopped(groupId)' in expiry_source
+assert 'MobileTinaExpiryConnectionPolicy.shouldStop(groupId, data.state,' in expiry_source
+assert 'service.stopRunner()' in expiry_source
+assert 'activeGroup == groupId' not in expiry_source
+assert 'previousProfileId)' in expiry_source
+assert 'manager.notify("mobiletina-expiry-$groupId"' in expiry_source
+base_service = (NBA/'app/src/main/java/io/nekohasekai/sagernet/bg/BaseService.kt').read_text()
+assert 'MobileTinaSubscriptionExpiry.canStart(profile.id)' in base_service
+group_settings = (NBA/'app/src/main/java/io/nekohasekai/sagernet/ui/GroupSettingsActivity.kt').read_text()
+assert 'onShowQrCode = ::showSubscriptionQr' in group_settings
+assert 'supportFragmentManager.isStateSaved' in group_settings
+assert 'MobileTinaSubscriptionPolicy.isProtectedUrl(DataStore.subscriptionLink)' in group_settings
+for relative in ['app/src/main/res/xml/shortcuts.xml', 'app/src/debug/res/xml/shortcuts.xml']:
+    assert ET.parse(NBA/relative).getroot()[0].get(android+'icon') == '@mipmap/ic_launcher'
+strings = {s.get('name'): s.text for s in ET.parse(res/'values/strings.xml').getroot().findall('string')}
+assert strings['quick_toggle'] == strings['tile_title'] == 'VPN'
+tile = (NBA/'app/src/main/java/io/nekohasekai/sagernet/bg/TileService.kt').read_text()
+assert 'R.mipmap.ic_launcher' in tile and 'R.string.tile_title' in tile
+assert 'label = profileName' not in tile and 'ic_service_' not in tile
+assert 'VERSION_NAME=1.4.2-106' in metadata and 'VERSION_CODE=93' in metadata
+print('Verified release106 live-service expiry, QR access, VPN shortcut/tile branding and version identity.')

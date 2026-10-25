@@ -23,7 +23,7 @@ class MobileTinaExpiryRetirementTest {
                 when (method) {
                     "getByGroup" -> profiles.values.filter { it.groupId == args[0] }
                     "deleteByGroup" -> { profiles.entries.removeAll { it.value.groupId == args[0] }; Unit }
-                    "addProxy" -> { val item = args[0] as ProxyEntity; (++nextId).also { profiles[it] = item } }
+                    "addProxy" -> { val item = args[0] as ProxyEntity; (item.id.takeIf { it > 0 } ?: ++nextId).also { profiles[it] = item } }
                     else -> error(method)
                 }
             },
@@ -84,6 +84,26 @@ class MobileTinaExpiryRetirementTest {
             assertTrue(store.groups[1]!!.subscription!!.protectedContent)
             assertFalse(store.groups[1]!!.subscription!!.autoUpdate)
             assertEquals("", store.groups[1]!!.subscription!!.link)
+        }
+    }
+    @Test fun theConnectedProfileKeepsItsIdentityAndGetsTheExpiryName() {
+        Store().use { store ->
+            store.group(1); store.group(2)
+            val marker = marker().apply { name = "اشتراک شما منقضی شد" }
+            val result = MobileTinaExpiryRetirement.retire(1, digest("https://example.test/sub"), 42, marker, 1)!!
+            assertEquals(1L, result.id)
+            assertEquals("اشتراک شما منقضی شد", result.displayName())
+            assertTrue(MobileTinaExpiryRetirement.isMarker(result))
+            assertEquals(2L, store.profiles[2]!!.groupId)
+        }
+    }
+    @Test fun aLastUsedProfileFromAnotherGroupIsNeverReusedOrRenamed() {
+        Store().use { store ->
+            store.group(1); store.group(2)
+            val other = store.profiles[2]
+            val result = MobileTinaExpiryRetirement.retire(1, digest("https://example.test/sub"), 42, marker(), 2)!!
+            assertNotEquals(2L, result.id)
+            assertSame(other, store.profiles[2])
         }
     }
 }

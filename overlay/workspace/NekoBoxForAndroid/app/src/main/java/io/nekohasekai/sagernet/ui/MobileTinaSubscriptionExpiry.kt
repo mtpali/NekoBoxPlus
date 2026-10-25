@@ -341,8 +341,12 @@ internal object MobileTinaSubscriptionExpiry {
         val now = if (trigger == 1L) Long.MAX_VALUE else verifiedTime() ?: return@withContext false
         if (now < trigger) { scheduleDeadline(record, now); return@withContext true }
         if (readRecord(groupId) != record) return@withContext true
-        val activeGroup = AppData.profiles.getById(DataStore.currentProfile)?.groupId
-        if (activeGroup == groupId && !confirmStopped()) return@withContext false
+        val previousProfileId = DataStore.currentProfile
+        val previousProfileGroup = AppData.profiles.getById(previousProfileId)?.groupId
+        val selectedProfileGroup = AppData.profiles.getById(DataStore.selectedProxy)?.groupId
+        if (!confirmStopped(groupId)) return@withContext false
+        // Stopping can suspend; a successful renewal must never be retired by this old revision.
+        if (GroupUpdater.updating.contains(groupId)) return@withContext false
         val replacement = mutations.withLock {
             currentCoroutineContext().ensureActive()
             if (readRecord(groupId) != record) return@withLock null
@@ -351,7 +355,7 @@ internal object MobileTinaSubscriptionExpiry {
                 serverAddress = "1"; serverPort = 1; username = ""; password = ""
                 name = app.getString(R.string.mobiletina_expired)
             }
-            MobileTinaExpiryRetirement.retire(groupId, record.link, record.updated, marker)
+            MobileTinaExpiryRetirement.retire(groupId, record.link, record.updated, marker, previousProfileId)
         }
         // Compare-and-remove cannot erase a renewed revision; do not cancel this running worker.
         if (prefs.forget(groupId, record.trigger, record.link, record.updated)) {
@@ -359,41 +363,53 @@ internal object MobileTinaSubscriptionExpiry {
             workManager().cancelUniqueWork("mobiletina.expiry.v105.deadline.$groupId.$revision")
         }
         if (replacement == null) return@withContext true
-        if (DataStore.selectedGroup == groupId) DataStore.selectedProxy = replacement.id
-        if (activeGroup == groupId) DataStore.currentProfile = 0
+        if (DataStore.selectedGroup == groupId || selectedProfileGroup == groupId) DataStore.selectedProxy = replacement.id
+        if (previousProfileGroup == groupId && DataStore.currentProfile == previousProfileId) DataStore.currentProfile = 0
         app.sendBroadcast(Intent(ACTION_DATA_CHANGED).setPackage(app.packageName).putExtra("group", groupId))
-        postExpiredNotification()
+        postExpiredNotification(groupId)
         scope.launch { SubscriptionUpdater.reconfigureUpdater() }
         withContext(Dispatchers.Main) { Toast.makeText(app, R.string.mobiletina_expired, Toast.LENGTH_LONG).show() }
         true
     }
 
-    private fun postExpiredNotification() {
-        val manager = app.getSystemService(android.content.Context.NOTIFICATION_SERVICE) as android.app.NotificationManager
-        val channelId = "mobiletina-expiry-status"
-        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
-            manager.createNotificationChannel(android.app.NotificationChannel(
-                channelId, app.getString(R.string.mobiletina_expired), android.app.NotificationManager.IMPORTANCE_DEFAULT
-            ))
-        }
-        val notification = androidx.core.app.NotificationCompat.Builder(app, channelId)
-            .setSmallIcon(android.R.drawable.stat_sys_warning)
-            .setContentTitle(app.getString(R.string.mobiletina_app_title))
-            .setContentText(app.getString(R.string.mobiletina_expired))
-            .setStyle(androidx.core.app.NotificationCompat.BigTextStyle().bigText(app.getString(R.string.mobiletina_expired)))
-            .setAutoCancel(true)
-            .build()
-        manager.notify(10525, notification)
+    private fun postExpiredNotification(groupId: Long) {
+        // Disabled notification permission must not retry an already committed retirement.
+        runCatching {
+            val manager = app.getSystemService(android.app.NotificationManager::class.java)
+            val channelId = "mobiletina-expiry-status"
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                manager.createNotificationChannel(android.app.NotificationChannel(
+                    channelId, app.getString(R.string.mobiletina_expired), android.app.NotificationManager.IMPORTANCE_DEFAULT
+                ))
+            }
+            val openApp = PendingIntent.getActivity(app, 0,
+                Intent(app, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP),
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
+            val notification = androidx.core.app.NotificationCompat.Builder(app, channelId)
+                .setSmallIcon(R.drawable.ic_service_idle)
+                .setContentTitle(app.getString(R.string.mobiletina_expired))
+                .setContentText(app.getString(R.string.mobiletina_expired))
+                .setStyle(androidx.core.app.NotificationCompat.BigTextStyle().bigText(app.getString(R.string.mobiletina_expired)))
+                .setContentIntent(openApp).setAutoCancel(true).build()
+            manager.notify("mobiletina-expiry-$groupId", 10525, notification)
+        }.onFailure(Logs::w)
     }
 
-    private suspend fun confirmStopped(): Boolean {
-        // Verification runs in WorkManager's :bg process, which owns the real service state.
-        // Do not bind/start a service just to find out that the VPN was already off.
+    private suspend fun confirmStopped(groupId: Long): Boolean {
         if (!app.isBgProcess) return false
-        if (DataStore.serviceState == BaseService.State.Idle || DataStore.serviceState == BaseService.State.Stopped) return true
-        SagerNet.stopService()
+        val stoppedService = withContext(Dispatchers.Main.immediate) {
+            val service = DataStore.baseService ?: return@withContext null
+            val data = service.data
+            val proxy = data.proxy
+            if (!MobileTinaExpiryConnectionPolicy.shouldStop(groupId, data.state,
+                    proxy?.profile?.groupId, proxy?.lastSelectorGroupId)) return@withContext null
+            // Invalidate pending starts and automatic recovery, then stop this exact live service.
+            SagerNet.stopService()
+            service.stopRunner()
+            service
+        } ?: return true
         return withTimeoutOrNull(15_000L) {
-            while (DataStore.serviceState != BaseService.State.Stopped && DataStore.serviceState != BaseService.State.Idle) delay(100)
+            while (withContext(Dispatchers.Main.immediate) { stoppedService.data.state != BaseService.State.Stopped }) delay(100)
             true
         } == true
     }

@@ -102,9 +102,18 @@ index 4303fdd..113584d 100644
      }
  }
 diff --git a/workspace/NekoBoxForAndroid/app/src/debug/res/xml/shortcuts.xml b/workspace/NekoBoxForAndroid/app/src/debug/res/xml/shortcuts.xml
-index ac7c161..c2b43a0 100644
+index ac7c161..a9cd6f0 100644
 --- a/workspace/NekoBoxForAndroid/app/src/debug/res/xml/shortcuts.xml
 +++ b/workspace/NekoBoxForAndroid/app/src/debug/res/xml/shortcuts.xml
+@@ -1,7 +1,7 @@
+ <?xml version="1.0" encoding="utf-8"?>
+ <shortcuts xmlns:android="http://schemas.android.com/apk/res/android">
+     <shortcut
+-        android:icon="@drawable/ic_qu_shadowsocks_launcher"
++        android:icon="@mipmap/ic_launcher"
+         android:shortcutId="toggle"
+         android:shortcutLongLabel="@string/quick_toggle"
+         android:shortcutShortLabel="@string/quick_toggle">
 @@ -10,34 +10,4 @@
              android:targetClass="io.nekohasekai.sagernet.QuickToggleShortcut"
              android:targetPackage="com.nb4a.plus.debug" />
@@ -141,7 +150,7 @@ index ac7c161..c2b43a0 100644
 -    </shortcut>
  </shortcuts>
 diff --git a/workspace/NekoBoxForAndroid/app/src/main/AndroidManifest.xml b/workspace/NekoBoxForAndroid/app/src/main/AndroidManifest.xml
-index a412021..07a9c80 100644
+index a412021..cc322fc 100644
 --- a/workspace/NekoBoxForAndroid/app/src/main/AndroidManifest.xml
 +++ b/workspace/NekoBoxForAndroid/app/src/main/AndroidManifest.xml
 @@ -1,12 +1,6 @@
@@ -827,7 +836,7 @@ index a412021..07a9c80 100644
 +        <activity android:name="io.nekohasekai.sagernet.ui.AdblockCustomFiltersActivity" android:configChanges="uiMode" android:label="@string/adblock_custom_filters" android:launchMode="singleTask" android:parentActivityName="io.nekohasekai.sagernet.ui.MainActivity" />
 +        <activity android:name="io.nekohasekai.sagernet.ui.AdblockCustomFilterActivity" android:configChanges="uiMode" android:label="@string/adblock_add_filter" android:launchMode="singleTask" android:parentActivityName="io.nekohasekai.sagernet.ui.AdblockCustomFiltersActivity" />
 +        <activity android:name="io.nekohasekai.sagernet.ui.AdblockCustomRulesActivity" android:configChanges="uiMode" android:label="@string/adblock_custom_rules" android:launchMode="singleTask" android:parentActivityName="io.nekohasekai.sagernet.ui.MainActivity" />
-+        <activity android:name=".QuickToggleShortcut" android:excludeFromRecents="true" android:exported="true" android:label="@string/quick_toggle" android:launchMode="singleTask" android:process=":bg" android:taskAffinity="" android:theme="@android:style/Theme.Translucent.NoTitleBar">
++        <activity android:name=".QuickToggleShortcut" android:icon="@mipmap/ic_launcher" android:excludeFromRecents="true" android:exported="true" android:label="@string/quick_toggle" android:launchMode="singleTask" android:process=":bg" android:taskAffinity="" android:theme="@android:style/Theme.Translucent.NoTitleBar">
              <intent-filter>
                  <action android:name="android.intent.action.CREATE_SHORTCUT" />
              </intent-filter>
@@ -1342,6 +1351,19 @@ index daedb36..e877c33 100644
  }
  
  object Param {
+diff --git a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/QuickToggleShortcut.kt b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/QuickToggleShortcut.kt
+index cb65a1f..85f8f50 100644
+--- a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/QuickToggleShortcut.kt
++++ b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/QuickToggleShortcut.kt
+@@ -47,7 +47,7 @@ class QuickToggleShortcut : Activity(), SagerConnection.Callback {
+                     .setIntent(Intent(this,
+                         QuickToggleShortcut::class.java).setAction(Intent.ACTION_MAIN))
+                     .setIcon(IconCompat.createWithResource(this,
+-                        R.drawable.ic_qu_shadowsocks_launcher))
++                        R.mipmap.ic_launcher))
+                     .setShortLabel(getString(R.string.quick_toggle))
+                     .build()))
+             finish()
 diff --git a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/SagerNet.kt b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/SagerNet.kt
 index af78c50..91737b8 100644
 --- a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/SagerNet.kt
@@ -1467,7 +1489,7 @@ index af78c50..91737b8 100644
          var underlyingNetwork: Network? = null
  
 diff --git a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/bg/BaseService.kt b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/bg/BaseService.kt
-index fcac457..115cd8c 100644
+index fcac457..24a4343 100644
 --- a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/bg/BaseService.kt
 +++ b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/bg/BaseService.kt
 @@ -20,7 +20,6 @@ import io.nekohasekai.sagernet.R
@@ -1662,6 +1684,17 @@ index fcac457..115cd8c 100644
                  }
                  if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                      registerReceiver(
+@@ -1323,6 +1198,10 @@ class BaseService {
+                             data.notification = createNotification(profile)
+                         }
+ 
++                        if (!io.nekohasekai.sagernet.ui.MobileTinaSubscriptionExpiry.canStart(profile.id)) {
++                            withContext(Dispatchers.Main.immediate) { stopRunner() }
++                            return@withLock
++                        }
+                         Executable.killAll()    // clean up old processes
+                         val hasActiveWifiRules = hasActiveWifiRules()
+                         SagerNet.application.nativeInterface.setWifiRuleMonitoringEnabled(hasActiveWifiRules)
 diff --git a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/bg/ProxyService.kt b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/bg/ProxyService.kt
 index 17951b7..499cfe6 100644
 --- a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/bg/ProxyService.kt
@@ -1722,7 +1755,7 @@ index 28848b9..0d4a847 100644
          override fun cbTrafficUpdate(stats: TrafficDataBatch) {
              val callback = callback ?: return
 diff --git a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/bg/ServiceNotification.kt b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/bg/ServiceNotification.kt
-index b0c82cf..2cf5ce1 100644
+index b0c82cf..0cc7f7b 100644
 --- a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/bg/ServiceNotification.kt
 +++ b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/bg/ServiceNotification.kt
 @@ -1,6 +1,8 @@
@@ -2265,6 +2298,58 @@ index 2793346..713cf83 100644
      }
 -
  }
+diff --git a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/bg/TileService.kt b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/bg/TileService.kt
+index dd46ee5..0b2de62 100644
+--- a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/bg/TileService.kt
++++ b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/bg/TileService.kt
+@@ -11,11 +11,7 @@ import android.service.quicksettings.TileService as BaseTileService
+ 
+ @RequiresApi(24)
+ class TileService : BaseTileService(), SagerConnection.Callback {
+-    private val iconIdle by lazy { Icon.createWithResource(this, R.drawable.ic_service_idle) }
+-    private val iconBusy by lazy { Icon.createWithResource(this, R.drawable.ic_service_busy) }
+-    private val iconConnected by lazy {
+-        Icon.createWithResource(this, R.drawable.ic_service_active)
+-    }
++    private val appIcon by lazy { Icon.createWithResource(this, R.mipmap.ic_launcher) }
+     private var tapPending = false
+ 
+     private val connection = SagerConnection(SagerConnection.CONNECTION_ID_TILE)
+@@ -51,31 +47,26 @@ class TileService : BaseTileService(), SagerConnection.Callback {
+ 
+     private fun updateTile(serviceState: BaseService.State, profileName: String?) {
+         qsTile?.apply {
+-            label = null
++            icon = appIcon
++            label = getString(R.string.tile_title)
+             when (serviceState) {
+-                BaseService.State.Idle -> error("serviceState")
++                BaseService.State.Idle -> state = Tile.STATE_UNAVAILABLE
+                 BaseService.State.Connecting -> {
+-                    icon = iconBusy
+                     state = Tile.STATE_ACTIVE
+                 }
+ 
+                 BaseService.State.Connected -> {
+-                    icon = iconConnected
+-                    label = profileName
+                     state = Tile.STATE_ACTIVE
+                 }
+ 
+                 BaseService.State.Stopping -> {
+-                    icon = iconBusy
+                     state = Tile.STATE_UNAVAILABLE
+                 }
+ 
+                 BaseService.State.Stopped -> {
+-                    icon = iconIdle
+                     state = Tile.STATE_INACTIVE
+                 }
+             }
+-            label = label ?: getString(R.string.app_name)
+             updateTile()
+         }
+     }
 diff --git a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/bg/VpnService.kt b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/bg/VpnService.kt
 index 7be0b5b..5d52fcb 100644
 --- a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/bg/VpnService.kt
@@ -2870,7 +2955,7 @@ index 6db9064..d60a763 100644
      }
  
 diff --git a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/group/GroupInterfaceAdapter.kt b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/group/GroupInterfaceAdapter.kt
-index e5f381a..5e2a891 100644
+index e5f381a..4b0afe6 100644
 --- a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/group/GroupInterfaceAdapter.kt
 +++ b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/group/GroupInterfaceAdapter.kt
 @@ -8,7 +8,6 @@ import io.nekohasekai.sagernet.ktx.onMainDispatcher
@@ -2881,7 +2966,7 @@ index e5f381a..5e2a891 100644
  import kotlin.coroutines.resume
  import kotlin.coroutines.suspendCoroutine
  
-@@ -40,52 +39,12 @@ class GroupInterfaceAdapter(val context: ThemedActivity) : GroupManager.Interfac
+@@ -40,57 +39,17 @@ class GroupInterfaceAdapter(val context: ThemedActivity) : GroupManager.Interfac
          byUser: Boolean
      ) {
          if (!byUser) return
@@ -2939,17 +3024,12 @@ index e5f381a..5e2a891 100644
      }
  
      override suspend fun onUpdateFailure(group: ProxyGroup, message: String) {
-diff --git a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/group/GroupInterfaceAdapter.kt b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/group/GroupInterfaceAdapter.kt
---- a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/group/GroupInterfaceAdapter.kt
-+++ b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/group/GroupInterfaceAdapter.kt
-@@ -91,5 +91,5 @@
-     override suspend fun onUpdateFailure(group: ProxyGroup, message: String) {
          onMainDispatcher {
 -            context.snackbar(message).show()
 +            context.snackbar(context.getString(R.string.mobiletina_import_error)).show()
          }
      }
-
+ 
 diff --git a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/group/RawUpdater.kt b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/group/RawUpdater.kt
 index f2c562e..f6da710 100644
 --- a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/group/RawUpdater.kt
@@ -5437,7 +5517,7 @@ index 2388eaf..b26e428 100644
              }
          }
 diff --git a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/GroupSettingsActivity.kt b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/GroupSettingsActivity.kt
-index 32891b1..cdf426a 100644
+index 32891b1..588f893 100644
 --- a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/GroupSettingsActivity.kt
 +++ b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/GroupSettingsActivity.kt
 @@ -314,6 +314,10 @@ class GroupSettingsActivity : ThemedActivity(),
@@ -5451,17 +5531,15 @@ index 32891b1..cdf426a 100644
          isFromClipboard = intent.getBooleanExtra(EXTRA_FROM_CLIPBOARD, false)
          val subscriptionLink = intent.getStringExtra(EXTRA_GROUP_SUBSCRIPTION_LINK)
          DataStore.editingId = editingId
-@@ -342,8 +346,10 @@ class GroupSettingsActivity : ThemedActivity(),
-                     GroupSettingsScreen(
-                         canDelete = editingId == 0L || GroupManager.canDelete(editingId),
-                         frontProxyName = outboundName(DataStore.frontProxyTmp, DataStore.frontProxy),
-                         landingProxyName = outboundName(DataStore.landingProxyTmp, DataStore.landingProxy),
+@@ -346,6 +350,8 @@ class GroupSettingsActivity : ThemedActivity(),
                          onClose = ::closeEditor,
                          onSave = { runOnDefaultDispatcher { saveAndExit() } },
                          onDelete = ::requestDelete,
-+                        canShowQrCode = DataStore.groupType == GroupType.SUBSCRIPTION && DataStore.subscriptionLink.isNotBlank(),
-+                        onShowQrCode = { io.nekohasekai.sagernet.widget.QRCodeDialog(DataStore.subscriptionLink, DataStore.groupName).show(supportFragmentManager, "mobiletina-subscription-qr") },
++                        canShowQrCode = canShowSubscriptionQr(),
++                        onShowQrCode = ::showSubscriptionQr,
                          onSelectFrontProxy = { selectProxy(true) },
+                         onSelectLandingProxy = { selectProxy(false) },
+                         onImportRouting = ::importSubscriptionRouting,
 @@ -383,7 +389,7 @@ class GroupSettingsActivity : ThemedActivity(),
                  GroupManager.updateGroup(newGroup)
                  showRoutingNotProvided()
@@ -5471,7 +5549,7 @@ index 32891b1..cdf426a 100644
                  GroupUpdater.startUpdate(newGroup, true)
              }
          } else if (needSave()) {
-@@ -487,7 +493,7 @@ class GroupSettingsActivity : ThemedActivity(),
+@@ -487,12 +493,25 @@ class GroupSettingsActivity : ThemedActivity(),
              title = getText(R.string.unsaved_changes_prompt),
              positiveButton = getText(R.string.yes),
              negativeButton = getText(R.string.no),
@@ -5480,8 +5558,26 @@ index 32891b1..cdf426a 100644
              onPositive = { runOnDefaultDispatcher { saveAndExit() } },
              onNegative = ::finish,
          )
+     }
+ 
++    private fun canShowSubscriptionQr(): Boolean =
++        DataStore.groupType == GroupType.SUBSCRIPTION && DataStore.subscriptionLink.isNotBlank() &&
++            !MobileTinaProtection.isProtected(DataStore.editingId) &&
++            !io.nekohasekai.sagernet.utils.MobileTinaSubscriptionPolicy.isProtectedUrl(DataStore.subscriptionLink)
++
++    private fun showSubscriptionQr() {
++        if (isFinishing || isDestroyed || supportFragmentManager.isStateSaved || !canShowSubscriptionQr()) return
++        val tag = "mobiletina-subscription-qr"
++        if (supportFragmentManager.findFragmentByTag(tag) != null) return
++        io.nekohasekai.sagernet.widget.QRCodeDialog(DataStore.subscriptionLink, DataStore.groupName)
++            .show(supportFragmentManager, tag)
++    }
++
+     private fun requestDelete() {
+         val id = DataStore.editingId
+         if (id == 0L) {
 diff --git a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/MainActivity.kt b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/MainActivity.kt
-index c403caa..d3bebe6 100644
+index c403caa..e328a7f 100644
 --- a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/MainActivity.kt
 +++ b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/MainActivity.kt
 @@ -12,6 +12,7 @@ import android.os.Build
@@ -5583,7 +5679,7 @@ index c403caa..d3bebe6 100644
          val drawerOverlay = DrawerOverlayComposeView(this).apply {
              drawerActive = { shellState.drawerRequestedOpen || shellState.drawerIsOpen }
              setContent {
-@@ -208,28 +244,13 @@ class MainActivity :
+@@ -208,28 +245,13 @@ class MainActivity :
          )
  
          binding.fab.setOnClickListener {
@@ -5619,7 +5715,7 @@ index c403caa..d3bebe6 100644
                  }
              }
          }
-@@ -244,8 +265,7 @@ class MainActivity :
+@@ -244,8 +266,7 @@ class MainActivity :
          }
  
          if (savedInstanceState == null && !openSettingsOnCreate) {
@@ -5629,7 +5725,7 @@ index c403caa..d3bebe6 100644
          }
          onBackPressedDispatcher.addCallback {
              if (shellState.drawerIsOpen) {
-@@ -256,16 +276,18 @@ class MainActivity :
+@@ -256,16 +277,18 @@ class MainActivity :
              if ((fragment as? ToolbarFragment)?.onBackPressed() == true) {
                  return@addCallback
              }
@@ -5652,7 +5748,7 @@ index c403caa..d3bebe6 100644
          if (openSettingsOnCreate) {
              displayFragmentWithId(R.id.nav_settings)
              supportFragmentManager.executePendingTransactions()
-@@ -282,11 +304,10 @@ class MainActivity :
+@@ -282,11 +305,10 @@ class MainActivity :
  
          showPendingCustomThemePreview()
  
@@ -5665,7 +5761,7 @@ index c403caa..d3bebe6 100644
  
          // sdk 33 notification
          if (Build.VERSION.SDK_INT >= 33) {
-@@ -317,23 +338,29 @@ class MainActivity :
+@@ -317,23 +339,29 @@ class MainActivity :
          }
      }
  
@@ -5712,7 +5808,7 @@ index c403caa..d3bebe6 100644
      }
  
      private fun holdInitialDrawForProfiles() {
-@@ -363,48 +390,17 @@ class MainActivity :
+@@ -363,48 +391,17 @@ class MainActivity :
      }
  
      private suspend fun performProxyAppsFirstSetup() {
@@ -5765,7 +5861,7 @@ index c403caa..d3bebe6 100644
      }
  
      private fun requestProxyAppsToggle(enabled: Boolean) {
-@@ -441,10 +437,136 @@ class MainActivity :
+@@ -441,10 +438,136 @@ class MainActivity :
  
      fun closeDrawer() = shellState.closeDrawer()
  
@@ -5902,15 +5998,14 @@ index c403caa..d3bebe6 100644
  
          if (DataStore.hideFromRecentApps) {
              applyHideFromRecentApps(DataStore.hideFromRecentApps)
-@@ -464,19 +586,64 @@
+@@ -464,19 +587,64 @@ class MainActivity :
          }
      }
  
 -    fun refreshNavMenu(clashApi: Boolean) {
 -        shellState.trafficVisible = clashApi
--    }
 +
- 
++
 +    private fun requestStartupPermissions() {
 +        val missing = mutableListOf<String>()
 +        if (androidx.core.content.ContextCompat.checkSelfPermission(this, android.Manifest.permission.CAMERA) != android.content.pm.PackageManager.PERMISSION_GRANTED) {
@@ -5930,8 +6025,8 @@ index c403caa..d3bebe6 100644
 +    private fun requestVpnConsent() {
 +        val intent = android.net.VpnService.prepare(this) ?: return
 +        startActivityForResult(intent, 10502)
-+    }
-+
+     }
+ 
      override fun onNewIntent(intent: Intent) {
          super.onNewIntent(intent)
          setIntent(intent)
@@ -5972,7 +6067,7 @@ index c403caa..d3bebe6 100644
  
          RoutingLinkProcessors.forLink(uri.toString())?.let { processor ->
              setIntent(Intent(intent).setAction(null).setData(null))
-@@ -648,60 +794,6 @@ class MainActivity :
+@@ -648,60 +816,6 @@ class MainActivity :
          }
      }
  
@@ -6033,7 +6128,7 @@ index c403caa..d3bebe6 100644
      fun urlTest(automatic: Boolean = false): Int {
          if (!DataStore.serviceState.connected || connection.service == null) {
              error("not started")
-@@ -709,7 +801,7 @@ class MainActivity :
+@@ -709,7 +823,7 @@ class MainActivity :
          return connection.service!!.urlTest(automatic)
      }
  
@@ -6042,7 +6137,7 @@ index c403caa..d3bebe6 100644
          val group: ProxyGroup
  
          val url = uri.getQueryParameter("url")
-@@ -746,7 +838,12 @@ class MainActivity :
+@@ -746,7 +860,12 @@ class MainActivity :
          if (name.isNullOrBlank()) return
  
          group.name = group.name.takeIf { !it.isNullOrBlank() }
@@ -6056,7 +6151,7 @@ index c403caa..d3bebe6 100644
  
          onMainDispatcher {
              displayFragmentWithId(R.id.nav_group)
-@@ -755,7 +852,7 @@ class MainActivity :
+@@ -755,7 +874,7 @@ class MainActivity :
                  title = getText(R.string.subscription_import),
                  message = getString(R.string.subscription_import_message, name),
                  positiveButton = getText(R.string.yes),
@@ -6065,7 +6160,7 @@ index c403caa..d3bebe6 100644
                  onPositive = {
                      runOnDefaultDispatcher {
                          finishImportSubscription(group)
-@@ -765,9 +862,40 @@ class MainActivity :
+@@ -765,9 +884,40 @@ class MainActivity :
          }
      }
  
@@ -6109,7 +6204,7 @@ index c403caa..d3bebe6 100644
      }
  
      suspend fun importProfile(uri: Uri) {
-@@ -804,7 +932,7 @@ class MainActivity :
+@@ -804,7 +954,7 @@ class MainActivity :
                  title = getText(R.string.profile_import),
                  message = message,
                  positiveButton = getText(R.string.yes),
@@ -6118,7 +6213,7 @@ index c403caa..d3bebe6 100644
                  onPositive = {
                      runOnDefaultDispatcher {
                          finishImportProfiles(profiles)
-@@ -818,6 +946,8 @@ class MainActivity :
+@@ -818,6 +968,8 @@ class MainActivity :
          val targetId = DataStore.selectedGroupForImport()
  
          ProfileManager.createProfiles(targetId, profiles)
@@ -6127,7 +6222,7 @@ index c403caa..d3bebe6 100644
  
          onMainDispatcher {
              displayFragmentWithId(R.id.nav_configuration)
-@@ -905,20 +1035,16 @@ class MainActivity :
+@@ -905,20 +1057,16 @@ class MainActivity :
          fragment.openGroup(groupId, animate = false)
      }
  
@@ -6151,7 +6246,7 @@ index c403caa..d3bebe6 100644
          binding.stats.useExternalScrollDriver =
              fragment is ConfigurationFragment || fragment is SettingsFragment
          if (bottomControlsVisibleForCurrentFragment) {
-@@ -959,6 +1085,14 @@ class MainActivity :
+@@ -959,6 +1107,14 @@ class MainActivity :
          @IdRes id: Int,
      ): Boolean {
          when (id) {
@@ -6166,7 +6261,7 @@ index c403caa..d3bebe6 100644
              R.id.nav_configuration -> {
                  displayFragment(ConfigurationFragment())
              }
-@@ -984,19 +1118,6 @@ class MainActivity :
+@@ -984,19 +1140,6 @@ class MainActivity :
                  displayFragment(SettingsFragment())
              }
  
@@ -6186,7 +6281,7 @@ index c403caa..d3bebe6 100644
              R.id.nav_about -> {
                  displayFragment(AboutFragment())
              }
-@@ -1018,6 +1139,7 @@ class MainActivity :
+@@ -1018,6 +1161,7 @@ class MainActivity :
          val previousState = renderedServiceState
          renderedServiceState = state
          DataStore.serviceState = state
@@ -6194,7 +6289,7 @@ index c403caa..d3bebe6 100644
  
          if (bottomControlsVisibleForCurrentFragment) {
              binding.fab.changeState(state, previousState, animate)
-@@ -1032,8 +1154,6 @@ class MainActivity :
+@@ -1032,8 +1176,6 @@ class MainActivity :
                  it.refreshVisibleProfileActions()
                  it.refreshToolbarMenuState()
              }
@@ -6203,7 +6298,7 @@ index c403caa..d3bebe6 100644
          (supportFragmentManager.findFragmentById(R.id.fragment_holder) as? SettingsFragment)
              ?.syncServiceState()
          if (msg != null) snackbar(getString(R.string.vpn_error, msg)).show()
-@@ -1141,6 +1261,12 @@ class MainActivity :
+@@ -1141,6 +1283,12 @@ class MainActivity :
          connection.connect(this, this)
      }
  
@@ -6216,7 +6311,7 @@ index c403caa..d3bebe6 100644
      private val connect =
          registerForActivityResult(VpnRequestActivity.StartService()) {
              if (it) snackbar(R.string.vpn_permission_denied).show()
-@@ -1188,14 +1314,6 @@ class MainActivity :
+@@ -1188,14 +1336,6 @@ class MainActivity :
                  }
              }
  
@@ -6231,7 +6326,7 @@ index c403caa..d3bebe6 100644
              Key.GLOBAL_MODE -> {
                  syncGlobalModeFabStyle()
              }
-@@ -1227,6 +1345,10 @@ class MainActivity :
+@@ -1227,6 +1367,10 @@ class MainActivity :
      }
  
      override fun onDestroy() {
@@ -6242,7 +6337,7 @@ index c403caa..d3bebe6 100644
          binding.root.removeCallbacks(initialDrawTimeout)
          initialDrawListener?.let { listener ->
              binding.root.viewTreeObserver.takeIf { it.isAlive }
-@@ -1239,12 +1361,8 @@ class MainActivity :
+@@ -1239,12 +1383,8 @@ class MainActivity :
          customThemePreviewDialog?.dismiss()
          customThemePreviewDialog = null
          if (isFinishing) {
@@ -6756,7 +6851,7 @@ index 2765e38..a5135c1 100644
          },
      )
 diff --git a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/compose/GlobalSettingsScreen.kt b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/compose/GlobalSettingsScreen.kt
-index b6c495f..011dfdc 100644
+index b6c495f..f918e54 100644
 --- a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/compose/GlobalSettingsScreen.kt
 +++ b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/compose/GlobalSettingsScreen.kt
 @@ -6,7 +6,6 @@ import androidx.annotation.StringRes
@@ -6868,7 +6963,8 @@ index b6c495f..011dfdc 100644
      "ipv6Mode" to "0",
      "rulesProvider" to "1",
      "rulesGeositeUrl" to "https://github.com/SagerNet/sing-geosite/releases/latest/download/geosite.db",
-@@ -334,35 +301,15 @@ private val GLOBAL_SETTINGS: Map<String, List<GlobalSettingItem>> = mapOf(
+@@ -333,36 +300,16 @@ private val GLOBAL_SETTINGS: Map<String, List<GlobalSettingItem>> = mapOf(
+         action("appTheme", R.drawable.ic_baseline_color_lens_24, R.string.theme),
          action("configureCustomTheme", R.drawable.ic_action_settings, R.string.configure_custom_theme),
          list("nightTheme", R.drawable.ic_baseline_wb_sunny_24, R.string.night_mode, R.array.night_mode, R.array.int_array_4),
 -        list("appLanguage", R.drawable.baseline_translate_24, R.string.language, R.array.language_entries, R.array.language_values),
@@ -6904,7 +7000,7 @@ index b6c495f..011dfdc 100644
          sw("hideFromRecentApps", R.drawable.ic_baseline_visibility_off_24, R.string.hide_from_recent_apps, R.string.hide_from_recent_apps_summary),
      ),
      "connection" to listOf(
-@@ -412,6 +360,7 @@ private val GLOBAL_SETTINGS: Map<String, List<GlobalSettingItem>> = mapOf(
+@@ -412,6 +359,7 @@ private val GLOBAL_SETTINGS: Map<String, List<GlobalSettingItem>> = mapOf(
          sw("allowAccess", R.drawable.ic_baseline_nat_24, R.string.allow_access, R.string.allow_access_sum),
      ),
      "routing" to listOf(
@@ -6961,20 +7057,18 @@ index ba453c2..c7399f1 100644
                  DropdownMenuItem(
                      text = { Text(stringResource(R.string.clear_profiles)) },
 diff --git a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/compose/GroupSettingsScreen.kt b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/compose/GroupSettingsScreen.kt
-index 478d87c..0025945 100644
+index 478d87c..714aaff 100644
 --- a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/compose/GroupSettingsScreen.kt
 +++ b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/compose/GroupSettingsScreen.kt
-@@ -39,8 +39,10 @@ internal fun GroupSettingsScreen(
- internal fun GroupSettingsScreen(
-     canDelete: Boolean,
-     frontProxyName: String,
-     landingProxyName: String,
+@@ -46,6 +46,8 @@ internal fun GroupSettingsScreen(
      onClose: () -> Unit,
      onSave: () -> Unit,
      onDelete: () -> Unit,
 +    canShowQrCode: Boolean,
 +    onShowQrCode: () -> Unit,
      onSelectFrontProxy: () -> Unit,
+     onSelectLandingProxy: () -> Unit,
+     onImportRouting: () -> Unit,
 @@ -56,7 +58,7 @@ internal fun GroupSettingsScreen(
  ) {
      val context = LocalContext.current
@@ -6984,8 +7078,7 @@ index 478d87c..0025945 100644
      var revision by remember { mutableIntStateOf(0) }
      var bannerDialog by remember { mutableStateOf(false) }
      val store = DataStore.profileCacheStore
-
-@@ -123,7 +125,7 @@ internal fun GroupSettingsScreen(
+@@ -123,13 +125,16 @@ internal fun GroupSettingsScreen(
                  title = { Text(stringResource(R.string.group_settings)) },
                  navigationIcon = {
                      IconButton(onClick = onClose) {
@@ -6994,13 +7087,15 @@ index 478d87c..0025945 100644
                      }
                  },
                  actions = {
-@@ -130,3 +132,6 @@ internal fun GroupSettingsScreen(
                      if (canDelete) IconButton(onClick = onDelete) {
                          Icon(painterResource(R.drawable.ic_action_delete), stringResource(R.string.delete))
                      }
 +                    if (canShowQrCode) IconButton(onClick = onShowQrCode) {
-+                        Icon(painterResource(R.drawable.mobiletina_qr_code), stringResource(io.nekohasekai.sagernet.R.string.mobiletina_qr))
++                        Icon(painterResource(R.drawable.mobiletina_qr_code), stringResource(R.string.mobiletina_qr))
 +                    }
+                     IconButton(onClick = onSave) {
+                         Icon(painterResource(R.drawable.ic_action_done), stringResource(R.string.apply))
+                     }
 @@ -391,7 +396,7 @@ internal fun GroupSettingsScreen(
                  TextButton(onClick = {
                      changed { store.putStringSet(io.nekohasekai.sagernet.Key.SUBSCRIPTION_BANNER_LAYOUT, selected.toMutableSet()) }
@@ -9064,7 +9159,7 @@ index 65a1c8d..7701a4b 100644
      <item name="action_delete" type="id" />
      <item name="action_apply" type="id" />
 diff --git a/workspace/NekoBoxForAndroid/app/src/main/res/values/strings.xml b/workspace/NekoBoxForAndroid/app/src/main/res/values/strings.xml
-index 2f6ec1c..80851d6 100644
+index 2f6ec1c..9a208fb 100644
 --- a/workspace/NekoBoxForAndroid/app/src/main/res/values/strings.xml
 +++ b/workspace/NekoBoxForAndroid/app/src/main/res/values/strings.xml
 @@ -1,8 +1,8 @@
@@ -9125,7 +9220,7 @@ index 2f6ec1c..80851d6 100644
 -    <string name="group_default">Ungrouped</string>
 -    <string name="quick_toggle">Toggle</string>
 +    <string name="group_default">VPN</string>
-+    <string name="quick_toggle">MobileTina</string>
++    <string name="quick_toggle">VPN</string>
      <string name="quick_enable">Enable</string>
      <string name="quick_disable">Disable</string>
 -    <string name="tile_title">Switcher</string>
@@ -9831,10 +9926,18 @@ index a8eb66f..83ffae4 100644
          <item name="android:statusBarColor">@android:color/transparent</item>
          <item name="colorPrimary">@android:color/transparent</item>
 diff --git a/workspace/NekoBoxForAndroid/app/src/main/res/xml/shortcuts.xml b/workspace/NekoBoxForAndroid/app/src/main/res/xml/shortcuts.xml
-index e309c36..89be223 100644
+index e309c36..d5c549c 100644
 --- a/workspace/NekoBoxForAndroid/app/src/main/res/xml/shortcuts.xml
 +++ b/workspace/NekoBoxForAndroid/app/src/main/res/xml/shortcuts.xml
-@@ -8,36 +8,6 @@
+@@ -1,43 +1,13 @@
+ <?xml version="1.0" encoding="utf-8"?>
+ <shortcuts xmlns:android="http://schemas.android.com/apk/res/android">
+     <shortcut
+-        android:icon="@drawable/ic_qu_shadowsocks_launcher"
++        android:icon="@mipmap/ic_launcher"
+         android:shortcutId="toggle"
+         android:shortcutLongLabel="@string/quick_toggle"
+         android:shortcutShortLabel="@string/quick_toggle">
          <intent
              android:action="android.intent.action.MAIN"
              android:targetClass="io.nekohasekai.sagernet.QuickToggleShortcut"
@@ -10019,14 +10122,14 @@ index fde311a..758ec83 100644
              val originalFileName = output.outputFileName.get()
              output.outputFileName.set(
 diff --git a/workspace/NekoBoxForAndroid/nb4a.properties b/workspace/NekoBoxForAndroid/nb4a.properties
-index b5f787d..35becb6 100644
+index b5f787d..b986f60 100644
 --- a/workspace/NekoBoxForAndroid/nb4a.properties
 +++ b/workspace/NekoBoxForAndroid/nb4a.properties
 @@ -1,4 +1,4 @@
 -PACKAGE_NAME=com.nb4a.plus
 -VERSION_NAME=1.4.2-97
 +PACKAGE_NAME=com.nb4a.mobiletina
-+VERSION_NAME=1.4.2-105
++VERSION_NAME=1.4.2-106
  PRE_VERSION_NAME=pre-1.4.2-20260214-1
 -VERSION_CODE=84
-+VERSION_CODE=92
++VERSION_CODE=93

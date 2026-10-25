@@ -1,4 +1,18 @@
-# Current release: 1.4.2-105 / فیلترشکن
+# Current release: 1.4.2-106 / فیلترشکن
+
+The 2026-10-26 user change log and both main@7380499 and the draft PR branch@7757ccd were reviewed before editing. Preserve startup camera/notification permission requests, concise subscription-import errors, fifteen-tap QR access, the white notification stop button with black text, and the unchanged pinned native core.
+
+Expiration now reads the live background service's root profile and selector group instead of relying on the last-used profile preference. It cancels pending startup/recovery, directly stops the affected service on Main and observes its actual teardown before retirement. A delayed service start rechecks expiry. Retirement retains the connected profile ID when it belongs to the expired group, replaces its name with «اشتراک شما منقضی شد», and does not alter other groups. Expiry posts the same Persian message on a separate notification channel; disabled notification permissions cannot retry an already committed retirement. Notification taps open the application.
+
+The subscription Group Settings toolbar has a QR icon beside delete. It uses the existing QR dialog with duplicate/state-saved guards and preserves protected-source restrictions. Both the legacy home-screen toggle shortcut and the Quick Settings tile are labelled VPN and use the original launcher artwork. Tile updates no longer replace the label or icon with a profile name/status glyph. No new AppWidget provider is introduced.
+
+VersionCode is 465 (93 × 5). The deliverable uses the available original v2 signing key/certificate from the delivered 104 APKs (05d8ab…); the later source-only signer pin 9e5062… did not have a matching private key available. No new signing key is generated. Builds also run on fix/notification-expiry-qr-widget so the draft PR can be validated without merging main.
+
+Required checks: clean source preparation twice, full existing audits, the complete JVM suite including live-service scope and profile-ID/name regressions, Debug and minified Release builds, native guard, actual APK/R8/JSON/artwork/signature validation. No device/emulator or real VPN scenario is claimed from CI alone. Historical sections below do not override this release.
+
+---
+
+# Historical release: 1.4.2-105 / فیلترشکن
 
 Application ID and v2 signing certificate remain unchanged. Android versionCode is 460 (92 × 5); the launcher and network core stay pinned as in104.
 
