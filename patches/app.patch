@@ -5458,6 +5458,13 @@ index 32891b1..cdf426a 100644
              onPositive = { runOnDefaultDispatcher { saveAndExit() } },
              onNegative = ::finish,
          )
+diff --git a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/group/GroupUpdater.kt b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/group/GroupUpdater.kt
+--- a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/group/GroupUpdater.kt
++++ b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/group/GroupUpdater.kt
+@@ -145,1 +145,1 @@
+-                        userInterface?.onUpdateFailure(proxyGroup, e.readableMessage)
++                        userInterface?.onUpdateFailure(proxyGroup, app.getString(R.string.mobiletina_import_error))
+
 diff --git a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/MainActivity.kt b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/MainActivity.kt
 index c403caa..d3bebe6 100644
 --- a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/MainActivity.kt
