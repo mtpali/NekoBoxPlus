@@ -29,7 +29,7 @@ original = subprocess.check_output(['git','-C',str(UPSTREAM),'show','HEAD:'+sett
 current = (UPSTREAM/settings).read_text()
 keys = lambda text: set(re.findall(r'(?:sw|text|list|action)\(\s*"([^"]+)"', text))
 # Source removals explicitly authorized by the user through release105.
-assert keys(original) - {'changeIcon', 'enableGroupUpdateDialog', 'notificationCountryIndicator', 'useToolbar', 'profileCountryIndicator', 'showBottomBarInSettings', 'compactStatsBar', 'legacyMainView', 'showDirectSpeed', 'showGroupInNotification', 'persistentStatusNotification', 'alwaysShowAddress', 'tabDoubleTapToNavigate', 'configureToolbarLayout'} <= keys(current), 'An unapproved upstream setting was removed'
+assert keys(original) - {'changeIcon', 'enableGroupUpdateDialog', 'notificationCountryIndicator', 'useToolbar', 'profileCountryIndicator', 'showBottomBarInSettings', 'compactStatsBar', 'legacyMainView', 'showDirectSpeed', 'showGroupInNotification', 'persistentStatusNotification', 'alwaysShowAddress', 'tabDoubleTapToNavigate', 'configureToolbarLayout', 'appLanguage'} <= keys(current), 'An unapproved upstream setting was removed'
 assert 'changeIcon' not in keys(current)
 for path in res.glob('values*/*.xml'):
     for name, value in re.findall(r'<string[^>]*name="(app_name(?:_long)?)"[^>]*>(.*?)</string>',path.read_text(),re.S):
