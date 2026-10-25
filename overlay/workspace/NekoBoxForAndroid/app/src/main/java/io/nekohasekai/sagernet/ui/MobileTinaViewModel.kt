@@ -55,6 +55,7 @@ internal class MobileTinaViewModel(application: Application) : AndroidViewModel(
     private var metadata: Job? = null
     private var foregroundUpdate: Job? = null
     private var automaticUpdate: Job? = null
+    private var internetClock: Job? = null
     private var generation = 0L
     private var permissionAccepted = false
     private var sawStarting = false
@@ -94,12 +95,22 @@ internal class MobileTinaViewModel(application: Application) : AndroidViewModel(
             group?.id ?: 0, group?.displayName().orEmpty(), profiles, selected,
             usage.copy(expiresAt = expirySeconds),
             marker || if (managedExpiry != null) MobileTinaSubscriptionExpiry.isVerifiedExpired(managedExpiry)
-            else (expirySeconds != null && expirySeconds <= MobileTinaSubscriptionExpiry.nowMillis() / 1000L),
+            else (expirySeconds != null && MobileTinaSubscriptionExpiry.nowMillis()?.let { expirySeconds <= it / 1000L } == true),
         )
     }
 
     fun refresh(foreground: Boolean = false) {
         viewModelScope.launch(Dispatchers.Main.immediate) {
+            if (foreground) {
+                MobileTinaSubscriptionExpiry.recover()
+                if (internetClock?.isActive != true) internetClock = viewModelScope.launch(Dispatchers.IO) {
+                    try { MobileTinaSubscriptionExpiry.refreshClock() }
+                    catch (cancelled: CancellationException) { throw cancelled }
+                    catch (_: Exception) { /* No device-time fallback; show pending time until verified. */ }
+                    finally { refresh() }
+                }
+                refreshDueSubscriptions()
+            }
             metadata?.cancel()
             metadata = viewModelScope.launch {
                 val snapshot = withContext(Dispatchers.IO) { load() }
@@ -111,7 +122,6 @@ internal class MobileTinaViewModel(application: Application) : AndroidViewModel(
                     count = snapshot.profiles.count { !MobileTinaSubscriptionExpiry.isMarker(it) },
                     usage = snapshot.usage, expired = snapshot.expired,
                 )
-                if (foreground) refreshDueSubscriptions()
             }
         }
     }

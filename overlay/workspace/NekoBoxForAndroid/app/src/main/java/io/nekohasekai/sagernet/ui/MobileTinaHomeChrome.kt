@@ -80,7 +80,7 @@ internal object MobileTinaHomeChrome {
                 popup.menu.add(0, R.id.action_mobiletina_group, 4, R.string.mobiletina_group)
                 popup.menu.add(0, R.id.action_mobiletina_search, 5, R.string.mobiletina_search)
                 source.findItem(R.id.action_misc)?.subMenu?.let {
-                    copyMenu(it, popup.menu, setOf(R.id.action_delete_menu, R.id.action_update_subscription, R.id.action_connection_url_test, R.id.action_show_active, R.id.action_global_mode, R.id.nav_tools))
+                    copyMenu(it, popup.menu, setOf(R.id.action_delete_menu, R.id.action_update_subscription, R.id.action_connection_url_test, R.id.action_show_active, R.id.action_global_mode))
                 }
 
             }
@@ -104,7 +104,7 @@ internal object MobileTinaHomeChrome {
                 when (item.itemId) {
                     R.id.action_mobiletina_group -> activity.chooseMobileTinaSubscription()
                     R.id.action_update_subscription -> activity.refreshMobileTinaSubscription()
-                    R.id.nav_route, R.id.nav_adblock, R.id.nav_tools, R.id.nav_logcat, R.id.nav_traffic ->
+                    R.id.nav_route, R.id.nav_adblock ->
                         activity.displayFragmentWithId(item.itemId)
                     else -> activity.dispatchMobileTinaConfigurationAction(item.itemId)
                 }

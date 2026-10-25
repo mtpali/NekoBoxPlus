@@ -25,4 +25,30 @@ class MobileTinaExpiryPolicyTest {
         val wrapped = "#" + java.util.Base64.getEncoder().encodeToString(json.toByteArray())
         assertEquals(true to expected, MobileTinaSubscriptionExpiry.commentExpiry(wrapped))
     }
+
+    @Test fun reportedOctoberTimestampIsTehranTime() {
+        val expected = java.time.Instant.parse("2026-10-25T13:17:00Z").toEpochMilli()
+        val json = """{"outbounds":[],"_comment":"2026-10-25T16:47:00"}"""
+        assertEquals(true to expected, MobileTinaSubscriptionExpiry.commentExpiry(json))
+    }
+    @Test fun arraysOfCustomJsonProfilesKeepTheirEarliestDeadline() {
+        val json = """[{"outbounds":[],"_comment":"2026-10-25T17:47:00"},{"outbounds":[],"_comment":"2026-10-25T16:47:00"}]"""
+        val expected = java.time.Instant.parse("2026-10-25T13:17:00Z").toEpochMilli()
+        assertEquals(true to expected, MobileTinaSubscriptionExpiry.commentExpiry(json))
+        val wrapped = "#" + java.util.Base64.getEncoder().encodeToString(json.toByteArray())
+        assertEquals(true to expected, MobileTinaSubscriptionExpiry.commentExpiry(wrapped))
+    }
+    @Test fun explicitRootMetadataIsNotLostWhenOutboundsWasNormalizedAway() {
+        val json = """{"_comment":"2026-10-25T16:47:00","type":"socks","server":"1"}"""
+        assertEquals(true to java.time.Instant.parse("2026-10-25T13:17:00Z").toEpochMilli(),
+            MobileTinaSubscriptionExpiry.commentExpiry(json))
+    }
+    @Test fun malformedArrayCannotCancelAnExistingDeadline() {
+        assertEquals(false to null, MobileTinaSubscriptionExpiry.commentExpiry("""[{"outbounds":[]},{"_comment":123}]"""))
+        assertEquals(false to null, MobileTinaSubscriptionExpiry.commentExpiry("""{"log":{"_comment":"2026-10-25T16:47:00"}}"""))
+    }
+    @Test fun emptyRecognizedArrayIsANormalRenewal() {
+        assertEquals(true to null, MobileTinaSubscriptionExpiry.commentExpiry("""[{"outbounds":[]},{"outbounds":[]}]"""))
+        assertEquals(false to null, MobileTinaSubscriptionExpiry.commentExpiry("[]"))
+    }
 }

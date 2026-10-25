@@ -94,10 +94,10 @@ internal object MobileTinaSubscriptionExpiry {
         return epoch + elapsed - savedElapsed
     }
 
-    fun nowMillis(): Long = clock?.let {
+    fun nowMillis(): Long? = clock?.let {
         val elapsed = SystemClock.elapsedRealtime()
         if (elapsed >= it.elapsed) it.epoch + elapsed - it.elapsed else null
-    } ?: System.currentTimeMillis()
+    }
 
     private fun rememberTime(epoch: Long) {
         val elapsed = SystemClock.elapsedRealtime()
@@ -121,6 +121,8 @@ internal object MobileTinaSubscriptionExpiry {
         time
     }
 
+    suspend fun refreshClock() = withContext(Dispatchers.IO) { verifiedTime() }
+
     private fun readRecord(groupId: Long): Record? = prefs.record(groupId)?.let {
         Record(groupId, it.first, it.second, it.third)
     }
@@ -141,12 +143,30 @@ internal object MobileTinaSubscriptionExpiry {
             ?: runCatching { LocalDateTime.parse(text.replace(' ', 'T')).atZone(ZoneId.of("Asia/Tehran")).toInstant().toEpochMilli() }.getOrNull()
     }
     internal fun commentExpiry(payload: String): Pair<Boolean, Long?> {
+        fun inspect(value: com.google.gson.JsonElement): Pair<Boolean, Long?> {
+            if (value.isJsonArray) {
+                val entries = value.asJsonArray.map(::inspect)
+                val dates = entries.mapNotNull { it.second }
+                return when {
+                    dates.isNotEmpty() -> true to dates.minOrNull()
+                    entries.isNotEmpty() && entries.all { it.first } -> true to null
+                    else -> false to null
+                }
+            }
+            if (!value.isJsonObject) return false to null
+            val json = value.asJsonObject
+            val comment = json.get("_comment")
+            if (comment != null && !comment.isJsonNull) {
+                if (!comment.isJsonPrimitive || !comment.asJsonPrimitive.isString) return false to null
+                val text = comment.asString.trim()
+                if (text.isNotEmpty()) return parseDate(text)?.let { true to it } ?: (false to null)
+            }
+            return if (json.has("outbounds")) true to null else false to null
+        }
         for (candidate in MobileTinaImportNormalizer.payloadCandidates(payload)) {
-            val json = runCatching { JsonParser.parseString(candidate).asJsonObject }.getOrNull() ?: continue
-            if (!json.has("outbounds")) continue
-            val comment = json.get("_comment")?.takeIf { it.isJsonPrimitive && it.asJsonPrimitive.isString }?.asString
-            if (comment.isNullOrBlank()) return true to null
-            return (parseDate(comment) ?: return false to null).let { true to it }
+            val json = runCatching { JsonParser.parseString(candidate) }.getOrNull() ?: continue
+            val result = inspect(json)
+            if (result.first) return result
         }
         return false to null
     }
@@ -207,6 +227,13 @@ internal object MobileTinaSubscriptionExpiry {
             ExistingWorkPolicy.REPLACE, listOf(fallback)).get(5, TimeUnit.SECONDS)
     }
 
+    suspend fun syncImportedPayloads(groupId: Long, payloads: List<String>) {
+        val recognized = payloads.map { it to commentExpiry(it) }.filter { it.second.first }
+        val earliest = recognized.filter { it.second.second != null }.minByOrNull { it.second.second!! }
+        (earliest ?: recognized.firstOrNull())?.let { syncPayload(groupId, it.first) }
+        if (recognized.isEmpty() && AppData.profiles.getByGroup(groupId).any(::isMarker)) syncPayload(groupId, "")
+    }
+
     suspend fun syncPayload(groupId: Long, payload: String) = withContext(Dispatchers.IO) {
         val (recognized, parsed) = commentExpiry(payload)
         val group = AppData.groups.getById(groupId) ?: return@withContext
@@ -245,6 +272,17 @@ internal object MobileTinaSubscriptionExpiry {
     fun recover() {
         if (!recovering.compareAndSet(false, true)) return
         scope.launch {
+          try {
+            // Recover JSON profiles imported through older clipboard/file paths that lost metadata.
+            if (prefs.getInt("payload-recovery.v105", 0) != 1) {
+                for (group in AppData.groups.allGroups()) {
+                    if (readRecord(group.id) != null) continue
+                    val payloads = AppData.profiles.getByGroup(group.id).mapNotNull { it.configBean?.config }
+                        .filter { "_comment" in it }
+                    if (payloads.isNotEmpty()) syncPayload(group.id, "[" + payloads.joinToString(",") + "]")
+                }
+                prefs.edit().putInt("payload-recovery.v105", 1).apply()
+            }
             val legacy = prefs.getInt("scheduler.v104", 0) != 1
             val ids = prefs.all.keys.filter { it.startsWith("expiry.") }.mapNotNull { it.substringAfter('.').toLongOrNull() }
             for (id in ids) {
@@ -263,6 +301,9 @@ internal object MobileTinaSubscriptionExpiry {
                 else requestVerification(record)
             }
             prefs.edit().putInt("scheduler.v104", 1).apply()
+          } finally {
+            recovering.set(false)
+          }
         }
     }
     suspend fun onAlarm(groupId: Long, trigger: Long) = withContext(Dispatchers.IO) {
@@ -273,6 +314,7 @@ internal object MobileTinaSubscriptionExpiry {
         if (isMarker(profile)) return@withContext false
         val deadline = expiresAt(profile.groupId) ?: return@withContext true
         val now = trustedNow() ?: return@withContext true
+        if (deadline <= now) validRecord(profile.groupId)?.let(::requestVerification)
         deadline > now
     }
 
@@ -321,15 +363,16 @@ internal object MobileTinaSubscriptionExpiry {
         } == true
     }
     private suspend fun fetchTime(): Long? {
-        for (source in listOf("https://www.gstatic.com/generate_204", "https://www.cloudflare.com/cdn-cgi/trace", "https://api.github.com/zen")) {
+        for (source in listOf("https://api.github.com/zen", "https://github.com/robots.txt", "https://www.cloudflare.com/cdn-cgi/trace")) {
             currentCoroutineContext().ensureActive()
             val date = runCatching {
                 val connection = URL(source + "?mobiletina_clock=" + SystemClock.elapsedRealtime()).openConnection() as HttpURLConnection
                 try {
                     connection.connectTimeout = 3_000; connection.readTimeout = 3_000
-                    connection.requestMethod = "GET"; connection.useCaches = false
+                    connection.requestMethod = "HEAD"; connection.useCaches = false
+                    connection.instanceFollowRedirects = false
                     connection.setRequestProperty("Cache-Control", "no-cache, no-store")
-                    if (connection.responseCode !in 200..399) null
+                    if (connection.responseCode !in 200..499 || (connection.getHeaderField("Age")?.toLongOrNull() ?: 0L) > 5L) null
                     else connection.getHeaderFieldDate("Date", -1L).takeIf { it in 1_704_067_200_000L..4_102_444_800_000L }
                 } finally { connection.disconnect() }
             }.getOrNull()

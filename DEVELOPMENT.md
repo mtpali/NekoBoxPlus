@@ -1,3 +1,23 @@
+# Current release: 1.4.2-105 / فیلترشکن
+
+Application ID and v2 signing certificate remain unchanged. Android versionCode is 460 (92 × 5); the launcher and network core stay pinned as in104.
+
+Expiry metadata is now registered for ordinary clipboard, text file, ZIP and gallery imports, in addition to subscription updates and camera/protected imports. JSON arrays use the earliest valid root `_comment`; invalid documents cannot cancel a previous deadline. Existing custom JSON profiles missing a schedule are recovered once. The reported `2026-10-25T16:47:00` means `2026-10-25T13:17:00Z` (Asia/Tehran). Foreground recovery is re-entrant after completion rather than disabled for the lifetime of the process.
+
+The user explicitly requested an internet clock independent of the device date. HTTPS Date is fetched from GitHub API first, GitHub web second and Cloudflare as fallback, with cache-busting, no redirects, TLS verification and stale Age rejection. Time advances with elapsedRealtime, validated against boot/process identity. There is no device-wall-clock fallback for expiry decisions or remaining-day display; before verification the UI shows pending internet time. The foreground clock sync is asynchronous and guarded; failed network fetches retain the shared cooldown. Offline/Doze/force-stop/exact-alarm restrictions can defer execution; no unverified device timestamp authorizes deletion.
+
+MainActivity.onResume already called the activity-scoped model in104. Release105 starts foreground subscription refresh before cancellable UI metadata loading, so service/database refresh callbacks cannot silently discard the request. The Exclave reference uses the same due-subscription updater, network checks and 60-second foreground guard. Auto/Manual share this Activity path.
+
+Explicit source removals: Tools and all its standalone network/backup screens and implementation (including Git/WebDAV and bandwidth-tool IPC); logs viewer; sing-box dashboard/WebView/assets and external web UI delivery; ICMP ping/controller/menu/notification/progress infrastructure; alternate quick toolbar/layout editor; country badges/renderer/SVG assets; compact statistics implementation/layout; legacy view, settings-bottom-bar, direct-speed/group-name/persistent-notification and always-address preference gates. Internal core selector/traffic APIs, protocol support, crash diagnostics and database serialization remain compatible. Old preference keys are no longer read. SOURCE_REMOVALS.json lists the removed files, canonical existing-file edits remain in app.patch, and new resources/classes are in overlay.
+
+The VPN status notification is visible and ongoing, with a dedicated low-importance channel. Its single explicit stop button exists in both collapsed and expanded custom content, independently of wake lock and saved notification preferences. Android/user permission and notification channel controls still apply.
+
+The tab double-tap Go to navigator mode is removed. Ten consecutive short taps on a subscription tab show its QR directly when a link exists and sharing is allowed; #Base64/raw-GitHub protection cannot be bypassed. Existing copy/move group picking remains. Requested menu labels and successful-import text are Persian.
+
+Required validation: clean pinned source preparation twice, source/XML/manifest/feature-removal audits, native guard checks, all JVM tests, Debug/Release build, actual R8/DEX JSON contract and signed ARM APK checks. Device/emulator tests have not been performed; a successful build does not by itself prove that the reported device problem is fixed. The historical sections below do not override this release.
+
+---
+
 # Current release: 1.4.2-104 / فیلترشکن
 
 The latest user request supersedes the earlier launcher image/name. Application ID and v2 release certificate stay unchanged. Android versionCode is 455 (base 91 × 5). The exact supplied icon(1).png is copied without raster edits. Adaptive foreground inset is 18%; all dark logo pixels fit inside the 33dp safe circle (maximum radius 30.9981dp).

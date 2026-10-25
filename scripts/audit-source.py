@@ -23,13 +23,13 @@ for path in paths:
     original = subprocess.check_output(['git','-C',str(UPSTREAM),'show','HEAD:'+path], text=True)
     current = (UPSTREAM/path).read_text()
     ids = lambda text: set(re.findall(r'android:id="@\+?id/([^"]+)"', text))
-    assert ids(original) - {'action_connection_tcp_ping','action_selection_tcp_ping'} <= ids(current), 'Removed menu actions: '+path
+    assert ids(original) - {'action_connection_tcp_ping','action_selection_tcp_ping','action_connection_icmp_ping','action_selection_icmp_ping'} <= ids(current), 'Removed menu actions: '+path
 settings = 'workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/compose/GlobalSettingsScreen.kt'
 original = subprocess.check_output(['git','-C',str(UPSTREAM),'show','HEAD:'+settings], text=True)
 current = (UPSTREAM/settings).read_text()
 keys = lambda text: set(re.findall(r'(?:sw|text|list|action)\(\s*"([^"]+)"', text))
-# The icon selector is the only explicitly authorized removal from settings.
-assert keys(original) - {'changeIcon', 'enableGroupUpdateDialog'} <= keys(current), 'An unapproved upstream setting was removed'
+# Source removals explicitly authorized by the user through release105.
+assert keys(original) - {'changeIcon', 'enableGroupUpdateDialog', 'notificationCountryIndicator', 'useToolbar', 'profileCountryIndicator', 'showBottomBarInSettings', 'compactStatsBar', 'legacyMainView', 'showDirectSpeed', 'showGroupInNotification', 'persistentStatusNotification', 'alwaysShowAddress', 'tabDoubleTapToNavigate', 'configureToolbarLayout'} <= keys(current), 'An unapproved upstream setting was removed'
 assert 'changeIcon' not in keys(current)
 for path in res.glob('values*/*.xml'):
     for name, value in re.findall(r'<string[^>]*name="(app_name(?:_long)?)"[^>]*>(.*?)</string>',path.read_text(),re.S):
@@ -96,3 +96,25 @@ subprocess.run([sys.executable, str(ROOT/'scripts/branding-contract.py')], check
 
 
 assert hashlib.sha256((res/'drawable-nodpi/mobiletina_launcher.png').read_bytes()).hexdigest() == (ROOT/'LAUNCHER_ICON_SHA256').read_text().strip()
+
+# Release105 removes these complete application features, not just their settings rows.
+application_source = "\n".join(p.read_text() for p in (NBA/'app/src/main/java').rglob('*') if p.suffix in {'.kt', '.java'})
+for token in ('notificationCountryIndicator','useToolbar','profileCountryIndicator','showBottomBarInSettings','compactStatsBar','legacyMainView','showDirectSpeed','showGroupInNotification','persistentStatusNotification','alwaysShowAddress','tabDoubleTapToNavigate','configureToolbarLayout','startIcmpPing','icmpPingWithAddress','canICMPing','ToolsFragment','LogcatFragment','WebviewFragment','BackupFragment','GitBackupRepository','CountryFlagRenderer'):
+    assert token not in application_source, 'Removed feature remains: '+token
+assert 'syncImportedPayloads(targetId, payloads)' in (NBA/'app/src/main/java/io/nekohasekai/sagernet/ui/ConfigurationFragment.kt').read_text()
+notification = (NBA/'app/src/main/java/io/nekohasekai/sagernet/bg/ServiceNotification.kt').read_text()
+assert '.setCustomContentView(content()).setCustomBigContentView(content())' in notification
+assert 'setOnClickPendingIntent(R.id.mobiletina_notification_stop, stop)' in notification
+assert '.setOngoing(true)' in notification
+assert not (NBA/'app/src/main/assets/metacubexd.tgz').exists()
+print('Verified release105 complete feature removals, import metadata and always-present notification stop control.')
+
+expiry_source = (NBA/'app/src/main/java/io/nekohasekai/sagernet/ui/MobileTinaSubscriptionExpiry.kt').read_text()
+assert 'System.currentTimeMillis' not in expiry_source
+assert 'listOf("https://api.github.com/zen", "https://github.com/robots.txt"' in expiry_source
+assert 'fun nowMillis(): Long?' in expiry_source
+original_manifest = ET.fromstring(subprocess.check_output(['git','-C',str(UPSTREAM),'show','HEAD:workspace/NekoBoxForAndroid/app/src/main/AndroidManifest.xml']))
+activity_names = lambda doc: {a.get(android+'name') for a in doc.findall('application/activity')}
+removed_activities = {'GitBackupSettingsActivity','WebDAVSettingsActivity','CellularNetworkActivity','ConnectionTestNotificationActionActivity','QuickDisableShortcut','QuickEnableShortcut','RuleSetMatchActivity','SpeedTestActivity','StunActivity','ToolbarLayoutActivity'}
+assert {name for name in activity_names(original_manifest) if name.rsplit('.',1)[-1] not in removed_activities} <= activity_names(manifest)
+print('Verified GitHub-first trusted clock, no device-date expiration fallback and preserved application activities.')

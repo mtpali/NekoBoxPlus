@@ -107,8 +107,9 @@ class MobileTinaHomeFragment : ToolbarFragment(R.layout.mobiletina_home) {
         root.findViewById<TextView>(R.id.tv_subscription_days).apply {
             isVisible = state.usage.expiresAt != null
             state.usage.expiresAt?.let { expiry ->
-                val days = ((expiry - MobileTinaSubscriptionExpiry.nowMillis() / 1000L) / 86400L).coerceAtLeast(0L)
-                text = getString(R.string.mobiletina_days_remaining, days)
+                val now = MobileTinaSubscriptionExpiry.nowMillis()
+                text = if (now == null) getString(R.string.mobiletina_time_pending)
+                    else getString(R.string.mobiletina_days_remaining, ((expiry - now / 1000L) / 86400L).coerceAtLeast(0L))
             }
         }
         root.findViewById<TextView>(R.id.tv_subscription_traffic).apply {
