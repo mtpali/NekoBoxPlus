@@ -7,6 +7,8 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.CancellationException
+import io.nekohasekai.sagernet.ktx.Logs
 
 class MobileTinaExpiryReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
@@ -16,6 +18,8 @@ class MobileTinaExpiryReceiver : BroadcastReceiver() {
         val result = goAsync()
         CoroutineScope(SupervisorJob() + Dispatchers.IO).launch {
             try { MobileTinaSubscriptionExpiry.onAlarm(group, trigger) }
+            catch (e: CancellationException) { throw e }
+            catch (e: Exception) { Logs.w(e) }
             finally { result.finish() }
         }
     }

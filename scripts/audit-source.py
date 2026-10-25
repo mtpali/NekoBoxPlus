@@ -33,7 +33,7 @@ assert keys(original) - {'changeIcon', 'enableGroupUpdateDialog'} <= keys(curren
 assert 'changeIcon' not in keys(current)
 for path in res.glob('values*/*.xml'):
     for name, value in re.findall(r'<string[^>]*name="(app_name(?:_long)?)"[^>]*>(.*?)</string>',path.read_text(),re.S):
-        assert value == 'VPN', (path, name, value)
+        assert value == 'فیلترشکن', (path, name, value)
 for color in ['white','yellow','blue','red']:
     assert (res/f'raw/mt_auto_{color}.bin').stat().st_size > 50_000
 assert re.fullmatch('[a-f0-9]{64}', (ROOT/'RELEASE_CERT_SHA256').read_text().strip())
@@ -50,7 +50,7 @@ locales = ET.parse(res/'xml/locales_config.xml').getroot()
 assert [locale.get(android+'name') for locale in locales] == ['en']
 assert not (res/'drawable/splash_screen.xml').exists()
 assert '@android:color/transparent' in (res/'values-v31/themes.xml').read_text()
-assert 'android:inset="21%"' in (res/'drawable/mobiletina_launcher_safe.xml').read_text()
+assert 'android:inset="18%"' in (res/'drawable/mobiletina_launcher_safe.xml').read_text()
 font = res/'font/mobiletina.ttf'
 assert hashlib.sha256(font.read_bytes()).hexdigest() == (ROOT/'REFERENCE_EXCLAVE_FONT_SHA256').read_text().strip()
 assert 'name="fontFamily">@font/mobiletina' in (res/'values/themes.xml').read_text()

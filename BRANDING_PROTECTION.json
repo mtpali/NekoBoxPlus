@@ -1,7 +1,7 @@
 {
   "schema": 1,
   "reference_commit": "6a4169e3a5951549ba1960ca95e9c4ca873fd772",
-  "digest_sha256": "98aa6114f619ca05de0959bb44a6b9ae4113a47198073f71a59ad527f2eb2c04",
+  "digest_sha256": "e773bb93925e95f0ddae7df5f28889a98ff4abd7c487ede1e08b0f8387e6f164",
   "assets": [
     {
       "file": "mt_auto_white.bin",

@@ -26,7 +26,11 @@ import io.nekohasekai.sagernet.utils.MobileTinaAssets
 import io.nekohasekai.sagernet.widget.QRCodeDialog
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
@@ -34,6 +38,7 @@ import kotlinx.coroutines.withContext
 class MobileTinaHomeFragment : ToolbarFragment(R.layout.mobiletina_home) {
     private val model: MobileTinaViewModel by activityViewModels()
     private val access = MobileTinaAccessCounter()
+    private var pingJob: Job? = null
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
@@ -50,7 +55,15 @@ class MobileTinaHomeFragment : ToolbarFragment(R.layout.mobiletina_home) {
         }
         viewLifecycleOwner.lifecycleScope.launch {
             viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
-                model.state.collectLatest { render(view, it) }
+                launch { model.state.collectLatest { render(view, it) } }
+                launch {
+                    model.state.map { it.service.connected to it.profileId }.distinctUntilChanged().collectLatest { (connected, id) ->
+                        if (connected && id > 0) {
+                            delay(1_000L)
+                            refreshPing(automatic = true)
+                        }
+                    }
+                }
             }
         }
     }
@@ -80,8 +93,9 @@ class MobileTinaHomeFragment : ToolbarFragment(R.layout.mobiletina_home) {
         root.findViewById<TextView>(R.id.tv_auto_message).apply { text = state.message; isVisible = state.message.isNotBlank() }
         root.findViewById<TextView>(R.id.tv_auto_server).text = if (active || busy) state.profileName else ""
         root.findViewById<TextView>(R.id.tv_auto_ping).apply {
-            isVisible = active && state.ping > 0
-            text = if (state.ping > 0) getString(R.string.mobiletina_ping_value, state.ping) else ""
+            isVisible = active
+            text = if (state.ping > 0) getString(R.string.mobiletina_ping_value, state.ping)
+                else getString(R.string.mobiletina_ping_pending)
         }
         root.findViewById<View>(R.id.subscription_card).isVisible = state.usage.visible && !state.expired
         root.findViewById<TextView>(R.id.tv_subscription_name).text =
@@ -116,32 +130,49 @@ class MobileTinaHomeFragment : ToolbarFragment(R.layout.mobiletina_home) {
             state.failed -> MobileTinaAssets.State.RED
             else -> MobileTinaAssets.State.WHITE
         }
-        val bitmap = withContext(Dispatchers.IO) { MobileTinaAssets.bitmap(artwork) }
-        root.findViewById<ImageView>(R.id.fab_auto).apply { setImageBitmap(bitmap); contentDescription = getString(status) }
+        root.findViewById<ImageView>(R.id.fab_auto).apply {
+            if (tag != artwork) {
+                val bitmap = withContext(Dispatchers.IO) { MobileTinaAssets.bitmap(artwork) }
+                if (bitmap != null) { setImageBitmap(bitmap); tag = artwork }
+            }
+            contentDescription = getString(status)
+        }
     }
 
-    private fun refreshPing() {
+    private fun refreshPing(automatic: Boolean = false) {
         val main = activity as? MainActivity ?: return
         if (!model.state.value.service.connected) return
-        viewLifecycleOwner.lifecycleScope.launch {
+        if (pingJob?.isActive == true) return
+        val profileId = model.state.value.profileId
+        pingJob = viewLifecycleOwner.lifecycleScope.launch {
             try {
                 withContext(Dispatchers.IO) {
-                    val ping = main.urlTest()
-                    AppData.profiles.getById(DataStore.selectedProxy)?.let {
+                    val ping = main.urlTest(automatic)
+                    if (!model.state.value.service.connected || model.state.value.profileId != profileId) return@withContext
+                    AppData.profiles.getById(profileId)?.let {
                         it.ping = ping; it.status = 1
                         ProfileManager.updateProfile(it)
                     }
                 }
                 model.refresh()
             } catch (cancelled: CancellationException) { throw cancelled }
-            catch (_: Exception) { if (isAdded) main.snackbar(R.string.mobiletina_status_failed).show() }
+            catch (_: Exception) {
+                if (isAdded && !automatic) main.snackbar(R.string.mobiletina_status_failed).show()
+                view?.findViewById<TextView>(R.id.tv_auto_ping)?.setText(R.string.mobiletina_ping_unavailable)
+            }
         }
+    }
+
+    override fun onDestroyView() {
+        pingJob?.cancel()
+        pingJob = null
+        super.onDestroyView()
     }
 
     private fun showSubscription(state: MobileTinaHomeState) {
         viewLifecycleOwner.lifecycleScope.launch {
             val link = withContext(Dispatchers.IO) {
-                AppData.groups.getById(state.groupId)?.subscription?.takeIf { it.protectedContent != true }?.link
+                AppData.groups.getById(state.groupId)?.subscription?.takeIf { !MobileTinaProtection.isProtected(it) }?.link
             }
             if (!isAdded || link.isNullOrBlank()) return@launch
             MaterialAlertDialogBuilder(requireContext()).setTitle(R.string.mobiletina_subscription)

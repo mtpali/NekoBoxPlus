@@ -53,10 +53,17 @@ internal class MobileTinaExpiryStore(context: Context) {
         })
     }
 
-    fun forget(groupId: Long, expectedTrigger: Long): Boolean {
+    fun record(groupId: Long): Triple<Long, String, Int>? =
+        PublicDatabase.instance.runInTransaction(Callable {
+            val trigger = getLong("expiry.$groupId", 0)
+            if (trigger <= 0L) null else Triple(trigger, getString("link.$groupId", ""), getInt("updated.$groupId", 0))
+        })
+
+    fun forget(groupId: Long, expectedTrigger: Long, expectedLink: String, expectedUpdated: Int): Boolean {
         var removed = false
         PublicDatabase.instance.runInTransaction(Callable {
-            if (getLong("expiry.$groupId", 0) == expectedTrigger) {
+            if (getLong("expiry.$groupId", 0) == expectedTrigger &&
+                getString("link.$groupId", "") == expectedLink && getInt("updated.$groupId", 0) == expectedUpdated) {
                 listOf("expiry.", "link.", "updated.").forEach { dao.delete(prefix + it + groupId) }
                 removed = true
             }
@@ -67,7 +74,9 @@ internal class MobileTinaExpiryStore(context: Context) {
 }
 
 internal object MobileTinaExpirySchedulePolicy {
-    const val RETRY_DELAY_MILLIS = 30_000L
+    const val RETRY_DELAY_MILLIS = 15 * 60_000L
+    fun mayFetchTime(elapsed: Long, lastFailure: Long, sameBoot: Boolean): Boolean =
+        !sameBoot || lastFailure < 0L || elapsed < lastFailure || elapsed - lastFailure >= RETRY_DELAY_MILLIS
     fun delayMillis(trigger: Long, now: Long, retry: Boolean = false): Long =
         if (retry) RETRY_DELAY_MILLIS else (trigger - now).coerceAtLeast(0L)
     fun isTerminalMarker(basicGroup: Boolean, profileCount: Int, soleProfileIsMarker: Boolean): Boolean =

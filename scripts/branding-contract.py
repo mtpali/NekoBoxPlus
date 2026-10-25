@@ -15,7 +15,7 @@ def strings(path):
 values=strings(JAVA/'MobileTinaAboutContent.kt')
 welcome=strings(JAVA/'MobileTinaWelcomeContent.kt')['welcome']
 h=hashlib.sha256()
-for value in ['VPN','VPN']+[values[n] for n in c['protected_text_methods']]+[welcome]:h.update(value.encode());h.update(b'\0')
+for value in ['فیلترشکن','فیلترشکن']+[values[n] for n in c['protected_text_methods']]+[welcome]:h.update(value.encode());h.update(b'\0')
 for asset in c['assets']:
     actual=hashlib.sha256((RES/'raw'/asset['file']).read_bytes()).digest()
     assert actual.hex()==asset['ciphertext_sha256'],asset['file']

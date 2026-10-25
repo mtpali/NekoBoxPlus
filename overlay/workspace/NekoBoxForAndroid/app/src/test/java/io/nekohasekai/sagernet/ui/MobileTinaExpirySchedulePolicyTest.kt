@@ -4,6 +4,17 @@ import org.junit.Assert.*
 import org.junit.Test
 
 class MobileTinaExpirySchedulePolicyTest {
+    @Test fun manyGroupsShareTheFailedClockCooldownAcrossProcessRestarts() {
+        val failedAt = 10_000L
+        repeat(1_000) { index ->
+            assertFalse(MobileTinaExpirySchedulePolicy.mayFetchTime(failedAt + index, failedAt, true))
+        }
+        assertFalse(MobileTinaExpirySchedulePolicy.mayFetchTime(failedAt + 899_999L, failedAt, true))
+        assertTrue(MobileTinaExpirySchedulePolicy.mayFetchTime(failedAt + 900_000L, failedAt, true))
+        assertTrue(MobileTinaExpirySchedulePolicy.mayFetchTime(500L, failedAt, false))
+        assertTrue(MobileTinaExpirySchedulePolicy.mayFetchTime(500L, failedAt, true))
+        assertTrue(MobileTinaExpirySchedulePolicy.mayFetchTime(500L, -1L, true))
+    }
     @Test fun overdueVerificationFailureCannotScheduleAnImmediateRetry() {
         val now = 1_800_000_000_000L
         for (trigger in listOf(1L, now - 1, now, now + 60_000L)) {

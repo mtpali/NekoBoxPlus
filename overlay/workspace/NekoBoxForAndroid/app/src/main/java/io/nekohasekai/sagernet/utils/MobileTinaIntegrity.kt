@@ -8,8 +8,6 @@ import android.content.pm.PackageInfo
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
-import android.os.Handler
-import android.os.Looper
 import android.os.Process
 import android.os.SystemClock
 import io.nekohasekai.sagernet.BuildConfig
@@ -25,13 +23,22 @@ import java.util.concurrent.atomic.AtomicBoolean
 /** Detects repackaging plus common manifest/resource edits made by APK modification tools. */
 object MobileTinaIntegrity {
 
-    private const val VERIFY_INTERVAL_MS = 37_000L
-    private val continuousVerificationInstalled = AtomicBoolean(false)
+    private val verified = AtomicBoolean(false)
+    private val verificationLock = Any()
 
-    private val expectedDigest = byteArrayOf(-104, -86, 97, 20, -10, 25, -54, 5, -34, 9, 89, -69, 68, -90, -71, -82, 65, 19, -92, 113, -104, 7, 63, 113, -91, -102, -43, 39, -14, -21, 44, 4)
+    private val expectedDigest = byteArrayOf(-25, 115, -69, -109, -110, 94, -107, -16, -35, -82, 125, -11, -14, -120, -119, -87, -113, -12, -85, -41, -60, -121, -19, -31, -32, -117, 15, -125, -121, -26, -15, 100)
 
     fun verify(context: Context) {
         if (BuildConfig.DEBUG) return
+        if (verified.get()) return
+        synchronized(verificationLock) {
+            if (verified.get()) return
+            verifyOnce(context)
+            verified.set(true)
+        }
+    }
+
+    private fun verifyOnce(context: Context) {
         if (context.packageName != BuildConfig.APPLICATION_ID) fail()
         verifyReleaseAndManifest(context)
         val textDigest = protectedTextDigest(context)
@@ -47,26 +54,10 @@ object MobileTinaIntegrity {
     }
 
     fun installContinuousVerification(application: Application) {
-        if (BuildConfig.DEBUG || !continuousVerificationInstalled.compareAndSet(false, true)) return
-
-        application.registerActivityLifecycleCallbacks(object : Application.ActivityLifecycleCallbacks {
-            override fun onActivityResumed(activity: Activity) = verify(activity)
-            override fun onActivityCreated(activity: Activity, savedInstanceState: Bundle?) = Unit
-            override fun onActivityStarted(activity: Activity) = Unit
-            override fun onActivityPaused(activity: Activity) = Unit
-            override fun onActivityStopped(activity: Activity) = Unit
-            override fun onActivitySaveInstanceState(activity: Activity, outState: Bundle) = Unit
-            override fun onActivityDestroyed(activity: Activity) = Unit
-        })
-
-        val appContext = application.applicationContext
-        val handler = Handler(Looper.getMainLooper())
-        handler.postDelayed(object : Runnable {
-            override fun run() {
-                verify(appContext)
-                handler.postDelayed(this, VERIFY_INTERVAL_MS)
-            }
-        }, VERIFY_INTERVAL_MS)
+        // Installed APKs are immutable for the lifetime of this process. Android restarts
+        // the process on replacement. Verify at process start and keep connection checks;
+        // re-reading all assets on every resume or a main-thread timer adds no protection.
+        verify(application)
     }
 
     private fun verifyReleaseAndManifest(context: Context) {

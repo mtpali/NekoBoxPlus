@@ -38,6 +38,7 @@ internal data class MobileTinaHomeState(
     val groupId: Long = 0,
     val groupName: String = "",
     val profileName: String = "",
+    val profileId: Long = 0,
     val ping: Int = 0,
     val count: Int = 0,
     val usage: MobileTinaUsage = MobileTinaUsage(null, null, null),
@@ -74,13 +75,14 @@ internal class MobileTinaViewModel(application: Application) : AndroidViewModel(
     )
 
     private fun load(): Snapshot {
-        var group = AppData.groups.getById(DataStore.currentGroupId())
+        val running = if (mutable.value.service.connected) AppData.profiles.getById(DataStore.currentProfile) else null
+        var group = AppData.groups.getById(running?.groupId ?: DataStore.currentGroupId())
         if (group?.subscription == null && (group == null || AppData.profiles.countByGroup(group.id) == 0L)) {
             group = AppData.groups.allGroups().firstOrNull { it.subscription != null || AppData.profiles.countByGroup(it.id) > 0 } ?: group
             group?.let { DataStore.selectedGroup = it.id }
         }
         val profiles = group?.let { AppData.profiles.getByGroup(it.id) }.orEmpty()
-        val selected = profiles.firstOrNull { it.id == DataStore.selectedProxy }
+        val selected = profiles.firstOrNull { it.id == (running?.id ?: DataStore.selectedProxy) }
         val subscription = group?.subscription
         val expiry = subscription?.expireAt?.takeIf { it > 0 }
             ?: subscription?.expiryDate?.toLong()?.takeIf { it > 0 } ?: 0L
@@ -104,6 +106,7 @@ internal class MobileTinaViewModel(application: Application) : AndroidViewModel(
                 mutable.value = mutable.value.copy(
                     groupId = snapshot.groupId, groupName = snapshot.groupName,
                     profileName = snapshot.selected?.displayName().orEmpty(),
+                    profileId = snapshot.selected?.id ?: 0,
                     ping = snapshot.selected?.ping ?: 0,
                     count = snapshot.profiles.count { !MobileTinaSubscriptionExpiry.isMarker(it) },
                     usage = snapshot.usage, expired = snapshot.expired,
@@ -189,7 +192,7 @@ internal class MobileTinaViewModel(application: Application) : AndroidViewModel(
                 if (current == null || current.groupId != snapshot.groupId) { fail(R.string.no_proxies_found); return@launch }
                 DataStore.selectedProxy = best.id
                 DataStore.selectedGroup = best.groupId
-                mutable.value = mutable.value.copy(testing = false, profileName = best.displayName(), ping = best.ping)
+                mutable.value = mutable.value.copy(testing = false, profileName = best.displayName(), profileId = best.id, ping = best.ping)
                 starts.send(token)
             } catch (cancelled: CancellationException) {
                 throw cancelled

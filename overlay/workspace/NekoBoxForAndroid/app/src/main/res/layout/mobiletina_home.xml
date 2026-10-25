@@ -22,14 +22,14 @@
                 <TextView android:id="@+id/tv_auto_message" android:layout_width="match_parent" android:layout_height="wrap_content"
                     android:layout_marginTop="8dp" android:gravity="center" android:textSize="14sp"
                     android:textColor="?attr/colorError" android:visibility="gone" />
-                <TextView android:id="@+id/tv_auto_server" android:layout_width="match_parent" android:layout_height="wrap_content"
-                    android:layout_marginTop="12dp" android:ellipsize="end" android:gravity="center" android:maxLines="2"
-                    android:textColor="@color/mobiletina_status_secondary" android:textSize="15sp" android:textStyle="bold" />
                 <TextView android:id="@+id/tv_auto_ping" android:layout_width="wrap_content" android:layout_height="wrap_content"
-                    android:layout_marginTop="6dp" android:background="?attr/selectableItemBackgroundBorderless"
+                    android:layout_marginTop="12dp" android:background="?attr/selectableItemBackgroundBorderless"
                     android:clickable="true" android:contentDescription="@string/mobiletina_ping_tap" android:focusable="true"
                     android:gravity="center" android:minHeight="40dp" android:paddingHorizontal="18dp" android:paddingVertical="5dp"
                     android:textColor="@color/mobiletina_status_secondary" android:textStyle="bold" android:visibility="gone" />
+                <TextView android:id="@+id/tv_auto_server" android:layout_width="match_parent" android:layout_height="wrap_content"
+                    android:layout_marginTop="6dp" android:ellipsize="end" android:gravity="center" android:maxLines="2"
+                    android:textColor="@color/mobiletina_status_secondary" android:textSize="15sp" android:textStyle="bold" />
                 <com.google.android.material.card.MaterialCardView
                     android:id="@+id/subscription_card" android:layout_width="match_parent"
                     android:layout_height="wrap_content" android:layout_marginStart="18dp"

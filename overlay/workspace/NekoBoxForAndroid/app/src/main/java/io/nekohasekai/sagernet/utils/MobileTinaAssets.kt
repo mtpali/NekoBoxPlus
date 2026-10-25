@@ -6,7 +6,7 @@ import android.widget.ImageView
 import io.nekohasekai.sagernet.R
 import io.nekohasekai.sagernet.SagerNet
 import io.nekohasekai.sagernet.ktx.Logs
-import java.lang.ref.WeakReference
+import android.util.LruCache
 import java.security.MessageDigest
 import javax.crypto.Cipher
 import javax.crypto.spec.IvParameterSpec
@@ -22,9 +22,11 @@ object MobileTinaAssets {
         NAV(R.raw.mt_nav, "b93ea494eb517d9fe940e7780dd2eab58ed5fd3994f6dd876114b8a4db4039c8"),
     }
 
-    private val cache = mutableMapOf<Int, WeakReference<Bitmap>>()
+    private val cache = object : LruCache<Int, Bitmap>(8 * 1024 * 1024) {
+        override fun sizeOf(key: Int, value: Bitmap): Int = value.byteCount
+    }
 
-    fun bitmap(state: State): Bitmap? = synchronized(cache) { cache[state.rawId]?.get() } ?: decode(state)
+    fun bitmap(state: State): Bitmap? = cache.get(state.rawId) ?: decode(state)
 
     private fun cipherMaterial(): ByteArray {
         // Derive the scrambling material from integrity metadata already embedded in the app.
@@ -34,7 +36,7 @@ object MobileTinaAssets {
     }
 
     fun apply(imageView: ImageView, state: State) {
-        val bitmap = synchronized(cache) { cache[state.rawId]?.get() } ?: decode(state)
+        val bitmap = bitmap(state)
         imageView.setImageBitmap(bitmap)
     }
 
@@ -53,7 +55,7 @@ object MobileTinaAssets {
             .joinToString("") { "%02x".format(it) }
         check(digest == state.sha256) { "MobileTina asset integrity check failed" }
         BitmapFactory.decodeByteArray(plain, 0, plain.size)
-            ?.also { synchronized(cache) { cache[state.rawId] = WeakReference(it) } }
+            ?.also { cache.put(state.rawId, it) }
             ?: error("Unable to decode MobileTina image")
     }.onFailure(Logs::w).getOrNull()
 }

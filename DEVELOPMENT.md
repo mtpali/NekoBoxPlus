@@ -1,3 +1,23 @@
+# Current release: 1.4.2-104 / فیلترشکن
+
+The latest user request supersedes the earlier launcher image/name. Application ID and v2 release certificate stay unchanged. Android versionCode is 455 (base 91 × 5). The exact supplied icon(1).png is copied without raster edits. Adaptive foreground inset is 18%; all dark logo pixels fit inside the 33dp safe circle (maximum radius 30.9981dp).
+
+QR camera/gallery payloads are handed to a resumed MainActivity, imported without subscription/profile confirmation and then return to the configuration screen. Routing/theme special links retain their dedicated flows. Protected #Base64 imports and exact HTTPS raw.githubusercontent.com subscription origins hide editing, sharing and exports; ordinary sources retain them. Origin checks reject lookalike domains and credentials. GroupManager and RawUpdater persist the flag, while dynamic UI guards protect existing imports immediately.
+
+Only the toggle launcher shortcut remains; its label and the quick-settings tile label are MobileTina. Enable/disable shortcut activities are removed from the manifest. The scanner remains available inside the application.
+
+Expiry was compared with mtpali/exclave@6a4169e3a5951549ba1960ca95e9c4ca873fd772 and mtpali/MobileTinaVPN@670b89531d274376da9af9c1fc58fc3be8152817. Version103 had parallel foreground Handler, alarm and worker execution, repeated scheduling and cross-database reads inside the profile transaction. Version104 has a single revision-specific verification stream, an alarm and one lightweight fallback; the fallback only requests verification. No foreground timer/polling exists. Network constraints apply if trusted time is missing; exponential retry starts at 15 minutes. All groups share a persisted 15-minute failed-clock cooldown, instead of repeating network time requests for every group. A monotonic trusted clock schedules future deadlines; timezone-less comments use Asia/Tehran. Legacy work is cancelled once and legacy worker requests without a revision are inert. The expiry receiver catches recoverable failures and only enqueues work. A short idempotent profile transaction does not read PublicDatabase or call UI/service/network code. Renewal guards compare source digest and lastUpdated; removal of the expiry record compares its full revision. Completed work cannot recreate the expired marker. Only the affected group is retired. Verification runs in the service-owning :bg process and observes real service teardown rather than binding/starting the service for every expiry.
+
+Integrity checks still validate the signer, manifest, native guard and protected artwork/text, once per process. Installed APK replacement restarts the process. Rehashing all artwork on every activity resume and a 37-second main-thread timer was removed. Encoded social content, encrypted original artwork, masked signer pin and R8 stay enabled; the public label change updates the JVM/native branding digest. Images use an 8MiB LRU cache and home rendering changes the bitmap only when its visual state changes.
+
+The automatic screen now orders status → ping → server name. It probes the running connection once after connection/profile change, including custom JSON and single-profile imports; no manual group speed test is required. The ping row remains available while checking and allows manual retry. This is not a recurring network poll. Apps VPN default Off and selectable Light/Dark/System (OLED dark) remain as in103.
+
+Validation must include pinned patch re-application, XML/shortcut/launcher checks, native guard tests, Debug+Release compilation, all JVM tests, real R8 DEX/JSON-field verification and signed ARM APK verification. New retirement tests replay expiration 200 times, preserve unrelated groups, reject renewed source/revision and retain raw-GitHub protection. Network-time cooldown tests cover 1000 competing attempts and reboot/reset boundaries. No device/emulator, camera, actual network speed or battery/ANR measurement was performed; the reported device freeze cannot be declared reproduced or conclusively fixed without that evidence. Android Doze/force-stop, absent trusted time/network and exact-alarm permissions may delay expiration. Client-side obfuscation is tamper resistance, not absolute uneditability.
+
+The sections below are historical and can contain defaults superseded by this release.
+
+---
+
 # راهنمای توسعهٔ VPN
 
 هویت این برنامه `VPN` با application ID برابر `com.nb4a.mobiletina` است. پایه، NekoBox+ نسخهٔ `1.4.2-97` در commit ثبت‌شده در `UPSTREAM_COMMIT` است. هستهٔ موجود AmneziaWG دوباره پیاده‌سازی نشده است.

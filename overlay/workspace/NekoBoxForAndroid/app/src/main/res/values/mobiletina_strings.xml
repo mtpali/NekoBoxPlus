@@ -1,4 +1,6 @@
 <resources>
+    <string name="mobiletina_ping_pending">در حال بررسی پینگ…</string>
+    <string name="mobiletina_ping_unavailable">پینگ در دسترس نیست</string>
     <string name="mobiletina_auto">Auto</string>
     <string name="mobiletina_connect">Connect</string>
     <string name="mobiletina_disconnect">Disconnect or cancel</string>

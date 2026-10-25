@@ -42,7 +42,7 @@ class MobileTinaBrandingTest {
     }
     private fun digest(alter: Boolean): String {
         val h = MessageDigest.getInstance("SHA-256")
-        (listOf("VPN", "VPN") + MobileTinaAboutContent.protectedValues() + MobileTinaWelcomeContent.welcome()).forEach {
+        (listOf("فیلترشکن", "فیلترشکن") + MobileTinaAboutContent.protectedValues() + MobileTinaWelcomeContent.welcome()).forEach {
             h.update(it.toByteArray(Charsets.UTF_8)); h.update(0.toByte())
         }
         names.forEach { name ->
@@ -53,7 +53,7 @@ class MobileTinaBrandingTest {
         return hex(h.digest())
     }
     @Test fun utf8AndArtworkDigestMatchesNativeContract() {
-        assertEquals("98aa6114f619ca05de0959bb44a6b9ae4113a47198073f71a59ad527f2eb2c04", digest(false))
+        assertEquals("e773bb93925e95f0ddae7df5f28889a98ff4abd7c487ede1e08b0f8387e6f164", digest(false))
     }
     @Test fun editedHeaderPayloadBreaksTheNativeContract() { assertNotEquals(digest(false), digest(true)) }
 }

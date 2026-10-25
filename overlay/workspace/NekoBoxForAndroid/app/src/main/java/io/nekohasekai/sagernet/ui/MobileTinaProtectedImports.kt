@@ -38,7 +38,7 @@ internal object MobileTinaProtectedImports {
                     })
                 group.subscription?.protectedContent = true
                 GroupManager.updateGroup(group)
-                GroupUpdater.startUpdate(group, true)
+                GroupUpdater.executeUpdate(group, false)
             } else {
                 val profiles = RawUpdater.parseRaw(payload).orEmpty()
                 if (profiles.isEmpty()) {
