@@ -1,6 +1,5 @@
 package io.nekohasekai.sagernet.utils
 
-import java.util.Base64
 
 /** A leading hash is a protection marker only when the complete remainder is valid Base64 UTF-8. */
 object MobileTinaProtectedPayload {
@@ -10,10 +9,9 @@ object MobileTinaProtectedPayload {
         val encoded = text.drop(1).filterNot(Char::isWhitespace)
         if (encoded.length < 8 || !encoded.matches(Regex("[A-Za-z0-9+/_=-]+"))) return null
         return runCatching {
-            val bytes = Base64.getDecoder().decode(encoded.replace('-', '+').replace('_', '/'))
-            val decoded = bytes.toString(Charsets.UTF_8)
-            decoded.takeIf { it.isNotBlank() && it.toByteArray(Charsets.UTF_8).contentEquals(bytes) &&
-                it.none { c -> c.isISOControl() && c !in "\r\n\t" } }
+            MobileTinaBase64.decodeText(encoded).takeIf { decoded ->
+                decoded.isNotBlank() && decoded.none { c -> c.isISOControl() && c !in "\r\n\t" }
+            }
         }.getOrNull()
     }
 

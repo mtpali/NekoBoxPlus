@@ -1,7 +1,6 @@
 package io.nekohasekai.sagernet.utils
 
 import android.net.Uri
-import io.nekohasekai.sagernet.ktx.decodeBase64UrlSafe
 
 /** Normalizes the server-side MobileTina wrapper used for Base64 subscriptions. */
 object MobileTinaImportNormalizer {
@@ -58,7 +57,7 @@ object MobileTinaImportNormalizer {
             }.filterNot(Char::isWhitespace)
 
             if (encodedBody.length >= 8 && base64Payload.matches(encodedBody)) {
-                runCatching { encodedBody.decodeBase64UrlSafe() }
+                runCatching { MobileTinaBase64.decodeText(encodedBody) }
                     .getOrNull()
                     ?.takeIf { it.isNotBlank() }
                     ?.let { queue.add(it to depth + 1) }
