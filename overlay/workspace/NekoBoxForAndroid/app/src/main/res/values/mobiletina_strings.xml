@@ -14,6 +14,7 @@
     <string name="mobiletina_no_working_server">سرور فعالی پیدا نشد</string>
     <string name="mobiletina_start_timeout">The service did not start. Check the selected profile and try again.</string>
     <string name="mobiletina_expired">اشتراک شما منقضی شد</string>
+    <string name="mobiletina_import_error">خطا در وارد کردن اشتراک</string>
     <string name="mobiletina_testing">در حال بررسی سرورها…</string>
     <string name="mobiletina_status_connected">متصل شد</string>
     <string name="mobiletina_status_connecting">در حال اتصال…</string>
