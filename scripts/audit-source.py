@@ -42,6 +42,11 @@ for relative in json.loads((ROOT/'SOURCE_REMOVALS.json').read_text()):
 android = '{http://schemas.android.com/apk/res/android}'
 manifest = ET.parse(NBA/'app/src/main/AndroidManifest.xml').getroot()
 aliases = manifest.findall('application/activity-alias')
+for relative in ['app/src/main/res/xml/shortcuts.xml', 'app/src/debug/res/xml/shortcuts.xml']:
+    shortcuts = ET.parse(NBA/relative).getroot()
+    assert len(shortcuts) == 1 and shortcuts[0].get(android+'shortcutId') == 'toggle'
+assert not any('QuickEnableShortcut' in a.get(android+'name', '') or 'QuickDisableShortcut' in a.get(android+'name', '')
+               for a in manifest.findall('application/activity'))
 assert len(aliases) == 1 and aliases[0].get(android+'name') == 'io.nekohasekai.sagernet.launcher.NekoBoxPlus'
 for directory in res.iterdir():
     if re.fullmatch(r'values-[a-z]{2,3}(?:-r[A-Z]{2})?', directory.name) and directory.name != 'values-night':

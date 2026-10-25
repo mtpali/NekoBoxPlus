@@ -32,7 +32,7 @@ for relative in json.loads((ROOT / "SOURCE_REMOVALS.json").read_text()):
 res = UPSTREAM / "workspace/NekoBoxForAndroid/app/src/main/res"
 for source in res.glob("values*/**/*.xml"):
     text = source.read_text()
-    changed = re.sub(r'(<string\s+[^>]*name="app_name(?:_long)?"[^>]*>).*?(</string>)', r'\g<1>VPN\2', text, flags=re.S)
+    changed = re.sub(r'(<string\s+[^>]*name="app_name(?:_long)?"[^>]*>).*?(</string>)', r'\g<1>فیلترشکن\2', text, flags=re.S)
     if changed != text:
         source.write_text(changed)
 print("Prepared VPN source: original core/menu destinations retained, requested UI removals applied.")

@@ -16,6 +16,7 @@ properties = dict(line.split('=',1) for line in (ROOT/'upstream/workspace/NekoBo
 assert package[2] == str(int(properties['VERSION_CODE']) * 5)
 assert package[3] == properties['VERSION_NAME']
 assert 'application-debuggable' not in badging
+assert "application-label:'فیلترشکن'" in badging, 'Incorrect public application label'
 resources = subprocess.check_output([str(aapt), 'dump', 'resources', str(apk)], text=True)
 assert 'mipmap/ic_launcher_light' not in resources and 'mipmap/ic_launcher_dark' not in resources
 assert 'drawable/splash_screen' not in resources
