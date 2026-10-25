@@ -574,7 +574,7 @@ index 8437e1eb..d543844a 100644
                  pendingResult.finish()
              }
 diff --git a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/SagerNet.kt b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/SagerNet.kt
-index af78c502..944c0db2 100644
+index af78c50..f61f3a4 100644
 --- a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/SagerNet.kt
 +++ b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/SagerNet.kt
 @@ -32,6 +32,9 @@ import io.nekohasekai.sagernet.ktx.isPreview
@@ -631,7 +631,7 @@ index af78c502..944c0db2 100644
          fun startService() {
 +            val token = mobileTinaStartGeneration.incrementAndGet()
 +            val profileId = DataStore.selectedProxy
-+            if (io.nekohasekai.sagernet.ui.MobileTinaSubscriptionExpiry.hasSchedules()) {
++            run {
 +                io.nekohasekai.sagernet.app.AppGraph.applicationScope.launch {
 +                    if (!io.nekohasekai.sagernet.ui.MobileTinaSubscriptionExpiry.canStart(profileId)) {
 +                        withContext(Dispatchers.Main) {
@@ -641,7 +641,7 @@ index af78c502..944c0db2 100644
 +                    }
 +                    withContext(Dispatchers.Main) { startMobileTinaChecked(profileId, token) }
 +                }
-+            } else startMobileTinaChecked(profileId, token)
++            }
 +        }
 +
 +        private fun startMobileTinaChecked(profileId: Long, token: Long) {
@@ -858,7 +858,7 @@ index 27933464..713cf837 100644
 -
  }
 diff --git a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/bg/proto/UrlTest.kt b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/bg/proto/UrlTest.kt
-index b7a7e07d..268f9d36 100644
+index b7a7e07..268f9d3 100644
 --- a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/bg/proto/UrlTest.kt
 +++ b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/bg/proto/UrlTest.kt
 @@ -10,7 +10,7 @@ import moe.matsuri.nb4a.net.LocalResolverImpl
@@ -940,7 +940,7 @@ index cc5908d8..8f3eec8e 100644
      // var enableTLSFragment by configurationStore.boolean(Key.ENABLE_TLS_FRAGMENT)
  
 diff --git a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/database/GroupManager.kt b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/database/GroupManager.kt
-index 93f72911..71ae67cc 100644
+index 93f7291..71ae67c 100644
 --- a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/database/GroupManager.kt
 +++ b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/database/GroupManager.kt
 @@ -94,6 +94,11 @@ object GroupManager {
@@ -1327,7 +1327,7 @@ index e5f381a7..5e2a8916 100644
  
      override suspend fun onUpdateFailure(group: ProxyGroup, message: String) {
 diff --git a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/group/RawUpdater.kt b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/group/RawUpdater.kt
-index f2c562e9..b7a27537 100644
+index f2c562e..b7a2753 100644
 --- a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/group/RawUpdater.kt
 +++ b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/group/RawUpdater.kt
 @@ -36,6 +36,7 @@ internal fun mergeCurrentSubscriptionSettings(
@@ -1671,7 +1671,7 @@ index ffcfebde..222f62a8 100644
          )
      }
 diff --git a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/ConfigurationFragment.kt b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/ConfigurationFragment.kt
-index 936c0574..40d5b6dc 100644
+index 936c057..b387ddc 100644
 --- a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/ConfigurationFragment.kt
 +++ b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/ConfigurationFragment.kt
 @@ -45,6 +45,8 @@ import androidx.appcompat.widget.Toolbar
@@ -1792,10 +1792,12 @@ index 936c0574..40d5b6dc 100644
                          qrImportError?.let { throw it }
                          onMainDispatcher {
                              snackbar(getString(R.string.no_proxies_found_in_file)).show()
-@@ -953,6 +972,11 @@ class ConfigurationFragment @JvmOverloads constructor(
+@@ -953,6 +972,13 @@ class ConfigurationFragment @JvmOverloads constructor(
  
      override fun onMenuItemClick(item: MenuItem): Boolean {
          when (item.itemId) {
++            R.id.action_connection_url_test -> { urlTest(); return true }
++            R.id.action_connection_icmp_ping -> { pingTest(); return true }
 +            R.id.action_mobiletina_auto -> {
 +                (activity as? MainActivity)?.displayFragmentWithId(R.id.nav_mobiletina)
 +                return true
@@ -1804,7 +1806,7 @@ index 936c0574..40d5b6dc 100644
              R.id.action_select_profiles -> {
                  enterProfileSelectionMode()
                  return true
-@@ -1020,13 +1044,9 @@ class ConfigurationFragment @JvmOverloads constructor(
+@@ -1020,13 +1046,9 @@ class ConfigurationFragment @JvmOverloads constructor(
                  return true
              }
  
@@ -1819,7 +1821,7 @@ index 936c0574..40d5b6dc 100644
                  return true
              }
  
-@@ -1083,6 +1103,8 @@ class ConfigurationFragment @JvmOverloads constructor(
+@@ -1083,6 +1105,8 @@ class ConfigurationFragment @JvmOverloads constructor(
                  val text = SagerNet.getClipboardText()
                  if (text.isBlank()) {
                      snackbar(getString(R.string.clipboard_empty)).show()
@@ -1828,7 +1830,7 @@ index 936c0574..40d5b6dc 100644
                  } else if (RoutingLinkProcessors.forLink(text) != null) {
                      (requireActivity() as MainActivity).requestRoutingImport(text)
                  } else if (SubscriptionLinkImportPolicy.isHappCryptLink(text)) {
-@@ -1114,7 +1136,7 @@ class ConfigurationFragment @JvmOverloads constructor(
+@@ -1114,7 +1138,7 @@ class ConfigurationFragment @JvmOverloads constructor(
                                  val subscription = SubscriptionBean()
                                  group.subscription = subscription
                                  subscription.link = subscriptionLink
@@ -1837,7 +1839,7 @@ index 936c0574..40d5b6dc 100644
                                  group.name = ""
                                  startActivity(Intent(requireContext(), GroupSettingsActivity::class.java).apply {
                                      putExtra(GroupSettingsActivity.EXTRA_FROM_CLIPBOARD, true)
-@@ -1321,156 +1343,15 @@ class ConfigurationFragment @JvmOverloads constructor(
+@@ -1321,156 +1345,15 @@ class ConfigurationFragment @JvmOverloads constructor(
              }
  
              R.id.action_connection_test_delete_unavailable -> {
@@ -1997,7 +1999,7 @@ index 936c0574..40d5b6dc 100644
              }
  
              R.id.action_global_mode -> {
-@@ -1533,7 +1414,7 @@ class ConfigurationFragment @JvmOverloads constructor(
+@@ -1533,7 +1416,7 @@ class ConfigurationFragment @JvmOverloads constructor(
              name = candidate.name ?: "Subscription #${System.currentTimeMillis()}"
              subscription = SubscriptionBean().apply {
                  link = candidate.link
@@ -2006,7 +2008,7 @@ index 936c0574..40d5b6dc 100644
              }
          })
  
-@@ -1544,13 +1425,7 @@ class ConfigurationFragment @JvmOverloads constructor(
+@@ -1544,13 +1427,7 @@ class ConfigurationFragment @JvmOverloads constructor(
          GroupUpdater.startUpdate(group, true)
      }
  
@@ -2021,7 +2023,7 @@ index 936c0574..40d5b6dc 100644
  
      fun urlTest() {
          GroupConnectionTestController.startUrlTest(this)
-@@ -1624,6 +1499,10 @@ class ConfigurationFragment @JvmOverloads constructor(
+@@ -1624,6 +1501,10 @@ class ConfigurationFragment @JvmOverloads constructor(
              return
          }
          runOnDefaultDispatcher {
@@ -2032,7 +2034,7 @@ index 936c0574..40d5b6dc 100644
              try {
                  val result = ProfileManager.transferProfiles(profileIds, targetGroupId, operation)
                  onMainDispatcher {
-@@ -1688,22 +1567,10 @@ class ConfigurationFragment @JvmOverloads constructor(
+@@ -1688,22 +1569,10 @@ class ConfigurationFragment @JvmOverloads constructor(
          }
      }
  
@@ -2058,7 +2060,7 @@ index 936c0574..40d5b6dc 100644
      }
  
      private fun testSelectedProfilesIcmpPing() = selectedProfiles { profiles ->
-@@ -1713,6 +1580,10 @@ class ConfigurationFragment @JvmOverloads constructor(
+@@ -1713,6 +1582,10 @@ class ConfigurationFragment @JvmOverloads constructor(
  
      private fun exportSelectedProfiles(kind: BatchExportKind, target: BatchExportTarget) =
          selectedProfiles { profiles ->
@@ -2069,7 +2071,7 @@ index 936c0574..40d5b6dc 100644
              val result = when (kind) {
                  BatchExportKind.Standard -> ProfileBatchExport.standardLinks(profiles)
                  BatchExportKind.Universal -> ProfileBatchExport.universalLinks(profiles)
-@@ -2349,6 +2220,7 @@ class ConfigurationFragment @JvmOverloads constructor(
+@@ -2349,6 +2222,7 @@ class ConfigurationFragment @JvmOverloads constructor(
              })
              itemTouchHelper.attachToRecyclerView(configurationListView)
          }
@@ -2077,7 +2079,7 @@ index 936c0574..40d5b6dc 100644
          lateinit var configurationListView: RecyclerView
          private var didInitialPositionList = false
          private var lastGroupUpdateStamp: Int? = null
-@@ -2396,6 +2268,9 @@ class ConfigurationFragment @JvmOverloads constructor(
+@@ -2396,6 +2270,9 @@ class ConfigurationFragment @JvmOverloads constructor(
          }
  
          override fun onDestroyView() {
@@ -2087,7 +2089,7 @@ index 936c0574..40d5b6dc 100644
              lastGroupUpdateStamp = null
              didInitialPositionList = false
              if (::configurationListView.isInitialized) {
-@@ -2602,19 +2477,39 @@ class ConfigurationFragment @JvmOverloads constructor(
+@@ -2602,19 +2479,39 @@ class ConfigurationFragment @JvmOverloads constructor(
              if (!::proxyGroup.isInitialized) return
  
              configurationListView = view.findViewById(R.id.configuration_list)
@@ -2131,7 +2133,7 @@ index 936c0574..40d5b6dc 100644
              )
              configurationListView.adapter = combinedAdapter
              configurationListView.setItemViewCacheSize(20)
-@@ -3377,7 +3272,9 @@ class ConfigurationFragment @JvmOverloads constructor(
+@@ -3377,7 +3274,9 @@ class ConfigurationFragment @JvmOverloads constructor(
              RecyclerView.Adapter<SubscriptionBannerHolder>() {
  
              private var presentation =
@@ -2142,7 +2144,7 @@ index 936c0574..40d5b6dc 100644
  
              init {
                  setHasStableIds(true)
-@@ -3423,7 +3320,9 @@ class ConfigurationFragment @JvmOverloads constructor(
+@@ -3423,7 +3322,9 @@ class ConfigurationFragment @JvmOverloads constructor(
              }
  
              fun refresh() {
@@ -2153,7 +2155,7 @@ index 936c0574..40d5b6dc 100644
                  notifyDataSetChanged()
                  (layoutManager as? FixedGridLayoutManager)
                      ?.spanSizeLookup
-@@ -3605,11 +3504,11 @@ class ConfigurationFragment @JvmOverloads constructor(
+@@ -3605,11 +3506,11 @@ class ConfigurationFragment @JvmOverloads constructor(
                          statusColor = context.getColour(R.color.material_green_500)
                      }
                      entity.status == 2 -> {
@@ -2167,7 +2169,7 @@ index 936c0574..40d5b6dc 100644
                          statusColor = context.getColour(R.color.material_red_500)
                      }
                  }
-@@ -3623,10 +3522,12 @@ class ConfigurationFragment @JvmOverloads constructor(
+@@ -3623,10 +3524,12 @@ class ConfigurationFragment @JvmOverloads constructor(
                      notificationSwitchPopup = activity is SwitchActivity,
                      batchSelection = batchSelection,
                  )
@@ -2181,7 +2183,7 @@ index 936c0574..40d5b6dc 100644
                      layout = layout,
                      name = ProfileCountryResolver.presentationName(entity, countryVisible),
                      type = entity.profileCardType(DataStore.shortProfileProtocolInfo),
-@@ -3647,7 +3548,7 @@ class ConfigurationFragment @JvmOverloads constructor(
+@@ -3647,7 +3550,7 @@ class ConfigurationFragment @JvmOverloads constructor(
                      statusVisible = !double || entity.status > 0,
                      batchSelection = batchSelection,
                      batchSelected = parent.isProfileSelected(entity.id),
@@ -2190,7 +2192,7 @@ index 936c0574..40d5b6dc 100644
                      editEnabled = !isCurrentRunningProfile,
                      showUrlTest = !double && showUrlTest,
                      urlTestEnabled = !UrlTest.isUnsupportedProfile(entity),
-@@ -3703,7 +3604,7 @@ class ConfigurationFragment @JvmOverloads constructor(
+@@ -3703,7 +3606,7 @@ class ConfigurationFragment @JvmOverloads constructor(
              }
  
              private fun edit() {
@@ -2199,7 +2201,7 @@ index 936c0574..40d5b6dc 100644
                  composeView.context.startActivity(
                      entity.settingIntent(
                          composeView.context,
-@@ -3748,6 +3649,7 @@ class ConfigurationFragment @JvmOverloads constructor(
+@@ -3748,6 +3651,7 @@ class ConfigurationFragment @JvmOverloads constructor(
              }
  
              private fun showShareMenu(action: ProfileShareAction) {
@@ -2207,7 +2209,7 @@ index 936c0574..40d5b6dc 100644
                  runCatching {
                      when (action) {
                          ProfileShareAction.STANDARD_QR -> showCode(entity.toStdLink())
-@@ -3863,13 +3765,51 @@ class ConfigurationFragment @JvmOverloads constructor(
+@@ -3863,13 +3767,53 @@ class ConfigurationFragment @JvmOverloads constructor(
          toolbarOrNull()?.post { focusTvToolbarAction() }
      }
  
@@ -2233,8 +2235,10 @@ index 936c0574..40d5b6dc 100644
 +                        expandActionView()
 +                        (actionView as? SearchView)?.apply { isIconified = false; requestFocus() }
 +                    }
-+                } else {
-+                    toolbarOrNull()?.menu?.findItem(id)?.let(::onMenuItemClick)
++                } else when (id) {
++                    R.id.action_connection_url_test -> urlTest()
++                    R.id.action_connection_icmp_ping -> pingTest()
++                    else -> toolbarOrNull()?.menu?.findItem(id)?.let(::onMenuItemClick)
 +                }
 +            }
 +        }
@@ -2260,7 +2264,7 @@ index 936c0574..40d5b6dc 100644
  
          activeToolbar.post {
              if (toolbarOrNull() !== activeToolbar ||
-@@ -3987,7 +3927,6 @@ class ConfigurationFragment @JvmOverloads constructor(
+@@ -3987,7 +3931,6 @@ class ConfigurationFragment @JvmOverloads constructor(
              ProfileToolbarActionId.DELETE_UNAVAILABLE -> R.id.action_connection_test_delete_unavailable
              ProfileToolbarActionId.REMOVE_INSECURE -> R.id.action_remove_insecure
              ProfileToolbarActionId.ICMP_PING -> R.id.action_connection_icmp_ping
@@ -2268,7 +2272,7 @@ index 936c0574..40d5b6dc 100644
              ProfileToolbarActionId.URL_TEST -> R.id.action_connection_url_test
              ProfileToolbarActionId.GLOBAL_MODE -> R.id.action_global_mode
              ProfileToolbarActionId.CLASH_MODE -> R.id.action_clash_mode
-@@ -4146,6 +4085,7 @@ class ConfigurationFragment @JvmOverloads constructor(
+@@ -4146,6 +4089,7 @@ class ConfigurationFragment @JvmOverloads constructor(
          activeToolbar.inflateMenu(R.menu.profile_selection_menu)
          activeToolbar.setOnMenuItemClickListener(this)
          updateSelectionMenuEnabledState()
@@ -2276,7 +2280,7 @@ index 936c0574..40d5b6dc 100644
      }
  
      private fun enterProfileSelectionMode() {
-@@ -4205,7 +4145,6 @@ class ConfigurationFragment @JvmOverloads constructor(
+@@ -4205,7 +4149,6 @@ class ConfigurationFragment @JvmOverloads constructor(
              R.id.action_selection_clear_traffic,
              R.id.action_selection_clear_tests,
              R.id.action_selection_icmp_ping,
@@ -2284,7 +2288,7 @@ index 936c0574..40d5b6dc 100644
              R.id.action_selection_url_test,
              R.id.action_selection_group_copy,
              R.id.action_selection_group_move,
-@@ -4217,6 +4156,15 @@ class ConfigurationFragment @JvmOverloads constructor(
+@@ -4217,6 +4160,15 @@ class ConfigurationFragment @JvmOverloads constructor(
              R.id.action_selection_config_file,
              R.id.action_selection_delete,
          ).forEach { menu.findItem(it)?.isEnabled = enabled }
@@ -2300,7 +2304,7 @@ index 936c0574..40d5b6dc 100644
      }
  
      private fun setupSearchView() {
-@@ -4225,12 +4173,14 @@ class ConfigurationFragment @JvmOverloads constructor(
+@@ -4225,12 +4177,14 @@ class ConfigurationFragment @JvmOverloads constructor(
              object : MenuItem.OnActionExpandListener {
                  override fun onMenuItemActionExpand(item: MenuItem): Boolean {
                      profileSearchExpanded = true
@@ -2316,7 +2320,7 @@ index 936c0574..40d5b6dc 100644
                      return true
                  }
 diff --git a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/GlobalSettingsController.kt b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/GlobalSettingsController.kt
-index 48e90b0b..40f3af67 100644
+index 48e90b0..4ec4157 100644
 --- a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/GlobalSettingsController.kt
 +++ b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/GlobalSettingsController.kt
 @@ -66,8 +66,7 @@ internal class GlobalSettingsController(
@@ -2325,7 +2329,7 @@ index 48e90b0b..40f3af67 100644
      fun isEnabled(key: String): Boolean = when (key) {
 -        Key.CHANGE_ICON -> !SagerNet.isTv
 -        Key.NIGHT_THEME -> !Theme.isNightModeForced(DataStore.appTheme)
-+        Key.NIGHT_THEME -> false
++        Key.NIGHT_THEME -> true
          Key.PROFILE_TRAFFIC_STATISTICS -> DataStore.profileTrafficUpdateInterval != 0
          Key.REMOTE_DNS_DEADLINE -> activeDnsLineCount(DataStore.remoteDns) > 1
          Key.DIRECT_DNS_DEADLINE -> activeDnsLineCount(DataStore.directDns) > 1
@@ -2341,7 +2345,7 @@ index 48e90b0b..40f3af67 100644
              "configureCustomTheme" -> activity.displayFragment(CustomThemeFragment())
              Key.CONFIGURE_TOOLBAR_LAYOUT -> context.startActivity(Intent(context, ToolbarLayoutActivity::class.java))
              Key.GLOBAL_CUSTOM_CONFIG -> context.startActivity(Intent(context, ConfigEditActivity::class.java).apply {
-@@ -182,11 +176,9 @@ internal class GlobalSettingsController(
+@@ -182,11 +176,8 @@ internal class GlobalSettingsController(
          }
          if (themeId == Theme.CUSTOM) CustomTheme.ensureDefaults(context)
          DataStore.appTheme = themeId
@@ -2350,13 +2354,12 @@ index 48e90b0b..40f3af67 100644
 -            Theme.currentNightMode = 1
 -            Theme.applyNightTheme()
 -        }
-+        DataStore.nightTheme = 0
-+        Theme.currentNightMode = 0
++        Theme.currentNightMode = DataStore.nightTheme
 +        Theme.applyNightTheme()
          val theme = Theme.getTheme(themeId)
          context.applicationContext.setTheme(theme)
          activity.setTheme(theme)
-@@ -208,6 +200,7 @@ internal class GlobalSettingsController(
+@@ -208,6 +199,7 @@ internal class GlobalSettingsController(
  
      private companion object {
          val RELOAD_KEYS = setOf(
@@ -2417,7 +2420,7 @@ index 8e698930..567668aa 100644
              )
          }
 diff --git a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/GroupConnectionTestController.kt b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/GroupConnectionTestController.kt
-index 51b47f18..cdd74a80 100644
+index 51b47f1..cdd74a8 100644
 --- a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/GroupConnectionTestController.kt
 +++ b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/GroupConnectionTestController.kt
 @@ -10,8 +10,6 @@ import io.nekohasekai.sagernet.R
@@ -2629,7 +2632,7 @@ index 32891b11..b523d2a3 100644
              onNegative = ::finish,
          )
 diff --git a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/MainActivity.kt b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/MainActivity.kt
-index c403caac..bfc7c9f5 100644
+index c403caa..afd64cb 100644
 --- a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/MainActivity.kt
 +++ b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/MainActivity.kt
 @@ -12,6 +12,7 @@ import android.os.Build
@@ -2640,7 +2643,7 @@ index c403caac..bfc7c9f5 100644
  import android.view.KeyEvent
  import android.view.View
  import android.view.ViewGroup
-@@ -29,11 +30,19 @@ import androidx.core.content.ContextCompat
+@@ -29,11 +30,20 @@ import androidx.core.content.ContextCompat
  import androidx.core.graphics.Insets
  import androidx.core.view.ViewCompat
  import androidx.core.view.WindowInsetsCompat
@@ -2651,6 +2654,7 @@ index c403caac..bfc7c9f5 100644
 +import androidx.activity.viewModels
 +import androidx.lifecycle.repeatOnLifecycle
  import androidx.lifecycle.lifecycleScope
++import androidx.lifecycle.withResumed
  import androidx.preference.PreferenceDataStore
 +import com.google.android.material.dialog.MaterialAlertDialogBuilder
 +import io.nekohasekai.sagernet.database.AppData
@@ -2660,7 +2664,7 @@ index c403caac..bfc7c9f5 100644
  import com.google.android.material.snackbar.Snackbar
  import io.nekohasekai.sagernet.AppLogLevel
  import io.nekohasekai.sagernet.BuildConfig
-@@ -115,6 +124,8 @@ class MainActivity :
+@@ -115,6 +125,8 @@ class MainActivity :
          }
      }
  
@@ -2669,7 +2673,30 @@ index c403caac..bfc7c9f5 100644
      lateinit var binding: LayoutMainBinding
      private val shellState = MainShellState()
      private var bottomControlsVisibleForCurrentFragment = false
-@@ -188,6 +199,20 @@ class MainActivity :
+@@ -178,8 +190,22 @@ class MainActivity :
+         return super.dispatchKeyEvent(event)
+     }
+ 
++    private val expiryUpdates = object : android.content.BroadcastReceiver() {
++        override fun onReceive(context: android.content.Context, intent: Intent) {
++            val groupId = intent.getLongExtra("group", 0)
++            if (groupId <= 0L) return
++            lifecycleScope.launch {
++                GroupManager.postReload(groupId)
++                mobileTina.refresh()
++            }
++        }
++    }
++
+     override fun onCreate(savedInstanceState: Bundle?) {
+         super.onCreate(savedInstanceState)
++        androidx.core.content.ContextCompat.registerReceiver(this, expiryUpdates,
++            android.content.IntentFilter(MobileTinaSubscriptionExpiry.ACTION_DATA_CHANGED),
++            androidx.core.content.ContextCompat.RECEIVER_NOT_EXPORTED)
+         MessageStore.setCurrentActivity(this)
+         val openSettingsOnCreate = consumeOpenSettingsOnCreate()
+ 
+@@ -188,6 +214,20 @@ class MainActivity :
          syncProxyAppsDrawerItem()
          // Keep the fragment host synchronously attached; Compose owns the drawer overlay.
          setContentView(binding.root)
@@ -2690,7 +2717,7 @@ index c403caac..bfc7c9f5 100644
          val drawerOverlay = DrawerOverlayComposeView(this).apply {
              drawerActive = { shellState.drawerRequestedOpen || shellState.drawerIsOpen }
              setContent {
-@@ -208,28 +233,13 @@ class MainActivity :
+@@ -208,28 +248,13 @@ class MainActivity :
          )
  
          binding.fab.setOnClickListener {
@@ -2726,7 +2753,7 @@ index c403caac..bfc7c9f5 100644
                  }
              }
          }
-@@ -244,8 +254,7 @@ class MainActivity :
+@@ -244,8 +269,7 @@ class MainActivity :
          }
  
          if (savedInstanceState == null && !openSettingsOnCreate) {
@@ -2736,7 +2763,7 @@ index c403caac..bfc7c9f5 100644
          }
          onBackPressedDispatcher.addCallback {
              if (shellState.drawerIsOpen) {
-@@ -256,8 +265,13 @@ class MainActivity :
+@@ -256,8 +280,13 @@ class MainActivity :
              if ((fragment as? ToolbarFragment)?.onBackPressed() == true) {
                  return@addCallback
              }
@@ -2751,7 +2778,7 @@ index c403caac..bfc7c9f5 100644
              } else {
                  displayFragmentWithId(R.id.nav_configuration)
              }
-@@ -317,6 +331,31 @@ class MainActivity :
+@@ -317,6 +346,31 @@ class MainActivity :
          }
      }
  
@@ -2783,8 +2810,12 @@ index c403caac..bfc7c9f5 100644
      private fun setupLegacyNavigationBarInsets() {
          val coordinatorInitialLeft = binding.coordinator.paddingLeft
          val coordinatorInitialRight = binding.coordinator.paddingRight
-@@ -366,45 +405,14 @@ class MainActivity :
-         DataStore.proxyApps = true
+@@ -363,48 +417,17 @@ class MainActivity :
+     }
+ 
+     private suspend fun performProxyAppsFirstSetup() {
+-        DataStore.proxyApps = true
++        DataStore.proxyApps = false
          DataStore.bypass = false
          DataStore.proxyAppsFirstSetup = true
 +        syncProxyAppsDrawerItem()
@@ -2832,7 +2863,7 @@ index c403caac..bfc7c9f5 100644
      }
  
      private fun requestProxyAppsToggle(enabled: Boolean) {
-@@ -441,10 +449,137 @@ class MainActivity :
+@@ -441,10 +464,137 @@ class MainActivity :
  
      fun closeDrawer() = shellState.closeDrawer()
  
@@ -2970,9 +3001,23 @@ index c403caac..bfc7c9f5 100644
  
          if (DataStore.hideFromRecentApps) {
              applyHideFromRecentApps(DataStore.hideFromRecentApps)
-@@ -477,6 +612,23 @@ class MainActivity :
+@@ -476,7 +626,37 @@ class MainActivity :
+             restoreConnectionTestDialog()
              return
          }
++        val scannedProtected = intent.getStringArrayListExtra(ScannerActivity.EXTRA_PROTECTED_QR_TEXTS)
++        if (!scannedProtected.isNullOrEmpty()) {
++            setIntent(Intent(intent).apply { removeExtra(ScannerActivity.EXTRA_PROTECTED_QR_TEXTS) })
++            lifecycleScope.launch {
++                lifecycle.withResumed { Unit }
++                for (text in scannedProtected) {
++                    try { MobileTinaProtectedImports.import(this@MainActivity, text) }
++                    catch (e: kotlinx.coroutines.CancellationException) { throw e }
++                    catch (e: Exception) { Logs.w(e); snackbar(e.readableMessage).show() }
++                }
++            }
++            return
++        }
          val uri = intent.data ?: return
 +        if (io.nekohasekai.sagernet.utils.MobileTinaProtectedPayload.decode(uri.toString()) != null) {
 +            setIntent(Intent(intent).setAction(null).setData(null))
@@ -2994,7 +3039,7 @@ index c403caac..bfc7c9f5 100644
  
          RoutingLinkProcessors.forLink(uri.toString())?.let { processor ->
              setIntent(Intent(intent).setAction(null).setData(null))
-@@ -746,7 +898,7 @@ class MainActivity :
+@@ -746,7 +926,7 @@ class MainActivity :
          if (name.isNullOrBlank()) return
  
          group.name = group.name.takeIf { !it.isNullOrBlank() }
@@ -3003,7 +3048,7 @@ index c403caac..bfc7c9f5 100644
  
          onMainDispatcher {
              displayFragmentWithId(R.id.nav_group)
-@@ -755,7 +907,7 @@ class MainActivity :
+@@ -755,7 +935,7 @@ class MainActivity :
                  title = getText(R.string.subscription_import),
                  message = getString(R.string.subscription_import_message, name),
                  positiveButton = getText(R.string.yes),
@@ -3012,7 +3057,7 @@ index c403caac..bfc7c9f5 100644
                  onPositive = {
                      runOnDefaultDispatcher {
                          finishImportSubscription(group)
-@@ -804,7 +956,7 @@ class MainActivity :
+@@ -804,7 +984,7 @@ class MainActivity :
                  title = getText(R.string.profile_import),
                  message = message,
                  positiveButton = getText(R.string.yes),
@@ -3021,7 +3066,7 @@ index c403caac..bfc7c9f5 100644
                  onPositive = {
                      runOnDefaultDispatcher {
                          finishImportProfiles(profiles)
-@@ -916,8 +1068,10 @@ class MainActivity :
+@@ -916,8 +1096,10 @@ class MainActivity :
          syncState: Boolean = true,
      ) {
          if (fragment == null) return
@@ -3033,7 +3078,7 @@ index c403caac..bfc7c9f5 100644
              (fragment is SettingsFragment && DataStore.showBottomBarInSettings)
          binding.stats.useExternalScrollDriver =
              fragment is ConfigurationFragment || fragment is SettingsFragment
-@@ -959,6 +1113,14 @@ class MainActivity :
+@@ -959,6 +1141,14 @@ class MainActivity :
          @IdRes id: Int,
      ): Boolean {
          when (id) {
@@ -3048,7 +3093,7 @@ index c403caac..bfc7c9f5 100644
              R.id.nav_configuration -> {
                  displayFragment(ConfigurationFragment())
              }
-@@ -1018,6 +1180,7 @@ class MainActivity :
+@@ -1018,6 +1208,7 @@ class MainActivity :
          val previousState = renderedServiceState
          renderedServiceState = state
          DataStore.serviceState = state
@@ -3056,7 +3101,7 @@ index c403caac..bfc7c9f5 100644
  
          if (bottomControlsVisibleForCurrentFragment) {
              binding.fab.changeState(state, previousState, animate)
-@@ -1141,6 +1304,12 @@ class MainActivity :
+@@ -1141,6 +1332,12 @@ class MainActivity :
          connection.connect(this, this)
      }
  
@@ -3069,10 +3114,11 @@ index c403caac..bfc7c9f5 100644
      private val connect =
          registerForActivityResult(VpnRequestActivity.StartService()) {
              if (it) snackbar(R.string.vpn_permission_denied).show()
-@@ -1227,6 +1396,9 @@ class MainActivity :
+@@ -1227,6 +1424,10 @@ class MainActivity :
      }
  
      override fun onDestroy() {
++        runCatching { unregisterReceiver(expiryUpdates) }
 +        mobileTinaWelcome?.setOnDismissListener(null)
 +        mobileTinaWelcome?.dismiss()
 +        mobileTinaWelcome = null
@@ -3183,10 +3229,52 @@ index 0d18f26c..643355f2 100644
              onPositive = {
                  requestBackgroundLocationSettings.launch(
 diff --git a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/ScannerActivity.kt b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/ScannerActivity.kt
-index 1c241fe8..fa11d461 100644
+index 1c241fe..2f6c7f7 100644
 --- a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/ScannerActivity.kt
 +++ b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/ScannerActivity.kt
-@@ -213,6 +213,10 @@ class ScannerActivity : ThemedActivity() {
+@@ -58,6 +58,7 @@ class ScannerActivity : ThemedActivity() {
+         private const val TAG = "ScannerActivity"
+         const val EXTRA_RETURN_SCAN_TEXT = "returnScanText"
+         const val EXTRA_SCAN_TEXT = "scanText"
++        const val EXTRA_PROTECTED_QR_TEXTS = "mobiletinaProtectedQrTexts"
+     }
+ 
+     private var previewView: PreviewView? = null
+@@ -122,15 +123,20 @@ class ScannerActivity : ThemedActivity() {
+                 }
+ 
+                 var happCryptFound = false
++                val protectedCodes = ArrayList<String>()
+                 codes.forEach { code ->
+-                    if (SubscriptionLinkImportPolicy.isHappCryptLink(code)) {
++                    if (io.nekohasekai.sagernet.utils.MobileTinaProtectedPayload.decode(code) != null) {
++                        protectedCodes.add(code)
++                    } else if (SubscriptionLinkImportPolicy.isHappCryptLink(code)) {
+                         happCryptFound = true
+                     } else {
+                         importQrPayload(code)
+                     }
+                 }
+                 onMainDispatcher {
+-                    if (happCryptFound) {
++                    if (protectedCodes.isNotEmpty()) {
++                        handoffProtectedQr(protectedCodes)
++                    } else if (happCryptFound) {
+                         showHappCryptAndFinish()
+                     } else {
+                         finish()
+@@ -176,6 +182,10 @@ class ScannerActivity : ThemedActivity() {
+             finish()
+             return true
+         }
++        if (io.nekohasekai.sagernet.utils.MobileTinaProtectedPayload.decode(text) != null) {
++            handoffProtectedQr(arrayListOf(text))
++            return true
++        }
+         if (RoutingLinkProcessors.forLink(text) != null) {
+             openRoutingImport(text)
+             return true
+@@ -213,6 +223,10 @@ class ScannerActivity : ThemedActivity() {
  
      private suspend fun importQrPayload(text: String) {
          when (val importResult = QrCodeImportParser.parse(text)) {
@@ -3197,8 +3285,24 @@ index 1c241fe8..fa11d461 100644
              is QrCodeImportResult.Profiles -> {
                  val currentGroupId = DataStore.selectedGroupForImport()
                  if (DataStore.selectedGroup != currentGroupId) {
+@@ -235,6 +249,15 @@ class ScannerActivity : ThemedActivity() {
+         }
+     }
+ 
++    private fun handoffProtectedQr(texts: ArrayList<String>) {
++        finished.set(true)
++        startActivity(Intent(this, MainActivity::class.java).apply {
++            addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
++            putStringArrayListExtra(EXTRA_PROTECTED_QR_TEXTS, texts)
++        })
++        finish()
++    }
++
+     private fun openRoutingImport(link: String) {
+         startActivity(Intent(this, MainActivity::class.java).apply {
+             action = Intent.ACTION_VIEW
 diff --git a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/SettingsFragment.kt b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/SettingsFragment.kt
-index 23b690e6..6823a615 100644
+index 23b690e..6823a61 100644
 --- a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/SettingsFragment.kt
 +++ b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/SettingsFragment.kt
 @@ -285,7 +285,9 @@ class SettingsFragment : ToolbarFragment(),
@@ -3968,7 +4072,7 @@ index 123be942..75f57cc5 100644
      val protocolValues = stringArrayResource(R.array.naive_proto_value).toList()
      val congestionLabels = stringArrayResource(R.array.naive_quic_congestion_control_entry).toList()
 diff --git a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/compose/NekoComposeTheme.kt b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/compose/NekoComposeTheme.kt
-index 7fa2bbca..6bdf4b85 100644
+index 7fa2bbc..6bdf4b8 100644
 --- a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/compose/NekoComposeTheme.kt
 +++ b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/compose/NekoComposeTheme.kt
 @@ -1,6 +1,9 @@
@@ -4669,7 +4773,7 @@ index 9499eede..1f043464 100644
      }
  }
 diff --git a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/utils/Theme.kt b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/utils/Theme.kt
-index e94d18ac..5052ce15 100644
+index e94d18a..6bfa1d7 100644
 --- a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/utils/Theme.kt
 +++ b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/utils/Theme.kt
 @@ -32,9 +32,10 @@ object Theme {
@@ -4722,7 +4826,7 @@ index e94d18ac..5052ce15 100644
              CUSTOM -> R.style.Theme_SagerNet_Dialog_Custom
              else -> getDialogTheme(defaultTheme())
          }
-@@ -126,13 +129,8 @@ object Theme {
+@@ -126,12 +129,7 @@ object Theme {
  
      var currentNightMode = -1
      fun getNightMode(): Int {
@@ -4732,13 +4836,11 @@ index e94d18ac..5052ce15 100644
 -        if (currentNightMode == -1) {
 -            currentNightMode = DataStore.nightTheme
 -        }
--        return getNightMode(currentNightMode)
-+        currentNightMode = 0
-+        return AppCompatDelegate.MODE_NIGHT_FOLLOW_SYSTEM
++        if (currentNightMode == -1) currentNightMode = DataStore.nightTheme
+         return getNightMode(currentNightMode)
      }
  
-     fun getNightMode(mode: Int): Int {
-@@ -144,16 +142,8 @@ object Theme {
+@@ -144,15 +142,10 @@ object Theme {
          }
      }
  
@@ -4751,12 +4853,13 @@ index e94d18ac..5052ce15 100644
 -            2 -> false
 -            else -> (app.resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK) == Configuration.UI_MODE_NIGHT_YES
 -        }
--    }
-+    fun usingNightMode(): Boolean =
-+        (app.resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK) == Configuration.UI_MODE_NIGHT_YES
++    fun usingNightMode(): Boolean = when (if (currentNightMode == -1) DataStore.nightTheme else currentNightMode) {
++        1 -> true
++        2 -> false
++        else -> (app.resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK) == Configuration.UI_MODE_NIGHT_YES
+     }
  
      fun applyNightTheme() {
-         AppCompatDelegate.setDefaultNightMode(getNightMode())
 diff --git a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/widget/RulesetEditTextPreferenceDialogFragment.kt b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/widget/RulesetEditTextPreferenceDialogFragment.kt
 index 67b4e266..e866ac91 100644
 --- a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/widget/RulesetEditTextPreferenceDialogFragment.kt
@@ -5354,7 +5457,7 @@ index 277dbcd3..d25933d0 100644
  
      <integer-array name="material_colors">
 diff --git a/workspace/NekoBoxForAndroid/app/src/main/res/values/strings.xml b/workspace/NekoBoxForAndroid/app/src/main/res/values/strings.xml
-index 2f6ec1c7..553a06e1 100644
+index 2f6ec1c..a674838 100644
 --- a/workspace/NekoBoxForAndroid/app/src/main/res/values/strings.xml
 +++ b/workspace/NekoBoxForAndroid/app/src/main/res/values/strings.xml
 @@ -1,8 +1,8 @@
@@ -5437,6 +5540,24 @@ index 2f6ec1c7..553a06e1 100644
      <string name="connect">Connect</string>
      <string name="clipboard_empty">Clipboard is empty</string>
      <!-- menu category -->
+@@ -505,13 +505,13 @@
+     <string name="byedpi_proxy_set_error">ByeDPI is not allowed in proxy sets.</string>
+     <string name="masterdnsvpn_chain_error">MasterDnsVPN is not allowed in proxy chains.</string>
+     <string name="masterdnsvpn_proxy_set_error">MasterDnsVPN is not allowed in proxy sets.</string>
+-    <string name="clear_profiles">Clear</string>
++    <string name="clear_profiles">پاکسازی</string>
+     <string name="action_create_group">Empty group</string>
+     <string name="action_from_link">From subscription</string>
+     <string name="action_scan_china_apps">Scan China apps</string>
+-    <string name="action_export_file">Export to file</string>
+-    <string name="action_export_clipboard">Export to Clipboard</string>
+-    <string name="action_export">Export</string>
++    <string name="action_export_file">خروجی گرفتن بصورت فایل</string>
++    <string name="action_export_clipboard">خروجی گرفتن در کلیپ بورد</string>
++    <string name="action_export">خروجی گرفتن</string>
+     <string name="action_import">Import from Clipboard</string>
+     <string name="action_import_file">Import from file</string>
+     <string name="scanner_turn_flashlight_on">Turn flashlight on</string>
 @@ -528,22 +528,22 @@
      <!-- share -->
      <!-- profile -->
@@ -5445,11 +5566,12 @@ index 2f6ec1c7..553a06e1 100644
 -    <string name="delete_confirm_prompt">Are you sure you want to remove this profile?</string>
 -    <string name="delete_unavailable_confirm_prompt">Remove unavailable profiles?</string>
 -    <string name="confirm_profile_delete">Delete confirmation</string>
+-    <string name="share_qr_nfc">QR code</string>
 +    <string name="delete">حذف</string>
 +    <string name="delete_confirm_prompt">این کانفیگ حذف شود؟</string>
 +    <string name="delete_unavailable_confirm_prompt">کانفیگ‌های غیرفعال حذف شوند؟</string>
 +    <string name="confirm_profile_delete">تأیید حذف</string>
-     <string name="share_qr_nfc">QR code</string>
++    <string name="share_qr_nfc">نمایش بارکد</string>
      <string name="add_profile_methods_scan_qr_code">Scan QR code</string>
      <string name="add_profile_methods_manual_settings">Manual Settings</string>
      <plurals name="removed">
@@ -5571,7 +5693,15 @@ index 2f6ec1c7..553a06e1 100644
      <string name="set_panel_url">Set panel URL</string>
      <string name="webview_cleanup">Cleanup</string>
      <string name="webview_cleanup_confirmation">Perform sing-box panel cleanup?\nThis will stop the connection.</string>
-@@ -1128,7 +1123,7 @@
+@@ -1121,14 +1116,14 @@
+     <string name="overrides">Overrides</string>
+     <string name="action_shadowtls" translatable="false">ShadowTLS</string>
+     <string name="protocol_version">Protocol Version</string>
+-    <string name="share_subscription">Share Subscription</string>
++    <string name="share_subscription">اشتراک گذاری اشتراک</string>
+     <string name="show_group_in_notification">Show group name in notification</string>
+     <string name="persistent_status_notification">Persistent status notification</string>
+     <string name="persistent_status_notification_summary">Keep the connection notification in the status bar and prevent dismissing it</string>
      <string name="reset_connections">Reset Connections</string>
      <string name="remove_duplicate">Duplicates</string>
      <string name="remove_insecure">Remove insecure servers</string>
@@ -5589,6 +5719,15 @@ index 2f6ec1c7..553a06e1 100644
      <string name="clear_cache_success">Cache cleared</string>
      <string name="clear_cache_failed">Failed to clear cache: %s</string>
      <string name="run_storage_maintenance">Run storage maintenance</string>
+@@ -1364,7 +1359,7 @@
+     <string name="source_ip">Source IP</string>
+     <string name="title_tun_system_dns_traffic">System DNS traffic route for TUN</string>
+     <string name="summary_tun_system_dns_traffic">Determines the route for TUN traffic to the DNS, DoT, and DoH whitelist. Keep on the first mode to prevent outbound IP leaks.</string>
+-    <string name="share_subscription_url">Share Subscription URL</string>
++    <string name="share_subscription_url">اشتراک گذاری لینک اشتراک</string>
+     <string name="traffic_update_summary">Configures update interval for the profile traffic. Can show incorrect values when notification updates and Wake Lock are disabled.</string>
+     <string name="masterdnsvpn">MasterDnsVPN</string>
+     <string name="masterdnsvpn_domains">Domains</string>
 @@ -1848,7 +1843,7 @@
      <string name="routing_import_source">Source: %1$s</string>
      <string name="routing_import_settings">Settings</string>
@@ -5846,14 +5985,14 @@ index fde311a4..758ec832 100644
              val originalFileName = output.outputFileName.get()
              output.outputFileName.set(
 diff --git a/workspace/NekoBoxForAndroid/nb4a.properties b/workspace/NekoBoxForAndroid/nb4a.properties
-index b5f787de..863e1b7d 100644
+index b5f787d..4fefb5c 100644
 --- a/workspace/NekoBoxForAndroid/nb4a.properties
 +++ b/workspace/NekoBoxForAndroid/nb4a.properties
 @@ -1,4 +1,4 @@
 -PACKAGE_NAME=com.nb4a.plus
 -VERSION_NAME=1.4.2-97
 +PACKAGE_NAME=com.nb4a.mobiletina
-+VERSION_NAME=1.4.2-102
++VERSION_NAME=1.4.2-103
  PRE_VERSION_NAME=pre-1.4.2-20260214-1
 -VERSION_CODE=84
-+VERSION_CODE=89
++VERSION_CODE=90

@@ -32,10 +32,15 @@ object MobileTinaUiDefaults {
     fun apply() {
         val appsKey = "mobiletinaAppSelectionV102"
         if (!DataStore.configurationStore.getBoolean(appsKey, false)) {
-            DataStore.proxyApps = true
+            DataStore.proxyApps = false
             DataStore.bypass = false
             DataStore.individual = defaultAppSelection()
             DataStore.configurationStore.putBoolean(appsKey, true)
+        }
+        val offKey = "mobiletinaAppModeOffV103"
+        if (!DataStore.configurationStore.getBoolean(offKey, false)) {
+            DataStore.proxyApps = false
+            DataStore.configurationStore.putBoolean(offKey, true)
         }
         val trafficKey = "mobiletinaTrafficV102"
         if (!DataStore.configurationStore.getBoolean(trafficKey, false)) {
@@ -52,7 +57,7 @@ object MobileTinaUiDefaults {
         if (DataStore.configurationStore.getBoolean(MIGRATED, false)) return
         if (DataStore.appTheme == Theme.BLUE) DataStore.appTheme = Theme.SIMPLE
         // The previous first-run setup forced this on. Keep the saved app selection.
-        DataStore.proxyApps = true
+        DataStore.proxyApps = false
         DataStore.appLanguage = "en"
         DataStore.configurationStore.putBoolean(MIGRATED, true)
     }
@@ -66,3 +71,4 @@ class MobileTinaUpdateReceiver : BroadcastReceiver() {
         }
     }
 }
+

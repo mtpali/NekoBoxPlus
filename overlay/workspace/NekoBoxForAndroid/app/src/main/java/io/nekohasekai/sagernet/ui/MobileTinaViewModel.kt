@@ -91,7 +91,8 @@ internal class MobileTinaViewModel(application: Application) : AndroidViewModel(
         return Snapshot(
             group?.id ?: 0, group?.displayName().orEmpty(), profiles, selected,
             usage.copy(expiresAt = expirySeconds),
-            marker || (expirySeconds != null && expirySeconds <= MobileTinaSubscriptionExpiry.nowMillis() / 1000L),
+            marker || if (managedExpiry != null) MobileTinaSubscriptionExpiry.isVerifiedExpired(managedExpiry)
+            else (expirySeconds != null && expirySeconds <= MobileTinaSubscriptionExpiry.nowMillis() / 1000L),
         )
     }
 
@@ -271,3 +272,4 @@ internal class MobileTinaViewModel(application: Application) : AndroidViewModel(
         super.onCleared()
     }
 }
+

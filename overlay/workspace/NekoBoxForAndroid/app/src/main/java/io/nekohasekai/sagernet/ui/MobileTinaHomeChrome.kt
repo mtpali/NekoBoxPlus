@@ -72,10 +72,15 @@ internal object MobileTinaHomeChrome {
                 popup.menu.add(0, R.id.action_update_subscription, 0, R.string.mobiletina_more_update)
                 popup.menu.add(0, R.id.action_connection_url_test, 1, R.string.mobiletina_more_speed_test)
                 popup.menu.add(0, R.id.action_mobiletina_clear_configs, 2, R.string.mobiletina_delete_configs)
-                popup.menu.add(0, R.id.action_mobiletina_group, 3, R.string.mobiletina_group)
-                popup.menu.add(0, R.id.action_mobiletina_search, 4, R.string.mobiletina_search)
+                source.findItem(R.id.action_delete_menu)?.let { remove ->
+                    popup.menu.addSubMenu(remove.groupId, remove.itemId, 3, remove.title).also { submenu ->
+                        remove.subMenu?.let { copyMenu(it, submenu) }
+                    }
+                }
+                popup.menu.add(0, R.id.action_mobiletina_group, 4, R.string.mobiletina_group)
+                popup.menu.add(0, R.id.action_mobiletina_search, 5, R.string.mobiletina_search)
                 source.findItem(R.id.action_misc)?.subMenu?.let {
-                    copyMenu(it, popup.menu, setOf(R.id.action_update_subscription, R.id.action_connection_url_test, R.id.action_show_active, R.id.action_global_mode, R.id.nav_tools))
+                    copyMenu(it, popup.menu, setOf(R.id.action_delete_menu, R.id.action_update_subscription, R.id.action_connection_url_test, R.id.action_show_active, R.id.action_global_mode, R.id.nav_tools))
                 }
 
             }
@@ -137,3 +142,4 @@ internal object MobileTinaHomeChrome {
 
     fun dp(context: Context, value: Int): Int = (value * context.resources.displayMetrics.density + 0.5f).toInt()
 }
+

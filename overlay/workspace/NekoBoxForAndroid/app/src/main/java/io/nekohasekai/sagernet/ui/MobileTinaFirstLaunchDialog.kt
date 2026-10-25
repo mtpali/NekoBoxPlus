@@ -8,9 +8,6 @@ import android.graphics.Color
 import android.graphics.Typeface
 import android.graphics.drawable.GradientDrawable
 import android.net.Uri
-import android.text.SpannableString
-import android.text.Spanned
-import android.text.style.UnderlineSpan
 import android.view.Gravity
 import android.view.View
 import android.view.ViewGroup
@@ -82,10 +79,7 @@ internal object MobileTinaFirstLaunchDialog {
             val handle = value.substringAfter(':', "").trim()
                 .takeIf { it in MobileTinaAboutContent.socialHandles() }
             root.addView(TextView(activity).apply {
-                text = if (handle == null) value else SpannableString(value).apply {
-                    val start = value.indexOf(handle)
-                    setSpan(UnderlineSpan(), start, start + handle.length, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
-                }
+                text = value
                 setTextColor(Color.WHITE)
                 textSize = 15f
                 gravity = Gravity.CENTER
@@ -174,3 +168,4 @@ internal object MobileTinaFirstLaunchDialog {
     private fun dp(activity: AppCompatActivity, value: Int): Int =
         (value * activity.resources.displayMetrics.density + 0.5f).toInt()
 }
+

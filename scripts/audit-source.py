@@ -56,7 +56,7 @@ assert hashlib.sha256(font.read_bytes()).hexdigest() == (ROOT/'REFERENCE_EXCLAVE
 assert 'name="fontFamily">@font/mobiletina' in (res/'values/themes.xml').read_text()
 main = (NBA/'app/src/main/java/io/nekohasekai/sagernet/ui/MainActivity.kt').read_text()
 setup = main.split('private suspend fun performProxyAppsFirstSetup() {',1)[1].split('\n    }',1)[0]
-assert 'DataStore.proxyApps = true' in setup and 'DataStore.proxyApps = false' not in setup
+assert 'DataStore.proxyApps = false' in setup and 'DataStore.proxyApps = true' not in setup
 assert 'R.layout.layout_about' in (NBA/'app/src/main/java/io/nekohasekai/sagernet/ui/AboutFragment.kt').read_text()
 assert (NBA/'app/src/main/assets/LICENSE').stat().st_size > 100
 print('Verified XML, identity, ARM ABIs, original menu/actions, authorized removals, single language/icon, startup defaults, Exclave font, artwork, and license.')
@@ -88,3 +88,6 @@ for path in (ROOT/'overlay/workspace/NekoBoxForAndroid/app/src/main/res').rglob(
         assert (kind, name) in owned_resources, ('Missing reference resource', path, kind, name)
 
 subprocess.run([sys.executable, str(ROOT/'scripts/branding-contract.py')], check=True)
+
+
+assert hashlib.sha256((res/'drawable-nodpi/mobiletina_launcher.png').read_bytes()).hexdigest() == (ROOT/'LAUNCHER_ICON_SHA256').read_text().strip()
