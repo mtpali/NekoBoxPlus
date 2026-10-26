@@ -14,6 +14,7 @@ import androidx.work.CoroutineWorker
 import androidx.work.ExistingWorkPolicy
 import androidx.work.NetworkType
 import androidx.work.OneTimeWorkRequestBuilder
+import androidx.work.OutOfQuotaPolicy
 import androidx.work.WorkerParameters
 import androidx.work.multiprocess.RemoteWorkManager
 import androidx.work.workDataOf
@@ -204,11 +205,15 @@ internal object MobileTinaSubscriptionExpiry {
 
     private fun requestVerification(record: Record) {
         if (readRecord(record.group) != record) return
-        val requireNetwork = record.trigger != 1L && trustedNow() == null
+        val now = trustedNow()
+        val requireNetwork = record.trigger != 1L && now == null
         val builder = OneTimeWorkRequestBuilder<MobileTinaExpiryWorker>()
             .addTag(record.tag)
             .setInputData(workDataOf("group" to record.group, "trigger" to record.trigger, "revision" to record.revision, "scheduler" to MobileTinaExpirySchedulePolicy.CURRENT_SCHEDULER))
             .setBackoffCriteria(BackoffPolicy.EXPONENTIAL, MobileTinaExpirySchedulePolicy.RETRY_DELAY_MILLIS, TimeUnit.MILLISECONDS)
+        if (Build.VERSION.SDK_INT >= 31 && (record.trigger == 1L || now?.let { it >= record.trigger } == true)) {
+            builder.setExpedited(OutOfQuotaPolicy.RUN_AS_NON_EXPEDITED_WORK_REQUEST)
+        }
         if (requireNetwork) builder.setConstraints(Constraints.Builder().setRequiredNetworkType(NetworkType.CONNECTED).build())
         workManager().enqueueUniqueWork("mobiletina.expiry.v105.verify.${record.group}.${record.revision}",
             ExistingWorkPolicy.KEEP, listOf(builder.build())).get(5, TimeUnit.SECONDS)
@@ -305,9 +310,9 @@ internal object MobileTinaSubscriptionExpiry {
                 val record = readRecord(id) ?: continue
                 if (legacy) cancelLegacy(id, record.trigger)
                 val group = AppData.groups.getById(id)
-                val profiles = if (group != null) AppData.profiles.getByGroup(id) else emptyList()
-                if (group == null || record.link != digest(group.subscription?.link.orEmpty()) ||
-                    MobileTinaExpirySchedulePolicy.isTerminalMarker(group.type == GroupType.BASIC, profiles.size, profiles.singleOrNull()?.let(::isMarker) == true)) {
+                val terminal = group?.type == GroupType.BASIC && AppData.profiles.countByGroup(id) == 1L &&
+                    AppData.profiles.getByGroupAndType(id, ProxyEntity.TYPE_SOCKS).singleOrNull()?.let(::isMarker) == true
+                if (group == null || record.link != digest(group.subscription?.link.orEmpty()) || terminal) {
                     cancelScheduled(record)
                     prefs.forget(id, record.trigger, record.link, record.updated)
                     continue

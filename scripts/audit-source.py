@@ -143,5 +143,30 @@ assert strings['quick_toggle'] == strings['tile_title'] == 'VPN'
 tile = (NBA/'app/src/main/java/io/nekohasekai/sagernet/bg/TileService.kt').read_text()
 assert 'R.mipmap.ic_launcher' in tile and 'R.string.tile_title' in tile
 assert 'label = profileName' not in tile and 'ic_service_' not in tile
-assert 'VERSION_NAME=1.4.2-106' in metadata and 'VERSION_CODE=93' in metadata
+assert 'VERSION_NAME=1.4.2-107' in metadata and 'VERSION_CODE=94' in metadata
 print('Verified release106 live-service expiry, QR access, VPN shortcut/tile branding and version identity.')
+
+work_services = {'androidx.work.multiprocess.RemoteWorkManagerService',
+    'androidx.work.impl.background.systemjob.SystemJobService',
+    'androidx.work.impl.background.systemalarm.SystemAlarmService',
+    'androidx.work.impl.foreground.SystemForegroundService'}
+services = {n.get(android+'name'):n for n in manifest.findall('application/service')}
+assert all(services[name].get(android+'process') == ':bg' for name in work_services)
+expiry_receiver = next(n for n in manifest.findall('application/receiver') if n.get(android+'name','').endswith('MobileTinaExpiryReceiver'))
+assert expiry_receiver.get(android+'process') == ':bg'
+assert strings['action_import_msg'] == 'اضافه شد'
+added = next(n for n in ET.parse(res/'values/strings.xml').getroot() if n.tag=='plurals' and n.get('name')=='added')
+assert all(item.text == 'اضافه شد' for item in added)
+stop_button = next(n for n in ET.parse(res/'layout/mobiletina_service_notification.xml').getroot().iter() if n.get(android+'id')=='@+id/mobiletina_notification_stop')
+assert stop_button.get(android+'textStyle') == 'bold'
+group_screen = (NBA/'app/src/main/java/io/nekohasekai/sagernet/ui/compose/GroupScreen.kt').read_text()
+assert 'onAction(group.id, GroupAction.ShareUrlQr)' in group_screen
+assert 'select(GroupAction.Update)' in group_screen
+box = (NBA/'app/src/main/java/io/nekohasekai/sagernet/bg/proto/BoxInstance.kt').read_text()
+assert 'MobileTinaGeositeCompatibility.forRuntime' in box
+home = (NBA/'app/src/main/java/io/nekohasekai/sagernet/ui/MobileTinaViewModel.kt').read_text()
+assert 'MobileTinaHomeProfiles.read(' in home and home.count('load(includeProfiles = true)') == 2
+assert 'ActivityCompat.requestPermissions(' not in main
+print('Verified release107 worker execution process, runtime Iran geosite alias, import text, bold stop control, group-row QR and lightweight startup metadata.')
+
+assert all(n.get(android+'process') == ':bg' for n in manifest.findall('application/receiver') if n.get(android+'name','').startswith('androidx.work.'))

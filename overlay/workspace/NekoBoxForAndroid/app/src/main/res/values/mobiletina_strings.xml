@@ -7,7 +7,7 @@
     <string name="mobiletina_disconnect">Disconnect or cancel</string>
     <string name="mobiletina_subscription">Subscription details</string>
     <string name="mobiletina_share_hint">Copy the subscription link or show its QR code.</string>
-    <string name="mobiletina_qr">Show QR code</string>
+    <string name="mobiletina_qr">نمایش بارکد</string>
     <string name="mobiletina_unlimited">Unlimited</string>
     <string name="mobiletina_usage">%1$s used of %2$s</string>
     <string name="mobiletina_no_internet">Please turn on your internet connection.</string>

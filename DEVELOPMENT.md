@@ -1,4 +1,20 @@
-# Current release: 1.4.2-106 / فیلترشکن
+# Current release: 1.4.2-107 / فیلترشکن
+
+VersionCode470 (94 × 5), original 104/v2 release certificate and pinned native core unchanged. Preserve all106 changes and the user's later15-tap rule.
+
+The reported geosite failure happens before connection: the106 APK's bundled database contains category-ir (378 entries) and no ir code. Runtime compatibility now resolves the legacy local pseudo-rule-set path against the actual global or subscription-specific geosite asset: prefer ir when present, otherwise category-ir, otherwise retain the tag using an inline .ir suffix rule. Outbounds, REALITY fields, route order, DNS references and unrelated countries remain intact; saved profiles/rules are not rewritten. Corrupt/unreadable assets still report their real error. The alias catalog is cached by file identity; unrelated configs do not read it.
+
+The previous merged APK manifest left RemoteWorkManagerService and AndroidX execution services in the UI process despite setDefaultProcessName(:bg). A default-process setting does not relocate Android service components. All four WorkManager services, its eight library receivers and the expiry alarm receiver now explicitly run in :bg with the live VPN service. On-demand initialization stays enabled. Verified-due requests use expedited work on Android12+ with quota fallback. The existing live-service stop/teardown acknowledgement, per-group transaction, expiry notification and stable-ID SOCKS1:1 marker are retained. This fixes an actual process mismatch; physical device confirmation is still required.
+
+Import success text (single and plural) is exactly «اضافه شد». The white notification stop button has bold black text. The per-group row update icon now opens subscription URL QR when sharing is allowed; manual update remains in its three-dot menu and update-all/foreground auto-update remain available. Protected sources remain protected.
+
+Home metadata uses SQL count, one selected-profile lookup and a SOCKS-only marker query instead of deserializing every protocol config on every refresh. Smart Connect explicitly loads the full group when requested. Expiry recovery also skips full-profile reads for nonterminal subscription groups. The duplicate notification permission request is removed and the combined startup request waits for the first frame. Removed-dashboard WebView housekeeping no longer runs at startup. No numeric startup-speed claim is made without device profiling.
+
+Validate clean patch replay twice, complete JVM suite, native guard, Debug/Release, all signed APK contracts and the actual merged manifest processes. User-provided live VLESS credentials must not be committed or included in handoff/evidence; regression fixtures use synthetic credentials. References reviewed: mtpali/MobileTinaVPN@670b895 and mtpali/exclave@6a4169e3. Their global wipe/fallback-to-device-time behavior is not copied.
+
+---
+
+# Historical release: 1.4.2-106 / فیلترشکن
 
 The 2026-10-26 user change log and both main@7380499 and the draft PR branch@7757ccd were reviewed before editing. Preserve startup camera/notification permission requests, concise subscription-import errors, fifteen-tap QR access, the white notification stop button with black text, and the unchanged pinned native core.
 
