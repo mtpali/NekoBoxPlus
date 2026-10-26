@@ -37,7 +37,7 @@ for name in ['mipmap/ic_launcher', 'mipmap/ic_launcher_round']:
 mark_files = resource_files('drawable/mobiletina_notification')
 assert len(mark_files) == 1
 mark_tree = subprocess.check_output([str(aapt), 'dump', 'xmltree', str(apk), '--file', mark_files[0][1]], text=True)
-assert 'E: vector' in mark_tree and 'E: path' in mark_tree and '0xffffffff' in mark_tree
+assert 'E: vector' in mark_tree and 'E: path' in mark_tree and '#ffffffff' in mark_tree
 configurations = subprocess.check_output([str(aapt), 'dump', 'configurations', str(apk)], text=True)
 removed_locales = {match[1] for relative in json.loads((ROOT/'SOURCE_REMOVALS.json').read_text())
                   if (match := re.search(r'/res/values-([a-z]{2,3})(?:-r[A-Z]{2})?/', relative))}
