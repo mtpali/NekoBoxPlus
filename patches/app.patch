@@ -150,7 +150,7 @@ index ac7c161..a9cd6f0 100644
 -    </shortcut>
  </shortcuts>
 diff --git a/workspace/NekoBoxForAndroid/app/src/main/AndroidManifest.xml b/workspace/NekoBoxForAndroid/app/src/main/AndroidManifest.xml
-index a412021..b418717 100644
+index a412021..e88ef5f 100644
 --- a/workspace/NekoBoxForAndroid/app/src/main/AndroidManifest.xml
 +++ b/workspace/NekoBoxForAndroid/app/src/main/AndroidManifest.xml
 @@ -1,12 +1,6 @@
@@ -632,7 +632,7 @@ index a412021..b418717 100644
              <intent-filter>
                  <action android:name="android.intent.action.MAIN" />
                  <category android:name="android.intent.category.LAUNCHER" />
-@@ -484,326 +134,103 @@
+@@ -484,326 +134,104 @@
              </intent-filter>
              <meta-data android:name="android.app.shortcuts" android:resource="@xml/shortcuts" />
          </activity-alias>
@@ -1033,6 +1033,7 @@ index a412021..b418717 100644
 +        <receiver android:name="androidx.work.impl.background.systemalarm.ConstraintProxy$BatteryNotLowProxy" android:process=":bg" />
 +        <receiver android:name="androidx.work.impl.background.systemalarm.ConstraintProxy$StorageNotLowProxy" android:process=":bg" />
 +        <receiver android:name="androidx.work.impl.background.systemalarm.ConstraintProxy$NetworkStateProxy" android:process=":bg" />
++        <receiver android:name=".ui.MobileTinaAppTrafficReceiver" android:exported="false" android:process=":bg" />
 +        <receiver android:name=".ui.MobileTinaExpiryReceiver" android:exported="false" android:process=":bg" />
 +        <receiver android:name=".bg.MobileTinaSessionReceiver" android:exported="false" android:process=":bg" />
      </application>
@@ -1513,7 +1514,7 @@ index af78c50..0dce197 100644
          var underlyingNetwork: Network? = null
  
 diff --git a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/bg/BaseService.kt b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/bg/BaseService.kt
-index fcac457..24a4343 100644
+index fcac457..29d9823 100644
 --- a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/bg/BaseService.kt
 +++ b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/bg/BaseService.kt
 @@ -20,7 +20,6 @@ import io.nekohasekai.sagernet.R
@@ -1550,15 +1551,16 @@ index fcac457..24a4343 100644
  
                  else -> service.stopRunner()
              }
-@@ -172,6 +161,7 @@ class BaseService {
+@@ -172,6 +161,8 @@ class BaseService {
          fun changeState(s: State, msg: String? = null) {
              if (state == s && msg == null) return
              state = s
 +            MobileTinaSessionLimiter.onState(service as android.content.Context, s)
++            io.nekohasekai.sagernet.ui.MobileTinaSubscriptionExpiry.onServiceStateChanged(service, s)
              DataStore.serviceState = s
              if (s != State.Connected) binder.resetConnectionTestState()
              binder.stateChanged(s, msg)
-@@ -209,10 +199,6 @@ class BaseService {
+@@ -209,10 +200,6 @@ class BaseService {
          }
  
          private val broadcastMutex = Mutex()
@@ -1569,7 +1571,7 @@ index fcac457..24a4343 100644
          private val connectionTestSession = ConnectionTestSessionState()
  
          suspend fun broadcast(work: (ISagerNetServiceCallback) -> Unit) {
-@@ -286,114 +272,6 @@ class BaseService {
+@@ -286,114 +273,6 @@ class BaseService {
              connectionTestSession.reset()
          }
  
@@ -1684,7 +1686,7 @@ index fcac457..24a4343 100644
          override fun currentClashMode(): String {
              val box = data?.proxy?.box ?: return ""
              return Libcore.currentClashMode(box)
-@@ -584,7 +462,6 @@ class BaseService {
+@@ -584,7 +463,6 @@ class BaseService {
  
          override fun close() {
              runBlocking(Dispatchers.Default) {
@@ -1692,7 +1694,7 @@ index fcac457..24a4343 100644
              }
              callbacks.kill()
              cancel()
-@@ -779,7 +656,6 @@ class BaseService {
+@@ -779,7 +657,6 @@ class BaseService {
  
          private fun closeProxyInstance(proxy: ProxyInstance) {
              runBlocking(Dispatchers.Default) {
@@ -1700,7 +1702,7 @@ index fcac457..24a4343 100644
              }
              runBlocking {
                  proxy.looper?.stop()
-@@ -1294,7 +1170,6 @@ class BaseService {
+@@ -1294,7 +1171,6 @@ class BaseService {
                      addAction(Intent.ACTION_SCREEN_OFF)
                      addAction(Intent.ACTION_SCREEN_ON)
                      addAction(Action.RESET_UPSTREAM_CONNECTIONS)
@@ -1708,7 +1710,7 @@ index fcac457..24a4343 100644
                  }
                  if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                      registerReceiver(
-@@ -1323,6 +1198,10 @@ class BaseService {
+@@ -1323,6 +1199,10 @@ class BaseService {
                              data.notification = createNotification(profile)
                          }
  
@@ -2375,10 +2377,20 @@ index dd46ee5..0b2de62 100644
          }
      }
 diff --git a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/bg/VpnService.kt b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/bg/VpnService.kt
-index 7be0b5b..5d52fcb 100644
+index 7be0b5b..d35f26c 100644
 --- a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/bg/VpnService.kt
 +++ b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/bg/VpnService.kt
-@@ -98,10 +98,8 @@ class VpnService :
+@@ -43,7 +43,8 @@ class VpnService :
+         private const val VPN_NETWORK_TEARDOWN_POLL_MS = 100L
+     }
+ 
+-    var conn: ParcelFileDescriptor? = null
++    @Volatile var conn: ParcelFileDescriptor? = null
++    internal val hasTunConnection: Boolean get() = conn != null
+ 
+     private var metered = false
+     private var activeTunPlan: VpnTunPlan? = null
+@@ -98,10 +99,8 @@ class VpnService :
      override fun createNotification(profile: ProxyEntity?) = ServiceNotification(
          this,
          profile?.let {
@@ -2390,6 +2402,24 @@ index 7be0b5b..5d52fcb 100644
      )
  
      override fun onStartCommand(
+@@ -342,13 +341,14 @@ class VpnService :
+ 
+     private fun closeTunConnection() {
+         val connection = conn
+-        conn = null
+         activeTunPlan = null
+         reuseTunOnNextOpen = false
+         connection?.let {
+             Logs.d("Closing Android VPN file descriptor")
+-            runCatching { it.close() }.onFailure { error -> Logs.w(error) }
+-            Logs.d("Android VPN file descriptor closed")
++            runCatching { it.close() }.onSuccess {
++                if (conn === connection) conn = null
++                Logs.d("Android VPN file descriptor closed")
++            }.onFailure { error -> Logs.w(error) }
+         }
+     }
+ }
 diff --git a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/bg/proto/BoxInstance.kt b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/bg/proto/BoxInstance.kt
 index 3b8fa18..c0f7a2f 100644
 --- a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/bg/proto/BoxInstance.kt
@@ -2412,6 +2442,36 @@ index 3b8fa18..c0f7a2f 100644
          box = if (config.routingAssetsPath != null && config.routingCachePath != null) {
              Libcore.newSingBoxInstanceWithPaths(
                  config.config,
+diff --git a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/bg/proto/ProxyInstance.kt b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/bg/proto/ProxyInstance.kt
+index 9244880..cd8013c 100644
+--- a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/bg/proto/ProxyInstance.kt
++++ b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/bg/proto/ProxyInstance.kt
+@@ -42,8 +42,13 @@ class ProxyInstance(profile: ProxyEntity, var service: BaseService.Interface? =
+         }
+     }
+ 
++    private var appTrafficEnabled = false
+     override suspend fun loadConfig() {
++        appTrafficEnabled = notTmp && service is io.nekohasekai.sagernet.bg.VpnService &&
++            io.nekohasekai.sagernet.ui.MobileTinaAppTraffic.enabled
++        if (appTrafficEnabled) config.config = io.nekohasekai.sagernet.ui.MobileTinaAppTraffic.prepareConfig(config.config)
+         super.loadConfig()
++        if (appTrafficEnabled) io.nekohasekai.sagernet.ui.MobileTinaAppTraffic.start(box)
+     }
+ 
+     override fun launch() {
+@@ -60,7 +65,10 @@ class ProxyInstance(profile: ProxyEntity, var service: BaseService.Interface? =
+             looper?.stop()
+             looper = null
+         }
+-        super.close(timeoutMillis)
++        try { super.close(timeoutMillis) }
++        finally {
++            if (appTrafficEnabled && isInitialized()) io.nekohasekai.sagernet.ui.MobileTinaAppTraffic.stop(box)
++        }
+     }
+ 
+     override fun close() {
 diff --git a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/bg/proto/TrafficLooper.kt b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/bg/proto/TrafficLooper.kt
 index 0087dfb..444ddc7 100644
 --- a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/bg/proto/TrafficLooper.kt
@@ -3110,6 +3170,18 @@ index e5f381a..4b0afe6 100644
          }
      }
  
+diff --git a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/group/GroupUpdater.kt b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/group/GroupUpdater.kt
+index f760b71..1949010 100644
+--- a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/group/GroupUpdater.kt
++++ b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/group/GroupUpdater.kt
+@@ -202,6 +202,7 @@ abstract class GroupUpdater {
+             updating.remove(proxyGroup.id)
+             progress.remove(proxyGroup.id)
+             GroupManager.postUpdate(proxyGroup.id)
++            io.nekohasekai.sagernet.ui.MobileTinaSubscriptionExpiry.onUpdateFinished(proxyGroup.id)
+         }
+ 
+     }
 diff --git a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/group/RawUpdater.kt b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/group/RawUpdater.kt
 index f2c562e..f6da710 100644
 --- a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/group/RawUpdater.kt
@@ -6657,16 +6729,17 @@ index 1c241fe..51d5a4b 100644
  
      private fun openRoutingImport(link: String) {
 diff --git a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/SettingsFragment.kt b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/SettingsFragment.kt
-index 23b690e..6823a61 100644
+index 23b690e..919b135 100644
 --- a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/SettingsFragment.kt
 +++ b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/SettingsFragment.kt
-@@ -285,7 +285,9 @@ class SettingsFragment : ToolbarFragment(),
+@@ -285,7 +285,10 @@ class SettingsFragment : ToolbarFragment(),
                      },
                  ) {
                      when (current) {
 -                        Page.Top -> SettingsCategoryScreen(SETTINGS_GROUPS, ::openGroup)
 +                        Page.Top -> SettingsCategoryScreen(SETTINGS_GROUPS, ::openGroup) { id ->
-+                            (activity as? MainActivity)?.openMobileTinaSettingsDestination(id)
++                            if (id == R.id.mobiletina_app_log) (activity as? MainActivity)?.displayFragment(MobileTinaAppTrafficFragment())
++                            else (activity as? MainActivity)?.openMobileTinaSettingsDestination(id)
 +                        }
                          is Page.Group -> GlobalSettingsGroupScreen(
                              groupId = current.id,
@@ -7932,7 +8005,7 @@ index 5691527..a80d98f 100644
      val authValues = stringArrayResource(R.array.int_array_3).toList()
      val nameTitle = stringResource(R.string.profile_name)
 diff --git a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/compose/SettingsCategoryScreen.kt b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/compose/SettingsCategoryScreen.kt
-index 262465a..038e0ec 100644
+index 262465a..8d11ea2 100644
 --- a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/compose/SettingsCategoryScreen.kt
 +++ b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/compose/SettingsCategoryScreen.kt
 @@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.Arrangement
@@ -7961,7 +8034,7 @@ index 262465a..038e0ec 100644
          items(groups, key = SettingsGroupUiModel::id) { group ->
              Row(
                  modifier = Modifier
-@@ -68,5 +71,15 @@ internal fun SettingsCategoryScreen(
+@@ -68,5 +71,16 @@ internal fun SettingsCategoryScreen(
                  }
              }
          }
@@ -7970,6 +8043,7 @@ index 262465a..038e0ec 100644
 +            Triple(R.id.nav_configuration, R.string.menu_configuration, R.drawable.ic_action_description),
 +            Triple(R.id.nav_route, R.string.menu_route, R.drawable.ic_maps_directions),
 +            Triple(R.id.nav_adblock, R.string.adblock, R.drawable.ic_baseline_filter_list_24),
++            Triple(R.id.mobiletina_app_log, R.string.mobiletina_log, R.drawable.ic_device_data_usage),
 +        )) {
 +            item(key = "mobiletina.destination.$destination") {
 +                ProfileActionRow(icon, title, summary = null, onClick = { onDestinationClick(destination) })
@@ -10281,17 +10355,17 @@ index fde311a..758ec83 100644
              val originalFileName = output.outputFileName.get()
              output.outputFileName.set(
 diff --git a/workspace/NekoBoxForAndroid/nb4a.properties b/workspace/NekoBoxForAndroid/nb4a.properties
-index b5f787d..ca455de 100644
+index b5f787d..931810c 100644
 --- a/workspace/NekoBoxForAndroid/nb4a.properties
 +++ b/workspace/NekoBoxForAndroid/nb4a.properties
 @@ -1,4 +1,4 @@
 -PACKAGE_NAME=com.nb4a.plus
 -VERSION_NAME=1.4.2-97
 +PACKAGE_NAME=com.nb4a.mobiletina
-+VERSION_NAME=1.4.2-107
++VERSION_NAME=1.4.2-108
  PRE_VERSION_NAME=pre-1.4.2-20260214-1
 -VERSION_CODE=84
-+VERSION_CODE=94
++VERSION_CODE=95
 diff --git a/workspace/sing-box/clients/android/app/src/other/play/listings/en-US/graphics/icon/ic_launcher-playstore.png b/workspace/sing-box/clients/android/app/src/other/play/listings/en-US/graphics/icon/ic_launcher-playstore.png
 deleted file mode 120000
 index 52a651f..0000000

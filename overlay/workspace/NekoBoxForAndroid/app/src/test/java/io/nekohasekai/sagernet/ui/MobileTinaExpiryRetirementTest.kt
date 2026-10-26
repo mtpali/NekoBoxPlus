@@ -97,6 +97,19 @@ class MobileTinaExpiryRetirementTest {
             assertEquals(2L, store.profiles[2]!!.groupId)
         }
     }
+    @Test fun aFreshSoleMarkerInABasicGroupStillGetsFinalizedAndNamed() {
+        Store().use { store ->
+            store.group(1)
+            store.groups[1]!!.type = GroupType.BASIC
+            store.groups[1]!!.subscription = null
+            store.profiles[1]!!.putBean(marker().apply { name = "imported expiry marker" })
+            val replacement = marker().apply { name = "اشتراک شما منقضی شد" }
+            val result = MobileTinaExpiryRetirement.retire(1, digest(""), 0, replacement)!!
+            assertEquals(1L, result.id)
+            assertEquals("اشتراک شما منقضی شد", result.displayName())
+            assertEquals(1, store.profiles.size)
+        }
+    }
     @Test fun aLastUsedProfileFromAnotherGroupIsNeverReusedOrRenamed() {
         Store().use { store ->
             store.group(1); store.group(2)

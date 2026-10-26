@@ -21,10 +21,9 @@ internal object MobileTinaExpiryRetirement {
             val digest = MessageDigest.getInstance("SHA-256").digest(link.toByteArray()).joinToString("") { "%02x".format(it) }
             if (digest != expectedLinkDigest || expectedUpdated != (group.subscription?.lastUpdated ?: 0)) return@run null
             val profiles = AppData.profiles.getByGroup(groupId)
-            if (MobileTinaExpirySchedulePolicy.isTerminalMarker(group.type == GroupType.BASIC,
-                    profiles.size, profiles.singleOrNull()?.let(::isMarker) == true)) return@run null
             val result = ProxyEntity(groupId = groupId, userOrder = 1L).apply {
-                id = profiles.firstOrNull { it.id == previousProfileId }?.id ?: 0L
+                id = profiles.firstOrNull { it.id == previousProfileId }?.id
+                    ?: profiles.singleOrNull()?.takeIf(::isMarker)?.id ?: 0L
                 putBean(marker)
             }
             val protected = MobileTinaProtection.isProtected(group.subscription)

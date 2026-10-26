@@ -63,4 +63,15 @@
     <string name="mobiletina_protected">این اشتراک محافظت‌شده است</string>
     <string name="mobiletina_delete_count_confirm">تعداد %d کانفیگ حذف شود؟</string>
     <string name="mobiletina_inactive">غیرفعال</string>
+    <string name="mobiletina_log" translatable="false">log</string>
+    <string name="mobiletina_log_enable">ثبت مصرف VPN</string>
+    <string name="mobiletina_log_next_connection">تغییر از اتصال بعدی اعمال می‌شود</string>
+    <string name="mobiletina_log_current">اتصال جاری · بیشترین مصرف در بالا</string>
+    <string name="mobiletina_log_last">آخرین اتصال · بیشترین مصرف در بالا</string>
+    <string name="mobiletina_log_empty">آماری ثبت نشده است</string>
+    <string name="mobiletina_log_unknown">نامشخص</string>
+    <string name="mobiletina_log_details">دریافت %1$s · ارسال %2$s</string>
+    <string name="mobiletina_log_hint">فقط ترافیک عبوری از VPN؛ برنامه‌های با UID مشترک یکجا نمایش داده می‌شوند. آمار با بازکردن صفحه یا دکمهٔ تازه‌سازی به‌روز می‌شود.</string>
+    <string name="mobiletina_log_refresh">تازه‌سازی</string>
+    <string name="mobiletina_log_clear">پاک‌کردن کل log</string>
 </resources>

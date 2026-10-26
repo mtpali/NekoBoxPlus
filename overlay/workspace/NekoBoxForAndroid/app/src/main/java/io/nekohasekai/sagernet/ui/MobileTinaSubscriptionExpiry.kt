@@ -19,9 +19,9 @@ import androidx.work.WorkerParameters
 import androidx.work.multiprocess.RemoteWorkManager
 import androidx.work.workDataOf
 import com.google.gson.JsonParser
-import io.nekohasekai.sagernet.GroupType
 import io.nekohasekai.sagernet.R
 import io.nekohasekai.sagernet.SagerNet
+import io.nekohasekai.sagernet.bg.VpnService
 import io.nekohasekai.sagernet.bg.BaseService
 import io.nekohasekai.sagernet.bg.SubscriptionUpdater
 import io.nekohasekai.sagernet.database.AppData
@@ -36,6 +36,7 @@ import io.nekohasekai.sagernet.ktx.applyDefaultValues
 import io.nekohasekai.sagernet.utils.MobileTinaImportNormalizer
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineExceptionHandler
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -60,7 +61,7 @@ import java.util.concurrent.TimeUnit
 
 /**
  * One verification stream per revision, one deadline alarm and one durable fallback.
- * There is no foreground polling/timer and no parallel foreground retirement path.
+ * The live service also owns a one-shot deadline; all retirement paths share one mutex.
  * PublicDatabase is never accessed while a SagerDatabase transaction is held.
  */
 internal object MobileTinaSubscriptionExpiry {
@@ -69,6 +70,11 @@ internal object MobileTinaSubscriptionExpiry {
     private val prefs by lazy { MobileTinaExpiryStore(app) }
     private val mutations = Mutex()
     private val clockMutex = Mutex()
+    private val verificationMutex = Mutex()
+    private val directVerifications = java.util.concurrent.ConcurrentHashMap.newKeySet<String>()
+    private val liveDeadlines = mutableMapOf<Long, Pair<String, Job>>()
+    private val liveLock = Any()
+    private var liveGeneration = 0L
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO + CoroutineExceptionHandler { _, e -> Logs.w(e) })
     private val processToken = UUID.randomUUID().toString()
     private val recovering = java.util.concurrent.atomic.AtomicBoolean(false)
@@ -203,8 +209,13 @@ internal object MobileTinaSubscriptionExpiry {
         workManager().cancelAllWorkByTag(record.tag).get(5, TimeUnit.SECONDS)
     }
 
-    private fun requestVerification(record: Record) {
+    private fun requestVerification(record: Record, relay: Boolean = true) {
         if (readRecord(record.group) != record) return
+        if (relay && !GroupUpdater.updating.contains(record.group)) {
+            if (app.isBgProcess) launchDirectVerification(record)
+            else app.sendBroadcast(Intent(app, MobileTinaExpiryReceiver::class.java)
+                .putExtra("group", record.group).putExtra("trigger", record.trigger))
+        }
         val now = trustedNow()
         val requireNetwork = record.trigger != 1L && now == null
         val builder = OneTimeWorkRequestBuilder<MobileTinaExpiryWorker>()
@@ -218,7 +229,7 @@ internal object MobileTinaSubscriptionExpiry {
         workManager().enqueueUniqueWork("mobiletina.expiry.v105.verify.${record.group}.${record.revision}",
             ExistingWorkPolicy.KEEP, listOf(builder.build())).get(5, TimeUnit.SECONDS)
     }
-    private fun scheduleDeadline(record: Record, trustedEpoch: Long) {
+    private suspend fun scheduleDeadline(record: Record, trustedEpoch: Long) {
         if (readRecord(record.group) != record) return
         val wait = (record.trigger - trustedEpoch).coerceAtLeast(1_000L)
         runCatching {
@@ -229,6 +240,7 @@ internal object MobileTinaSubscriptionExpiry {
             else manager.setAndAllowWhileIdle(AlarmManager.ELAPSED_REALTIME_WAKEUP, at, alarmIntent(record.group, record.trigger)!!)
         }.onFailure(Logs::w)
         scheduleFallback(record, wait)
+        armLiveDeadline(record, wait)
     }
 
     private fun scheduleFallback(record: Record, wait: Long) {
@@ -259,16 +271,17 @@ internal object MobileTinaSubscriptionExpiry {
         val (recognized, parsed) = commentExpiry(payload)
         val group = AppData.groups.getById(groupId) ?: return@withContext
         val marker = AppData.profiles.getByGroup(groupId).any(::isMarker)
-        if (!recognized && !marker) return@withContext
-        val trigger = parsed ?: if (marker) 1L else null
+        if (!recognized && !marker) { syncMetadata(groupId); return@withContext }
+        val trigger = parsed ?: if (marker) 1L else MobileTinaExpiryConnectionPolicy.metadataDeadline(group.subscription)
         mutations.withLock {
             val old = readRecord(groupId)
             val next = trigger?.let { Record(groupId, it, digest(group.subscription?.link.orEmpty()), group.subscription?.lastUpdated ?: 0) }
+            prefs.edit().putInt("metadata.$groupId", if (parsed == null && !marker && trigger != null) 1 else 0).apply()
             if (old == next) return@withLock
             old?.let(::cancelScheduled)
             cancelLegacy(groupId, old?.trigger ?: 0)
             val edit = prefs.edit()
-            if (next == null) edit.remove("expiry.$groupId").remove("link.$groupId").remove("updated.$groupId").apply()
+            if (next == null) edit.remove("expiry.$groupId").remove("link.$groupId").remove("updated.$groupId").remove("metadata.$groupId").apply()
             else {
                 edit.putLong("expiry.$groupId", next.trigger).putString("link.$groupId", next.link)
                     .putInt("updated.$groupId", next.updated).apply()
@@ -282,7 +295,7 @@ internal object MobileTinaSubscriptionExpiry {
             val record = readRecord(groupId)
             record?.let(::cancelScheduled)
             cancelLegacy(groupId, record?.trigger ?: 0)
-            prefs.edit().remove("expiry.$groupId").remove("link.$groupId").remove("updated.$groupId").apply()
+            prefs.edit().remove("expiry.$groupId").remove("link.$groupId").remove("updated.$groupId").remove("metadata.$groupId").apply()
         }
     }
     suspend fun clearConfigurations(groupIds: List<Long>, clearDatabase: () -> Unit) = withContext(Dispatchers.IO) {
@@ -305,14 +318,13 @@ internal object MobileTinaSubscriptionExpiry {
                 prefs.edit().putInt("payload-recovery.v105", 1).apply()
             }
             val legacy = prefs.getInt("scheduler.v105", 0) != 1
+            AppData.groups.allGroups().forEach { syncMetadata(it.id) }
             val ids = prefs.all.keys.filter { it.startsWith("expiry.") }.mapNotNull { it.substringAfter('.').toLongOrNull() }
             for (id in ids) {
                 val record = readRecord(id) ?: continue
                 if (legacy) cancelLegacy(id, record.trigger)
                 val group = AppData.groups.getById(id)
-                val terminal = group?.type == GroupType.BASIC && AppData.profiles.countByGroup(id) == 1L &&
-                    AppData.profiles.getByGroupAndType(id, ProxyEntity.TYPE_SOCKS).singleOrNull()?.let(::isMarker) == true
-                if (group == null || record.link != digest(group.subscription?.link.orEmpty()) || terminal) {
+                if (group == null || record.link != digest(group.subscription?.link.orEmpty())) {
                     cancelScheduled(record)
                     prefs.forget(id, record.trigger, record.link, record.updated)
                     continue
@@ -328,18 +340,25 @@ internal object MobileTinaSubscriptionExpiry {
         }
     }
     suspend fun onAlarm(groupId: Long, trigger: Long) = withContext(Dispatchers.IO) {
-        validRecord(groupId)?.takeIf { it.trigger == trigger }?.let(::requestVerification)
+        validRecord(groupId)?.takeIf { it.trigger == trigger }?.let {
+            launchDirectVerification(it)
+            requestVerification(it, relay = false)
+        }
     }
     suspend fun canStart(profileId: Long): Boolean = withContext(Dispatchers.IO) {
         val profile = AppData.profiles.getById(profileId) ?: return@withContext true
-        if (isMarker(profile)) return@withContext false
+        syncMetadata(profile.groupId)
+        if (isMarker(profile)) { syncPayload(profile.groupId, ""); return@withContext false }
         val deadline = expiresAt(profile.groupId) ?: return@withContext true
         val now = trustedNow() ?: return@withContext true
-        if (deadline <= now) validRecord(profile.groupId)?.let(::requestVerification)
+        if (deadline <= now) validRecord(profile.groupId)?.let { requestVerification(it) }
         deadline > now
     }
 
-    suspend fun verify(groupId: Long, trigger: Long, revision: String, deadline: Boolean): Boolean = withContext(Dispatchers.IO) {
+    suspend fun verify(groupId: Long, trigger: Long, revision: String, deadline: Boolean): Boolean =
+        verificationMutex.withLock { verifyLocked(groupId, trigger, revision, deadline) }
+
+    private suspend fun verifyLocked(groupId: Long, trigger: Long, revision: String, deadline: Boolean): Boolean = withContext(Dispatchers.IO) {
         val record = validRecord(groupId)?.takeIf { it.trigger == trigger && it.revision == revision } ?: return@withContext true
         if (deadline) { requestVerification(record); return@withContext true }
         if (GroupUpdater.updating.contains(groupId)) return@withContext false
@@ -414,10 +433,92 @@ internal object MobileTinaSubscriptionExpiry {
             service
         } ?: return true
         return withTimeoutOrNull(15_000L) {
-            while (withContext(Dispatchers.Main.immediate) { stoppedService.data.state != BaseService.State.Stopped }) delay(100)
+            while (withContext(Dispatchers.Main.immediate) {
+                    stoppedService.data.state != BaseService.State.Stopped ||
+                        (stoppedService as? VpnService)?.hasTunConnection == true
+                }) delay(100)
             true
         } == true
     }
+    private fun launchDirectVerification(record: Record) {
+        if (!app.isBgProcess || !directVerifications.add(record.revision)) return
+        // Separate from the deadline Job: service teardown must not cancel final retirement.
+        scope.launch {
+            try {
+                if (!verify(record.group, record.trigger, record.revision, false))
+                    deferVerification(record.group, record.trigger, record.revision)
+            } finally { directVerifications.remove(record.revision) }
+        }
+    }
+
+    private suspend fun armLiveDeadline(record: Record, wait: Long) {
+        if (!app.isBgProcess) return
+        val active = withContext(Dispatchers.Main.immediate) {
+            val data = DataStore.baseService?.data ?: return@withContext false
+            MobileTinaExpiryConnectionPolicy.shouldStop(record.group, data.state,
+                data.proxy?.profile?.groupId, data.proxy?.lastSelectorGroupId)
+        }
+        if (!active) return
+        synchronized(liveLock) {
+            if (liveDeadlines[record.group]?.first == record.revision) return
+            liveDeadlines.remove(record.group)?.second?.cancel()
+            val job = scope.launch {
+                delay(wait)
+                launchDirectVerification(record)
+            }
+            liveDeadlines[record.group] = record.revision to job
+        }
+    }
+
+    fun onServiceStateChanged(service: BaseService.Interface, state: BaseService.State) {
+        val generation = synchronized(liveLock) {
+            liveDeadlines.values.forEach { it.second.cancel() }
+            liveDeadlines.clear()
+            ++liveGeneration
+        }
+        if (!state.started) return
+        scope.launch {
+            val groups = withContext(Dispatchers.Main.immediate) {
+                listOfNotNull(service.data.proxy?.profile?.groupId, service.data.proxy?.lastSelectorGroupId)
+                    .filter { it > 0 }.distinct()
+            }
+            for (group in groups) {
+                if (synchronized(liveLock) { generation != liveGeneration }) return@launch
+                syncMetadata(group)
+                validRecord(group)?.let { requestVerification(it) }
+            }
+        }
+    }
+
+    fun onUpdateFinished(groupId: Long) {
+        scope.launch {
+            syncMetadata(groupId)
+            validRecord(groupId)?.let { requestVerification(it) }
+        }
+    }
+
+    private suspend fun syncMetadata(groupId: Long) = withContext(Dispatchers.IO) {
+        mutations.withLock {
+            val group = AppData.groups.getById(groupId) ?: return@withLock
+            val old = readRecord(groupId)
+            // A JSON _comment or explicit expiry marker has priority over headers.
+            if (old != null && prefs.getInt("metadata.$groupId", 0) != 1) return@withLock
+            val next = MobileTinaExpiryConnectionPolicy.metadataDeadline(group.subscription)?.let {
+                Record(groupId, it, digest(group.subscription?.link.orEmpty()), group.subscription?.lastUpdated ?: 0)
+            }
+            if (old == next) return@withLock
+            old?.let(::cancelScheduled)
+            val edit = prefs.edit()
+            if (next == null) edit.remove("expiry.$groupId").remove("link.$groupId")
+                .remove("updated.$groupId").remove("metadata.$groupId").apply()
+            else {
+                edit.putLong("expiry.$groupId", next.trigger).putString("link.$groupId", next.link)
+                    .putInt("updated.$groupId", next.updated).putInt("metadata.$groupId", 1).apply()
+                requestVerification(next)
+            }
+        }
+    }
+
     private suspend fun fetchTime(): Long? {
         for (source in listOf("https://api.github.com/zen", "https://github.com/robots.txt", "https://www.cloudflare.com/cdn-cgi/trace")) {
             currentCoroutineContext().ensureActive()

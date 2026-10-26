@@ -1,4 +1,18 @@
-# Current release: 1.4.2-107 / فیلترشکن
+# Current release: 1.4.2-108 / فیلترشکن
+
+VersionCode475 (95 × 5); original 104/v2 certificate and base upstream pin retained. The native core now has optional per-UID proxied traffic counters, source identity recorded in NATIVE_FEATURES_SHA256. Native build40300969044 passed before the Android integration.
+
+The user's 107 device test showed expiry still left the VPN running. An imported BASIC group's sole SOCKS1:1 marker was incorrectly treated as fully retired: recovery discarded the record and retirement skipped its notification/name update. That shortcut is removed. Header-based subscription deadlines now use the same precedence as the usage display. Service state and group-update completion trigger verification directly in :bg, serialized with workers. A one-shot coroutine deadline exists only for the active service, with the existing alarm and durable worker fallback. Stopping cancels deadline waits, not the separate finalizer. Retirement waits for both Stopped and actual TUN descriptor closure, preserves renewal guards, replaces only the expired group's profiles and posts «اشتراک شما منقضی شد». Internet clock/monotonic-time policy is retained; no device-wall-clock expiry fallback.
+
+The final Settings row opens `log`. Logging is off by default and changes take effect on the next VPN connection. Enabled sessions force process lookup and attach native counters once before routing. Direct/DNS/block routes and temporary test instances are excluded. Each packet adds native atomic counters; there is no per-packet database work, history or page timer. The screen ranks upload+download, displays MB/GB only, resolves names on IO and groups shared Android UIDs honestly. Unknown ownership is shown explicitly. Counts represent proxied payload, not encrypted wire overhead or all device traffic.
+
+Only the current connection and one last normal-stop snapshot are retained. At most4097 UID aggregates and a512KiB atomic private file; no domains/URLs/packets/icons/history are logged. Refresh occurs on open/manual refresh and the snapshot is saved at normal teardown. The top trash button deletes persisted stats and sets an in-memory baseline for existing open flows; subsequent traffic remains countable without restarting the VPN. Starting a new connection resets that baseline. Abrupt process death can lose the unsaved current session; there is intentionally no periodic disk writer. No extra Android usage-access permission is required.
+
+Regression tests cover fresh sole-marker finalization, header precedence/overflow, open-flow clear, repeated clear and stop/save, reconnection, byte units, ranking, malformed data and bounded full snapshots. Run the full JVM suite, native counter tests, source audits, clean replay twice, Debug and minified Release builds and signed APK validation. No physical-device or emulator success is claimed from CI.
+
+---
+
+# Historical release: 1.4.2-107 / فیلترشکن
 
 VersionCode470 (94 × 5), original 104/v2 release certificate and pinned native core unchanged. Preserve all106 changes and the user's later15-tap rule.
 
