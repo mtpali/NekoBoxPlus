@@ -1,4 +1,18 @@
-# Current release: 1.4.2-109 / فیلترشکن
+# Current release: 1.4.2-110 / فیلترشکن
+
+VersionCode485 (97 × 5), original signer and native feature identity retained. User supplied a109 crash from Samsung SM-A356E / Android16 / API36. Exact109 R8 mapping ID bf3f7030db81a01e62aaa7e0202c28605018b12cc15f263657561ee300e530bf retraces the fatal stack to AppSelectionScreen.kt:391 / AppRow: an OutOfMemoryError decoding a304×304 platform default activity icon on Main. The log shows calloc369664 failing and many package-resource load failures. This is package-list imagery, not the removed alternate launcher artwork. The device supports ARM64 but the captured process loaded armeabi-v7a; deliver ARM64 as the preferred build for this phone without treating architecture alone as the fix. Do not commit the raw log/settings or credentials.
+
+Per-app routing and rule/adblock package pickers share an Activity-owned asset loader. Read the existing package snapshot instead of forcing another heavy PackageCache reload on every entry; omit entries not installed for this user, resolve labels on IO with package-name fallback per failed resource, preserve normal labels, UID selection, ordering, search and modes. Cancellation propagates on leaving.
+
+Only visible/prefetched row icons load on IO, serialized by one mutex. Rasterize to a maximum128×128 ARGB bitmap, cache at most512KiB and retain no platform Drawable in the row. Never request PackageManager.defaultActivityIcon on the UI path. The existing local Android vector is the fallback. Missing icons are remembered for the page; OOM disables further package-resource allocations for that screen and evicts the bitmap cache. Closing the Activity clears cache ownership without recycling bitmaps still referenced by Compose. This contains the recorded failure; a fixed build is not a successful Samsung device retest.
+
+The user's screenshot points to row6/column4 in the palette: AMOLED id22 (the pure black swatch), distinct from BLACK id21. DataStore and Theme fallback now use AMOLED, with a one-time110 migration enabling it on existing installs. Later manual palette choices and the separate saved night-mode preference remain respected.
+
+Required validation: clean replay twice, full JVM suite including OOM suppression/resource failure/cancellation/size limits, Debug/Release, actual DEX/manifest/resources, original signatures and unchanged core payload. No AVD unless requested, no numeric device-memory/startup benchmark. Preserve all109 defaults/log/cleanup and the user-confirmed108 expiry behavior.
+
+---
+
+# Historical release: 1.4.2-109 / فیلترشکن
 
 VersionCode480 (96 × 5), original signer and native feature identity unchanged from108. The user confirmed108 expiry works on their physical phone. Preserve that stop/retirement implementation; the expiry status notification now sets only its title so «اشتراک شما منقضی شد» appears once.
 

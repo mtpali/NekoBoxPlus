@@ -2539,7 +2539,7 @@ index 3bda1fd..51c4601 100644
      override fun countByGroup(groupId: Long) = dao.countByGroup(groupId)
      override fun nextOrder(groupId: Long) = dao.nextOrder(groupId)
 diff --git a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/database/DataStore.kt b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/database/DataStore.kt
-index cc5908d..d3347b1 100644
+index cc5908d..4c44fea 100644
 --- a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/database/DataStore.kt
 +++ b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/database/DataStore.kt
 @@ -1,5 +1,7 @@
@@ -2568,7 +2568,7 @@ index cc5908d..d3347b1 100644
  
      var isExpert by configurationStore.boolean(Key.APP_EXPERT)
 -    var appTheme by configurationStore.int(Key.APP_THEME)
-+    var appTheme by configurationStore.int(Key.APP_THEME) { Theme.SIMPLE }
++    var appTheme by configurationStore.int(Key.APP_THEME) { Theme.AMOLED }
      var customThemeLight by configurationStore.string(Key.CUSTOM_THEME_LIGHT) { "" }
      var customThemeDark by configurationStore.string(Key.CUSTOM_THEME_DARK) { "" }
      var customThemeDynamicColors by configurationStore.boolean(Key.CUSTOM_THEME_DYNAMIC_COLORS)
@@ -3446,21 +3446,119 @@ index 7d6c16f..685a9af 100644
              onPositive = {
                  val storedFilters = AdblockRepository.customFilters()
                  if (index in storedFilters.indices) {
+diff --git a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/AppListActivity.kt b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/AppListActivity.kt
+index e86dd27..a50cd52 100644
+--- a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/AppListActivity.kt
++++ b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/AppListActivity.kt
+@@ -18,6 +18,7 @@ import io.nekohasekai.sagernet.ui.compose.AppSelectionAction
+ import io.nekohasekai.sagernet.ui.compose.AppSelectionNotice
+ import io.nekohasekai.sagernet.ui.compose.AppSelectionScreen
+ import io.nekohasekai.sagernet.ui.compose.NekoComposeTheme
++import kotlinx.coroutines.CancellationException
+ import kotlinx.coroutines.Dispatchers
+ import kotlinx.coroutines.launch
+ import kotlinx.coroutines.withContext
+@@ -29,6 +30,7 @@ class AppListActivity : ThemedActivity() {
+     }
+ 
+     private lateinit var model: AppSelectionModel
++    private lateinit var assets: AppSelectionAssets
+     private var actionsExpanded by mutableStateOf(false)
+     private var notice by mutableStateOf<AppSelectionNotice?>(null)
+     private var nextNoticeId = 0L
+@@ -50,6 +52,7 @@ class AppListActivity : ThemedActivity() {
+ 
+     override fun onCreate(savedInstanceState: Bundle?) {
+         super.onCreate(savedInstanceState)
++        assets = AppSelectionAssets(packageManager)
+         model = AppSelectionModel(packageList) { packageList = it }
+         val title = intent.getStringExtra(EXTRA_TITLE) ?: getString(R.string.select_apps)
+         setContent {
+@@ -57,6 +60,7 @@ class AppListActivity : ThemedActivity() {
+                 AppSelectionScreen(
+                     title = title,
+                     apps = model.visibleApps,
++                    assets = assets,
+                     allAppsEmpty = model.apps.isEmpty(),
+                     loading = model.loading,
+                     query = model.query,
+@@ -85,9 +89,10 @@ class AppListActivity : ThemedActivity() {
+     private fun loadApps() {
+         lifecycleScope.launch {
+             try {
+-                val apps = withContext(Dispatchers.IO) { loadSelectableApps(packageManager) }
++                val apps = withContext(Dispatchers.IO) { loadSelectableApps(assets) }
+                 model.load(apps)
+-            } catch (error: Exception) {
++            } catch (error: CancellationException) { throw error }
++              catch (error: Exception) {
+                 Logs.e(error)
+                 model.failLoading()
+             }
+@@ -128,6 +133,11 @@ class AppListActivity : ThemedActivity() {
+         })
+     }
+ 
++    override fun onDestroy() {
++        if (::assets.isInitialized) assets.close()
++        super.onDestroy()
++    }
++
+     override fun supportNavigateUpTo(upIntent: Intent) =
+         super.supportNavigateUpTo(upIntent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP))
+ 
 diff --git a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/AppManagerActivity.kt b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/AppManagerActivity.kt
-index 3914027..367cb94 100644
+index 3914027..3bce754 100644
 --- a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/AppManagerActivity.kt
 +++ b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/AppManagerActivity.kt
-@@ -38,8 +38,7 @@ class AppManagerActivity : ThemedActivity() {
+@@ -22,6 +22,7 @@ import io.nekohasekai.sagernet.ui.compose.AppSelectionScreen
+ import io.nekohasekai.sagernet.ui.compose.NekoComposeTheme
+ import io.nekohasekai.sagernet.utils.PackageCache
+ import io.nekohasekai.sagernet.utils.RoutingRulesService
++import kotlinx.coroutines.CancellationException
+ import kotlinx.coroutines.Dispatchers
+ import kotlinx.coroutines.launch
+ import kotlinx.coroutines.withContext
+@@ -29,6 +30,7 @@ import java.util.Locale
+ 
+ class AppManagerActivity : ThemedActivity() {
+     private lateinit var model: AppSelectionModel
++    private lateinit var assets: AppSelectionAssets
+     private var routingMode by mutableStateOf(AppRoutingMode.Proxy)
+     private var actionsExpanded by mutableStateOf(false)
+     private var notice by mutableStateOf<AppSelectionNotice?>(null)
+@@ -38,14 +40,15 @@ class AppManagerActivity : ThemedActivity() {
  
      override fun onCreate(savedInstanceState: Bundle?) {
          super.onCreate(savedInstanceState)
 -        if (!DataStore.proxyApps) DataStore.proxyApps = true
 -        routingMode = if (DataStore.bypass) AppRoutingMode.Bypass else AppRoutingMode.Proxy
++        assets = AppSelectionAssets(packageManager)
 +        routingMode = if (!DataStore.proxyApps) AppRoutingMode.Off else if (DataStore.bypass) AppRoutingMode.Bypass else AppRoutingMode.Proxy
          model = AppSelectionModel(DataStore.individual) { DataStore.individual = it }
          setContent {
              NekoComposeTheme {
-@@ -96,17 +95,20 @@ class AppManagerActivity : ThemedActivity() {
+                 AppSelectionScreen(
+                     title = stringResource(R.string.proxied_apps),
+                     apps = model.visibleApps,
++                    assets = assets,
+                     allAppsEmpty = model.apps.isEmpty(),
+                     loading = model.loading,
+                     query = model.query,
+@@ -86,9 +89,10 @@ class AppManagerActivity : ThemedActivity() {
+     private fun loadApps() {
+         lifecycleScope.launch {
+             try {
+-                val apps = withContext(Dispatchers.IO) { loadSelectableApps(packageManager) }
++                val apps = withContext(Dispatchers.IO) { loadSelectableApps(assets) }
+                 model.load(apps)
+-            } catch (error: Exception) {
++            } catch (error: CancellationException) { throw error }
++              catch (error: Exception) {
+                 Logs.e(error)
+                 model.failLoading()
+             }
+@@ -96,17 +100,20 @@ class AppManagerActivity : ThemedActivity() {
      }
  
      private fun changeRoutingMode(mode: AppRoutingMode) {
@@ -3482,11 +3580,38 @@ index 3914027..367cb94 100644
                  DataStore.bypass = true
              }
          }
+@@ -177,6 +184,11 @@ class AppManagerActivity : ThemedActivity() {
+         }
+     }
+ 
++    override fun onDestroy() {
++        if (::assets.isInitialized) assets.close()
++        super.onDestroy()
++    }
++
+     override fun supportNavigateUpTo(upIntent: Intent) =
+         super.supportNavigateUpTo(upIntent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP))
+ 
 diff --git a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/AppSelectionModel.kt b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/AppSelectionModel.kt
-index c1325b2..0543165 100644
+index c1325b2..724ac2d 100644
 --- a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/AppSelectionModel.kt
 +++ b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/AppSelectionModel.kt
-@@ -97,6 +97,10 @@ internal class AppSelectionModel(
+@@ -1,12 +1,13 @@
+ package io.nekohasekai.sagernet.ui
+ 
+ import android.content.pm.ApplicationInfo
+-import android.content.pm.PackageManager
+ import androidx.compose.runtime.getValue
+ import androidx.compose.runtime.mutableStateOf
+ import androidx.compose.runtime.setValue
+ import io.nekohasekai.sagernet.BuildConfig
+ import io.nekohasekai.sagernet.utils.PackageCache
++import kotlinx.coroutines.currentCoroutineContext
++import kotlinx.coroutines.ensureActive
+ 
+ internal data class SelectableApp(
+     val packageName: String,
+@@ -97,6 +98,10 @@ internal class AppSelectionModel(
  }
  
  internal object AppSelectionLogic {
@@ -3497,7 +3622,7 @@ index c1325b2..0543165 100644
      fun selectedUids(apps: List<SelectableApp>, packageList: String): Set<Int> {
          val packageNames = packageList.lineSequence().filter { it.isNotEmpty() }.toHashSet()
          return apps.asSequence()
-@@ -111,7 +115,10 @@ internal object AppSelectionLogic {
+@@ -111,7 +116,10 @@ internal object AppSelectionLogic {
      }
  
      fun sort(apps: List<SelectableApp>, selectedUids: Set<Int>): List<SelectableApp> {
@@ -3509,7 +3634,7 @@ index c1325b2..0543165 100644
      }
  
      fun filter(
-@@ -120,7 +127,7 @@ internal object AppSelectionLogic {
+@@ -120,7 +128,7 @@ internal object AppSelectionLogic {
          showSystemApps: Boolean,
      ): List<SelectableApp> {
          return apps.filter { app ->
@@ -3518,6 +3643,34 @@ index c1325b2..0543165 100644
                  query.isEmpty() ||
                      app.name.contains(query, ignoreCase = true) ||
                      app.packageName.contains(query, ignoreCase = true) ||
+@@ -130,17 +138,14 @@ internal object AppSelectionLogic {
+     }
+ }
+ 
+-internal fun loadSelectableApps(packageManager: PackageManager): List<SelectableApp> {
+-    PackageCache.reload()
+-    return PackageCache.installedApps.asSequence()
+-        .filter { (packageName, _) -> packageName != BuildConfig.APPLICATION_ID }
+-        .map { (packageName, appInfo) ->
+-            SelectableApp(
+-                packageName = packageName,
+-                name = appInfo.loadLabel(packageManager).toString(),
+-                uid = appInfo.uid,
+-                isSystem = appInfo.flags and ApplicationInfo.FLAG_SYSTEM != 0,
+-            )
+-        }
+-        .toList()
++internal suspend fun loadSelectableApps(assets: AppSelectionAssets): List<SelectableApp> {
++    PackageCache.awaitLoadSync()
++    val result = ArrayList<SelectableApp>()
++    for ((packageName, info) in PackageCache.installedApps) {
++        currentCoroutineContext().ensureActive()
++        if (packageName == BuildConfig.APPLICATION_ID || info.flags and ApplicationInfo.FLAG_INSTALLED == 0) continue
++        result.add(SelectableApp(packageName, assets.label(info), info.uid,
++            info.flags and ApplicationInfo.FLAG_SYSTEM != 0))
++    }
++    return result
+ }
 diff --git a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/BackgroundProcessController.kt b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/BackgroundProcessController.kt
 index ffcfebd..222f62a 100644
 --- a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/BackgroundProcessController.kt
@@ -6921,6 +7074,124 @@ index 77588d2..2ce43dd 100644
      val fingerprintLabels = stringArrayResource(R.array.utls_fingerprint_entry).toList()
      val fingerprintValues = stringArrayResource(R.array.utls_fingerprint_value).toList()
      val nameTitle = stringResource(R.string.profile_name)
+diff --git a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/compose/AppSelectionScreen.kt b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/compose/AppSelectionScreen.kt
+index a8d709c..046ce1c 100644
+--- a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/compose/AppSelectionScreen.kt
++++ b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/compose/AppSelectionScreen.kt
+@@ -1,8 +1,9 @@
+ package io.nekohasekai.sagernet.ui.compose
+ 
+-import android.widget.ImageView
++import android.graphics.Bitmap
+ import androidx.activity.compose.BackHandler
+ import androidx.annotation.StringRes
++import androidx.compose.foundation.Image
+ import androidx.compose.foundation.background
+ import androidx.compose.foundation.gestures.detectVerticalDragGestures
+ import androidx.compose.foundation.horizontalScroll
+@@ -56,12 +57,12 @@ import androidx.compose.runtime.getValue
+ import androidx.compose.runtime.mutableFloatStateOf
+ import androidx.compose.runtime.mutableStateOf
+ import androidx.compose.runtime.remember
++import androidx.compose.runtime.produceState
+ import androidx.compose.runtime.rememberCoroutineScope
+ import androidx.compose.runtime.setValue
+ import androidx.compose.ui.Alignment
+ import androidx.compose.ui.Modifier
+ import androidx.compose.ui.input.pointer.pointerInput
+-import androidx.compose.ui.platform.LocalContext
+ import androidx.compose.ui.platform.LocalDensity
+ import androidx.compose.ui.res.painterResource
+ import androidx.compose.ui.res.stringResource
+@@ -69,10 +70,10 @@ import androidx.compose.ui.text.style.TextAlign
+ import androidx.compose.ui.text.style.TextOverflow
+ import androidx.compose.ui.unit.dp
+ import androidx.compose.ui.unit.sp
+-import androidx.compose.ui.viewinterop.AndroidView
+ import io.nekohasekai.sagernet.R
+ import io.nekohasekai.sagernet.ui.SelectableApp
+-import io.nekohasekai.sagernet.utils.PackageCache
++import io.nekohasekai.sagernet.ui.AppSelectionAssets
++import androidx.compose.ui.graphics.asImageBitmap
+ import kotlinx.coroutines.launch
+ import kotlin.math.roundToInt
+ 
+@@ -90,6 +91,7 @@ internal data class AppSelectionNotice(
+ internal fun AppSelectionScreen(
+     title: String,
+     apps: List<SelectableApp>,
++    assets: AppSelectionAssets,
+     allAppsEmpty: Boolean,
+     loading: Boolean,
+     query: String,
+@@ -185,6 +187,7 @@ internal fun AppSelectionScreen(
+                     allAppsEmpty -> AppListUnavailable(onOpenSettings)
+                     else -> AppList(
+                         apps = apps,
++                        assets = assets,
+                         isSelected = isSelected,
+                         onToggle = onToggle,
+                     )
+@@ -351,6 +354,7 @@ private fun AppListUnavailable(onOpenSettings: () -> Unit) {
+ @Composable
+ private fun AppList(
+     apps: List<SelectableApp>,
++    assets: AppSelectionAssets,
+     isSelected: (SelectableApp) -> Boolean,
+     onToggle: (SelectableApp) -> Unit,
+ ) {
+@@ -363,7 +367,7 @@ private fun AppList(
+             contentPadding = PaddingValues(vertical = 4.dp, horizontal = 4.dp),
+         ) {
+             items(apps, key = { it.packageName }) { app ->
+-                AppRow(app, isSelected(app), onToggle)
++                AppRow(app, assets, isSelected(app), onToggle)
+             }
+         }
+         if (apps.size > 20) {
+@@ -381,14 +385,13 @@ private fun AppList(
+ @Composable
+ private fun AppRow(
+     app: SelectableApp,
++    assets: AppSelectionAssets,
+     selected: Boolean,
+     onToggle: (SelectableApp) -> Unit,
+ ) {
+-    val context = LocalContext.current
+-    val icon = remember(app.packageName) {
+-        runCatching {
+-            PackageCache.installedApps[app.packageName]?.loadIcon(context.packageManager)
+-        }.getOrNull() ?: context.packageManager.defaultActivityIcon
++    val pixels = with(LocalDensity.current) { 40.dp.roundToPx() }
++    val icon by produceState<Bitmap?>(null, assets, app.packageName, pixels) {
++        value = assets.icon(app.packageName, pixels)
+     }
+     Card(
+         onClick = { onToggle(app) },
+@@ -399,16 +402,13 @@ private fun AppRow(
+             modifier = Modifier.fillMaxWidth().padding(start = 16.dp, top = 8.dp, end = 8.dp, bottom = 8.dp),
+             verticalAlignment = Alignment.CenterVertically,
+         ) {
+-            AndroidView(
+-                factory = { viewContext ->
+-                    ImageView(viewContext).apply {
+-                        importantForAccessibility = ImageView.IMPORTANT_FOR_ACCESSIBILITY_NO
+-                        scaleType = ImageView.ScaleType.FIT_CENTER
+-                    }
+-                },
+-                update = { it.setImageDrawable(icon) },
+-                modifier = Modifier.size(40.dp),
+-            )
++            val bitmap = icon
++            if (bitmap != null) {
++                Image(remember(bitmap) { bitmap.asImageBitmap() }, contentDescription = null, modifier = Modifier.size(40.dp))
++            } else {
++                Icon(painterResource(R.drawable.ic_baseline_android_24), contentDescription = null,
++                    tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(40.dp))
++            }
+             Spacer(Modifier.width(16.dp))
+             Column(Modifier.weight(1f).padding(vertical = 4.dp)) {
+                 Text(
 diff --git a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/compose/AssetCard.kt b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/compose/AssetCard.kt
 index 37f6b7d..41b4cb2 100644
 --- a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/compose/AssetCard.kt
@@ -8274,7 +8545,7 @@ index 9499eed..1f04346 100644
      }
  }
 diff --git a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/utils/Theme.kt b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/utils/Theme.kt
-index e94d18a..6bfa1d7 100644
+index e94d18a..520b6ef 100644
 --- a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/utils/Theme.kt
 +++ b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/utils/Theme.kt
 @@ -32,9 +32,10 @@ object Theme {
@@ -8285,7 +8556,7 @@ index e94d18a..6bfa1d7 100644
      const val CUSTOM = CustomTheme.CUSTOM_THEME_ID
  
 -    private fun defaultTheme() = MATERIAL_YOU
-+    private fun defaultTheme() = SIMPLE
++    private fun defaultTheme() = AMOLED
  
      fun isMaterialYou(theme: Int = DataStore.appTheme): Boolean {
          return theme == MATERIAL_YOU
@@ -10368,17 +10639,17 @@ index fde311a..758ec83 100644
              val originalFileName = output.outputFileName.get()
              output.outputFileName.set(
 diff --git a/workspace/NekoBoxForAndroid/nb4a.properties b/workspace/NekoBoxForAndroid/nb4a.properties
-index b5f787d..53bd7bd 100644
+index b5f787d..24a410c 100644
 --- a/workspace/NekoBoxForAndroid/nb4a.properties
 +++ b/workspace/NekoBoxForAndroid/nb4a.properties
 @@ -1,4 +1,4 @@
 -PACKAGE_NAME=com.nb4a.plus
 -VERSION_NAME=1.4.2-97
 +PACKAGE_NAME=com.nb4a.mobiletina
-+VERSION_NAME=1.4.2-109
++VERSION_NAME=1.4.2-110
  PRE_VERSION_NAME=pre-1.4.2-20260214-1
 -VERSION_CODE=84
-+VERSION_CODE=96
++VERSION_CODE=97
 diff --git a/workspace/sing-box/clients/android/app/src/other/play/listings/en-US/graphics/icon/ic_launcher-playstore.png b/workspace/sing-box/clients/android/app/src/other/play/listings/en-US/graphics/icon/ic_launcher-playstore.png
 deleted file mode 120000
 index 52a651f..0000000
