@@ -1,0 +1,11 @@
+diff --git a/workspace/NekoBoxForAndroid/libcore/box.go b/workspace/NekoBoxForAndroid/libcore/box.go
+--- a/workspace/NekoBoxForAndroid/libcore/box.go
++++ b/workspace/NekoBoxForAndroid/libcore/box.go
+@@ -92,6 +92,7 @@
+ 	closeErr     error
+ 	hasAmneziaWG bool
+ 
++	appTraffic   *appTrafficTracker
+ 	v2api        *boxapi.SbV2rayServer
+ 	selector     *group.Selector
+ 	pauseManager pause.Manager
