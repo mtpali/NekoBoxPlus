@@ -1781,7 +1781,7 @@ index 28848b9..0d4a847 100644
          override fun cbTrafficUpdate(stats: TrafficDataBatch) {
              val callback = callback ?: return
 diff --git a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/bg/ServiceNotification.kt b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/bg/ServiceNotification.kt
-index b0c82cf..0cc7f7b 100644
+index b0c82cf..bb30c83 100644
 --- a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/bg/ServiceNotification.kt
 +++ b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/bg/ServiceNotification.kt
 @@ -1,6 +1,8 @@
@@ -1956,7 +1956,7 @@ index b0c82cf..0cc7f7b 100644
 +    private val builder = NotificationCompat.Builder(context, CHANNEL_ID)
          .setWhen(0)
 -        .setTicker(service.getString(R.string.forward_success))
-+        .setSmallIcon(R.drawable.ic_service_active)
++        .setSmallIcon(R.drawable.mobiletina_notification)
          .setContentTitle(title)
 +        .setContentIntent(SagerNet.configureIntent(context))
 +        .setDeleteIntent(PendingIntent.getBroadcast(context, 3, Intent(DELETED).setPackage(context.packageName), flags))
@@ -2178,7 +2178,7 @@ index b0c82cf..0cc7f7b 100644
      }
  }
 diff --git a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/bg/SubscriptionUpdater.kt b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/bg/SubscriptionUpdater.kt
-index 2793346..713cf83 100644
+index 2793346..78a3b6d 100644
 --- a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/bg/SubscriptionUpdater.kt
 +++ b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/bg/SubscriptionUpdater.kt
 @@ -3,6 +3,9 @@ package io.nekohasekai.sagernet.bg
@@ -2254,7 +2254,13 @@ index 2793346..713cf83 100644
                  .apply {
                      if (schedule.initialDelaySeconds > 0) {
                          setInitialDelay(schedule.initialDelaySeconds, TimeUnit.SECONDS)
-@@ -114,46 +159,33 @@ object SubscriptionUpdater {
+@@ -109,51 +154,38 @@ object SubscriptionUpdater {
+             .setWhen(0)
+             .setTicker(applicationContext.getString(R.string.forward_success))
+             .setContentTitle(applicationContext.getString(R.string.subscription_update))
+-            .setSmallIcon(R.drawable.ic_service_active)
++            .setSmallIcon(R.drawable.mobiletina_notification)
+             .preferSmallIcon()
              .setCategory(NotificationCompat.CATEGORY_SERVICE)
  
          override suspend fun doWork(): Result {
@@ -5883,7 +5889,7 @@ index 32891b1..588f893 100644
          val id = DataStore.editingId
          if (id == 0L) {
 diff --git a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/MainActivity.kt b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/MainActivity.kt
-index c403caa..65d2889 100644
+index c403caa..5c86298 100644
 --- a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/MainActivity.kt
 +++ b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/MainActivity.kt
 @@ -12,6 +12,7 @@ import android.os.Build
@@ -5894,7 +5900,15 @@ index c403caa..65d2889 100644
  import android.view.KeyEvent
  import android.view.View
  import android.view.ViewGroup
-@@ -29,11 +30,20 @@ import androidx.core.content.ContextCompat
+@@ -20,6 +21,7 @@ import android.view.ViewConfiguration
+ import android.widget.Toast
+ import androidx.activity.addCallback
+ import androidx.activity.ComponentDialog
++import androidx.activity.result.contract.ActivityResultContracts
+ import androidx.annotation.IdRes
+ import androidx.compose.runtime.getValue
+ import androidx.compose.runtime.mutableStateOf
+@@ -29,11 +31,20 @@ import androidx.core.content.ContextCompat
  import androidx.core.graphics.Insets
  import androidx.core.view.ViewCompat
  import androidx.core.view.WindowInsetsCompat
@@ -5915,15 +5929,18 @@ index c403caa..65d2889 100644
  import com.google.android.material.snackbar.Snackbar
  import io.nekohasekai.sagernet.AppLogLevel
  import io.nekohasekai.sagernet.BuildConfig
-@@ -100,7 +110,6 @@ class MainActivity :
+@@ -100,8 +111,9 @@ class MainActivity :
      SagerConnection.Callback,
      OnPreferenceDataStoreChangeListener {
      companion object {
 -        const val ACTION_SHOW_CONNECTION_TEST = "io.nekohasekai.sagernet.action.SHOW_CONNECTION_TEST"
          private const val INITIAL_PROFILE_DRAW_TIMEOUT_MILLIS = 3_000L
++        private const val STARTUP_PERMISSION_STAGE = "mobiletina.startup.permission.stage"
++        private const val STARTUP_PERMISSION_WAITING = "mobiletina.startup.permission.waiting"
          private var openSettingsOnCreate = false
  
-@@ -115,6 +124,8 @@ class MainActivity :
+         fun openSettingsOnNextCreate() {
+@@ -115,6 +127,8 @@ class MainActivity :
          }
      }
  
@@ -5932,7 +5949,7 @@ index c403caa..65d2889 100644
      lateinit var binding: LayoutMainBinding
      private val shellState = MainShellState()
      private var bottomControlsVisibleForCurrentFragment = false
-@@ -122,8 +133,6 @@ class MainActivity :
+@@ -122,8 +136,6 @@ class MainActivity :
      private var renderedServiceState = BaseService.State.Idle
      private var currentServiceProfileName: String? = null
      private var masterDnsVPNConnectedToastShown = false
@@ -5941,7 +5958,7 @@ index c403caa..65d2889 100644
      private var customThemePreviewDialog: ComponentDialog? = null
      private var customThemePreviewTimer: CountDownTimer? = null
      private var initialProfileListReady = true
-@@ -178,8 +187,22 @@ class MainActivity :
+@@ -178,8 +190,26 @@ class MainActivity :
          return super.dispatchKeyEvent(event)
      }
  
@@ -5958,18 +5975,23 @@ index c403caa..65d2889 100644
 +
      override fun onCreate(savedInstanceState: Bundle?) {
          super.onCreate(savedInstanceState)
++        startupPermissions = MobileTinaStartupPermissions(
++            savedInstanceState?.getInt(STARTUP_PERMISSION_STAGE) ?: 0,
++            savedInstanceState?.getBoolean(STARTUP_PERMISSION_WAITING) == true,
++        )
 +        androidx.core.content.ContextCompat.registerReceiver(this, expiryUpdates,
 +            android.content.IntentFilter(MobileTinaSubscriptionExpiry.ACTION_DATA_CHANGED),
 +            androidx.core.content.ContextCompat.RECEIVER_NOT_EXPORTED)
          MessageStore.setCurrentActivity(this)
          val openSettingsOnCreate = consumeOpenSettingsOnCreate()
  
-@@ -188,6 +211,23 @@ class MainActivity :
+@@ -188,6 +218,24 @@ class MainActivity :
          syncProxyAppsDrawerItem()
          // Keep the fragment host synchronously attached; Compose owns the drawer overlay.
          setContentView(binding.root)
-+        if (savedInstanceState == null) binding.root.doOnPreDraw {
-+            binding.root.post { if (!isFinishing && !isDestroyed) requestStartupPermissions() }
++        binding.root.doOnPreDraw {
++            startupViewReady = true
++            binding.root.post { continueStartupPermissions() }
 +        }
 +        binding.root.findViewById<View>(R.id.fab_manual).setOnClickListener { binding.fab.performClick() }
 +        binding.root.findViewById<View>(R.id.btn_smart_connect).setOnClickListener { mobileTina.toggle() }
@@ -5988,7 +6010,7 @@ index c403caa..65d2889 100644
          val drawerOverlay = DrawerOverlayComposeView(this).apply {
              drawerActive = { shellState.drawerRequestedOpen || shellState.drawerIsOpen }
              setContent {
-@@ -208,28 +248,13 @@ class MainActivity :
+@@ -208,28 +256,13 @@ class MainActivity :
          )
  
          binding.fab.setOnClickListener {
@@ -6024,7 +6046,7 @@ index c403caa..65d2889 100644
                  }
              }
          }
-@@ -244,8 +269,7 @@ class MainActivity :
+@@ -244,8 +277,7 @@ class MainActivity :
          }
  
          if (savedInstanceState == null && !openSettingsOnCreate) {
@@ -6034,7 +6056,7 @@ index c403caa..65d2889 100644
          }
          onBackPressedDispatcher.addCallback {
              if (shellState.drawerIsOpen) {
-@@ -256,16 +280,18 @@ class MainActivity :
+@@ -256,16 +288,18 @@ class MainActivity :
              if ((fragment as? ToolbarFragment)?.onBackPressed() == true) {
                  return@addCallback
              }
@@ -6057,7 +6079,7 @@ index c403caa..65d2889 100644
          if (openSettingsOnCreate) {
              displayFragmentWithId(R.id.nav_settings)
              supportFragmentManager.executePendingTransactions()
-@@ -282,25 +308,10 @@ class MainActivity :
+@@ -282,25 +316,10 @@ class MainActivity :
  
          showPendingCustomThemePreview()
  
@@ -6084,7 +6106,7 @@ index c403caa..65d2889 100644
  
          if (isPreview) {
              showComposeMessageDialog(
-@@ -317,23 +328,29 @@ class MainActivity :
+@@ -317,23 +336,29 @@ class MainActivity :
          }
      }
  
@@ -6131,7 +6153,7 @@ index c403caa..65d2889 100644
      }
  
      private fun holdInitialDrawForProfiles() {
-@@ -363,48 +380,17 @@ class MainActivity :
+@@ -363,48 +388,17 @@ class MainActivity :
      }
  
      private suspend fun performProxyAppsFirstSetup() {
@@ -6184,18 +6206,39 @@ index c403caa..65d2889 100644
      }
  
      private fun requestProxyAppsToggle(enabled: Boolean) {
-@@ -441,10 +427,147 @@ class MainActivity :
+@@ -441,10 +435,168 @@ class MainActivity :
  
      fun closeDrawer() = shellState.closeDrawer()
  
 +    private var mobileTinaWelcome: android.app.Dialog? = null
++    private var startupPermissions = MobileTinaStartupPermissions()
++    private var startupViewReady = false
++    private val startupCameraPermission = registerForActivityResult(
++        ActivityResultContracts.RequestPermission(),
++    ) { completeStartupPermission(MobileTinaStartupPermissions.Request.Camera) }
++    private val startupNotificationPermission = registerForActivityResult(
++        ActivityResultContracts.RequestPermission(),
++    ) { completeStartupPermission(MobileTinaStartupPermissions.Request.Notifications) }
++    private val startupVpnPermission = registerForActivityResult(
++        ActivityResultContracts.StartActivityForResult(),
++    ) { completeStartupPermission(MobileTinaStartupPermissions.Request.Vpn) }
 +
 +    override fun onPostResume() {
 +        super.onPostResume()
 +        if (mobileTinaWelcome?.isShowing != true) {
 +            mobileTinaWelcome = MobileTinaFirstLaunchDialog.showOnce(this, DataStore.configurationStore,
-+                "mobileTinaExclaveWelcomeLinksV2") { mobileTinaWelcome = null }
++                "mobileTinaExclaveWelcomeLinksV2") {
++                mobileTinaWelcome = null
++                binding.root.post { continueStartupPermissions() }
++            }
 +        }
++        continueStartupPermissions()
++    }
++
++    override fun onSaveInstanceState(outState: Bundle) {
++        outState.putInt(STARTUP_PERMISSION_STAGE, startupPermissions.stage)
++        outState.putBoolean(STARTUP_PERMISSION_WAITING, startupPermissions.waiting)
++        super.onSaveInstanceState(outState)
 +    }
 +
 +    fun refreshMobileTinaSubscription() { mobileTina.refreshNow() }
@@ -6332,7 +6375,7 @@ index c403caa..65d2889 100644
  
          if (DataStore.hideFromRecentApps) {
              applyHideFromRecentApps(DataStore.hideFromRecentApps)
-@@ -464,19 +587,64 @@ class MainActivity :
+@@ -464,19 +616,79 @@ class MainActivity :
          }
      }
  
@@ -6340,25 +6383,40 @@ index c403caa..65d2889 100644
 -        shellState.trafficVisible = clashApi
 +
 +
-+    private fun requestStartupPermissions() {
-+        val missing = mutableListOf<String>()
-+        if (androidx.core.content.ContextCompat.checkSelfPermission(this, android.Manifest.permission.CAMERA) != android.content.pm.PackageManager.PERMISSION_GRANTED) {
-+            missing += android.Manifest.permission.CAMERA
-+        }
-+        if (Build.VERSION.SDK_INT >= 33 && androidx.core.content.ContextCompat.checkSelfPermission(this, "android.permission.POST_NOTIFICATIONS") != android.content.pm.PackageManager.PERMISSION_GRANTED) {
-+            missing += "android.permission.POST_NOTIFICATIONS"
-+        }
-+        if (missing.isNotEmpty()) requestPermissions(missing.toTypedArray(), 10501) else requestVpnConsent()
++    private fun completeStartupPermission(request: MobileTinaStartupPermissions.Request) {
++        startupPermissions.complete(request)
++        binding.root.post { continueStartupPermissions() }
 +    }
 +
-+    override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
-+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
-+        if (requestCode == 10501) requestVpnConsent()
-+    }
-+
-+    private fun requestVpnConsent() {
-+        val intent = android.net.VpnService.prepare(this) ?: return
-+        startActivityForResult(intent, 10502)
++    private fun continueStartupPermissions() {
++        if (!startupViewReady || isFinishing || isDestroyed || mobileTinaWelcome?.isShowing == true ||
++            !lifecycle.currentState.isAtLeast(androidx.lifecycle.Lifecycle.State.RESUMED) ||
++            supportFragmentManager.isStateSaved) return
++        while (true) {
++            when (startupPermissions.next(
++                Build.VERSION.SDK_INT,
++                ContextCompat.checkSelfPermission(this, android.Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED,
++                Build.VERSION.SDK_INT < 33 || ContextCompat.checkSelfPermission(this, POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED,
++            )) {
++                MobileTinaStartupPermissions.Request.Camera -> {
++                    startupCameraPermission.launch(android.Manifest.permission.CAMERA)
++                    return
++                }
++                MobileTinaStartupPermissions.Request.Notifications -> {
++                    startupNotificationPermission.launch(POST_NOTIFICATIONS)
++                    return
++                }
++                MobileTinaStartupPermissions.Request.Vpn -> {
++                    val consent = android.net.VpnService.prepare(this)
++                    if (consent != null) {
++                        startupVpnPermission.launch(consent)
++                        return
++                    }
++                    startupPermissions.complete(MobileTinaStartupPermissions.Request.Vpn)
++                }
++                null -> return
++            }
++        }
      }
  
      override fun onNewIntent(intent: Intent) {
@@ -6401,7 +6459,7 @@ index c403caa..65d2889 100644
  
          RoutingLinkProcessors.forLink(uri.toString())?.let { processor ->
              setIntent(Intent(intent).setAction(null).setData(null))
-@@ -648,60 +816,6 @@ class MainActivity :
+@@ -648,60 +860,6 @@ class MainActivity :
          }
      }
  
@@ -6462,7 +6520,7 @@ index c403caa..65d2889 100644
      fun urlTest(automatic: Boolean = false): Int {
          if (!DataStore.serviceState.connected || connection.service == null) {
              error("not started")
-@@ -709,7 +823,7 @@ class MainActivity :
+@@ -709,7 +867,7 @@ class MainActivity :
          return connection.service!!.urlTest(automatic)
      }
  
@@ -6471,7 +6529,7 @@ index c403caa..65d2889 100644
          val group: ProxyGroup
  
          val url = uri.getQueryParameter("url")
-@@ -746,7 +860,12 @@ class MainActivity :
+@@ -746,7 +904,12 @@ class MainActivity :
          if (name.isNullOrBlank()) return
  
          group.name = group.name.takeIf { !it.isNullOrBlank() }
@@ -6485,7 +6543,7 @@ index c403caa..65d2889 100644
  
          onMainDispatcher {
              displayFragmentWithId(R.id.nav_group)
-@@ -755,7 +874,7 @@ class MainActivity :
+@@ -755,7 +918,7 @@ class MainActivity :
                  title = getText(R.string.subscription_import),
                  message = getString(R.string.subscription_import_message, name),
                  positiveButton = getText(R.string.yes),
@@ -6494,7 +6552,7 @@ index c403caa..65d2889 100644
                  onPositive = {
                      runOnDefaultDispatcher {
                          finishImportSubscription(group)
-@@ -765,9 +884,40 @@ class MainActivity :
+@@ -765,9 +928,40 @@ class MainActivity :
          }
      }
  
@@ -6538,7 +6596,7 @@ index c403caa..65d2889 100644
      }
  
      suspend fun importProfile(uri: Uri) {
-@@ -804,7 +954,7 @@ class MainActivity :
+@@ -804,7 +998,7 @@ class MainActivity :
                  title = getText(R.string.profile_import),
                  message = message,
                  positiveButton = getText(R.string.yes),
@@ -6547,7 +6605,7 @@ index c403caa..65d2889 100644
                  onPositive = {
                      runOnDefaultDispatcher {
                          finishImportProfiles(profiles)
-@@ -818,6 +968,8 @@ class MainActivity :
+@@ -818,6 +1012,8 @@ class MainActivity :
          val targetId = DataStore.selectedGroupForImport()
  
          ProfileManager.createProfiles(targetId, profiles)
@@ -6556,7 +6614,7 @@ index c403caa..65d2889 100644
  
          onMainDispatcher {
              displayFragmentWithId(R.id.nav_configuration)
-@@ -905,20 +1057,16 @@ class MainActivity :
+@@ -905,20 +1101,16 @@ class MainActivity :
          fragment.openGroup(groupId, animate = false)
      }
  
@@ -6580,7 +6638,7 @@ index c403caa..65d2889 100644
          binding.stats.useExternalScrollDriver =
              fragment is ConfigurationFragment || fragment is SettingsFragment
          if (bottomControlsVisibleForCurrentFragment) {
-@@ -959,6 +1107,14 @@ class MainActivity :
+@@ -959,6 +1151,14 @@ class MainActivity :
          @IdRes id: Int,
      ): Boolean {
          when (id) {
@@ -6595,7 +6653,7 @@ index c403caa..65d2889 100644
              R.id.nav_configuration -> {
                  displayFragment(ConfigurationFragment())
              }
-@@ -984,19 +1140,6 @@ class MainActivity :
+@@ -984,19 +1184,6 @@ class MainActivity :
                  displayFragment(SettingsFragment())
              }
  
@@ -6615,7 +6673,7 @@ index c403caa..65d2889 100644
              R.id.nav_about -> {
                  displayFragment(AboutFragment())
              }
-@@ -1018,6 +1161,7 @@ class MainActivity :
+@@ -1018,6 +1205,7 @@ class MainActivity :
          val previousState = renderedServiceState
          renderedServiceState = state
          DataStore.serviceState = state
@@ -6623,7 +6681,7 @@ index c403caa..65d2889 100644
  
          if (bottomControlsVisibleForCurrentFragment) {
              binding.fab.changeState(state, previousState, animate)
-@@ -1032,8 +1176,6 @@ class MainActivity :
+@@ -1032,8 +1220,6 @@ class MainActivity :
                  it.refreshVisibleProfileActions()
                  it.refreshToolbarMenuState()
              }
@@ -6632,7 +6690,7 @@ index c403caa..65d2889 100644
          (supportFragmentManager.findFragmentById(R.id.fragment_holder) as? SettingsFragment)
              ?.syncServiceState()
          if (msg != null) snackbar(getString(R.string.vpn_error, msg)).show()
-@@ -1141,6 +1283,12 @@ class MainActivity :
+@@ -1141,6 +1327,12 @@ class MainActivity :
          connection.connect(this, this)
      }
  
@@ -6645,7 +6703,7 @@ index c403caa..65d2889 100644
      private val connect =
          registerForActivityResult(VpnRequestActivity.StartService()) {
              if (it) snackbar(R.string.vpn_permission_denied).show()
-@@ -1188,14 +1336,6 @@ class MainActivity :
+@@ -1188,14 +1380,6 @@ class MainActivity :
                  }
              }
  
@@ -6660,7 +6718,7 @@ index c403caa..65d2889 100644
              Key.GLOBAL_MODE -> {
                  syncGlobalModeFabStyle()
              }
-@@ -1227,6 +1367,10 @@ class MainActivity :
+@@ -1227,6 +1411,10 @@ class MainActivity :
      }
  
      override fun onDestroy() {
@@ -6671,7 +6729,7 @@ index c403caa..65d2889 100644
          binding.root.removeCallbacks(initialDrawTimeout)
          initialDrawListener?.let { listener ->
              binding.root.viewTreeObserver.takeIf { it.isAlive }
-@@ -1239,12 +1383,8 @@ class MainActivity :
+@@ -1239,12 +1427,8 @@ class MainActivity :
          customThemePreviewDialog?.dismiss()
          customThemePreviewDialog = null
          if (isFinishing) {
@@ -8980,6 +9038,19 @@ index a2e32ee..cb38135 100644
                  }
                  onMainDispatcher {
                      if (!isCurrentTest()) return@onMainDispatcher
+diff --git a/workspace/NekoBoxForAndroid/app/src/main/java/moe/matsuri/nb4a/NativeInterface.kt b/workspace/NekoBoxForAndroid/app/src/main/java/moe/matsuri/nb4a/NativeInterface.kt
+index 141d90e..609acfe 100644
+--- a/workspace/NekoBoxForAndroid/app/src/main/java/moe/matsuri/nb4a/NativeInterface.kt
++++ b/workspace/NekoBoxForAndroid/app/src/main/java/moe/matsuri/nb4a/NativeInterface.kt
+@@ -212,7 +212,7 @@ class NativeInterface : BoxPlatformInterface, NB4AInterface {
+             )
+         }
+         val notification = NotificationCompat.Builder(app, "sing-box-authentication")
+-            .setSmallIcon(R.drawable.ic_service_active)
++            .setSmallIcon(R.drawable.mobiletina_notification)
+             .preferSmallIcon()
+             .setContentTitle(localizedTitle)
+             .setContentText(localizedBody)
 diff --git a/workspace/NekoBoxForAndroid/app/src/main/java/moe/matsuri/nb4a/proxy/byedpi/ByeDPIBean.java b/workspace/NekoBoxForAndroid/app/src/main/java/moe/matsuri/nb4a/proxy/byedpi/ByeDPIBean.java
 index 2c55ec1..ef6dd68 100644
 --- a/workspace/NekoBoxForAndroid/app/src/main/java/moe/matsuri/nb4a/proxy/byedpi/ByeDPIBean.java
@@ -9555,7 +9626,7 @@ index 99c7a1c..3074a28 100644
                          android:id="@+id/action_selection_url_test"
                          android:title="@string/connection_test_url_test" />
 diff --git a/workspace/NekoBoxForAndroid/app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml b/workspace/NekoBoxForAndroid/app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml
-index 858386c..20d3f2a 100644
+index 858386c..6c53ebe 100644
 --- a/workspace/NekoBoxForAndroid/app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml
 +++ b/workspace/NekoBoxForAndroid/app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml
 @@ -1,6 +1,5 @@
@@ -9564,11 +9635,11 @@ index 858386c..20d3f2a 100644
 -    <background android:drawable="@color/ic_launcher_background"/>
 -    <foreground android:drawable="@mipmap/ic_launcher_foreground"/>
 -    <monochrome android:drawable="@drawable/ic_launcher_monochrome"/>
-+    <background android:drawable="@android:color/black"/>
++    <background android:drawable="@android:color/white"/>
 +    <foreground android:drawable="@drawable/mobiletina_launcher_safe"/>
  </adaptive-icon>
 diff --git a/workspace/NekoBoxForAndroid/app/src/main/res/mipmap-anydpi-v26/ic_launcher_round.xml b/workspace/NekoBoxForAndroid/app/src/main/res/mipmap-anydpi-v26/ic_launcher_round.xml
-index 858386c..20d3f2a 100644
+index 858386c..6c53ebe 100644
 --- a/workspace/NekoBoxForAndroid/app/src/main/res/mipmap-anydpi-v26/ic_launcher_round.xml
 +++ b/workspace/NekoBoxForAndroid/app/src/main/res/mipmap-anydpi-v26/ic_launcher_round.xml
 @@ -1,6 +1,5 @@
@@ -9577,7 +9648,7 @@ index 858386c..20d3f2a 100644
 -    <background android:drawable="@color/ic_launcher_background"/>
 -    <foreground android:drawable="@mipmap/ic_launcher_foreground"/>
 -    <monochrome android:drawable="@drawable/ic_launcher_monochrome"/>
-+    <background android:drawable="@android:color/black"/>
++    <background android:drawable="@android:color/white"/>
 +    <foreground android:drawable="@drawable/mobiletina_launcher_safe"/>
  </adaptive-icon>
 diff --git a/workspace/NekoBoxForAndroid/app/src/main/res/values-night/colors.xml b/workspace/NekoBoxForAndroid/app/src/main/res/values-night/colors.xml
@@ -10639,17 +10710,17 @@ index fde311a..758ec83 100644
              val originalFileName = output.outputFileName.get()
              output.outputFileName.set(
 diff --git a/workspace/NekoBoxForAndroid/nb4a.properties b/workspace/NekoBoxForAndroid/nb4a.properties
-index b5f787d..24a410c 100644
+index b5f787d..8da7b89 100644
 --- a/workspace/NekoBoxForAndroid/nb4a.properties
 +++ b/workspace/NekoBoxForAndroid/nb4a.properties
 @@ -1,4 +1,4 @@
 -PACKAGE_NAME=com.nb4a.plus
 -VERSION_NAME=1.4.2-97
 +PACKAGE_NAME=com.nb4a.mobiletina
-+VERSION_NAME=1.4.2-110
++VERSION_NAME=1.4.2-111
  PRE_VERSION_NAME=pre-1.4.2-20260214-1
 -VERSION_CODE=84
-+VERSION_CODE=97
++VERSION_CODE=98
 diff --git a/workspace/sing-box/clients/android/app/src/other/play/listings/en-US/graphics/icon/ic_launcher-playstore.png b/workspace/sing-box/clients/android/app/src/other/play/listings/en-US/graphics/icon/ic_launcher-playstore.png
 deleted file mode 120000
 index 52a651f..0000000

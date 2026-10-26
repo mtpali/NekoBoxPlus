@@ -1,4 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
-<inset xmlns:android="http://schemas.android.com/apk/res/android" android:inset="9%">
-    <bitmap android:src="@drawable/mobiletina_launcher" android:gravity="fill"/>
-</inset>
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:drawable="@android:color/white"/>
+    <item>
+        <inset android:inset="9%">
+            <bitmap android:src="@drawable/mobiletina_launcher" android:gravity="fill"/>
+        </inset>
+    </item>
+</layer-list>

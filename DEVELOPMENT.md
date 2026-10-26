@@ -1,4 +1,16 @@
-# Current release: 1.4.2-110 / فیلترشکن
+# Current release: 1.4.2-111 / فیلترشکن
+
+VersionCode490 (98 × 5); same original signer, upstream pin and native feature identity. The user's notification screenshot shows the old pink cat from ic_service_active, which remained after alternate launcher icons were removed. All four notification builders (VPN, expiry, subscription updates and native authentication) now use mobiletina_notification: a24dp transparent vector of the existing main launcher mark. Remove the unused cat drawable explicitly via SOURCE_REMOVALS. Keep service-button animations and the single launcher alias. The original launcher PNG and protected connection artwork bytes remain unchanged. Android supplies small-icon tint/background, so do not promise full-color status-bar artwork or control of OEM theming.
+
+Both adaptive launcher variants previously requested black backgrounds around their inset foreground. Use fixed Android white for normal/round adaptive icons, and fill the formerly transparent legacy inset area with white using a layer-list. No night override or additional alternate icon is introduced.
+
+Startup now waits for the welcome dialog to close and the Activity to be drawn/resumed, then requests camera, notification permission on API33+, and VPN consent sequentially using three Activity Result launchers. Already granted permissions are skipped, denial still advances, no VPN connection is started by this consent pass, and saved stage/pending state prevents overlapping or repeated requests after recreation. This preserves one pass per fresh Activity visit. Android cannot show the runtime notification permission on API32 or below, or override a system-fixed denial. No new settings/usage-access permission or forced settings redirect.
+
+Required checks: six JVM regression cases for permission order/denial, upgrade with camera granted, API23–32, granted permissions, in-flight recreation and completed-pass recreation; full JVM suite plus Debug/Release; clean pinned replay twice and source audits. Inspect actual compiled resource variants for white backgrounds, the new vector and removal of the cat, plus actual DEX/manifest, original signature and unchanged native core. No physical-device/OEM or emulator result is claimed, and no AVD unless explicitly requested. Preserve all110 app-picker/default-theme,109 log/cleanup/defaults and user-confirmed108 expiry changes.
+
+---
+
+# Historical release: 1.4.2-110 / فیلترشکن
 
 VersionCode485 (97 × 5), original signer and native feature identity retained. User supplied a109 crash from Samsung SM-A356E / Android16 / API36. Exact109 R8 mapping ID bf3f7030db81a01e62aaa7e0202c28605018b12cc15f263657561ee300e530bf retraces the fatal stack to AppSelectionScreen.kt:391 / AppRow: an OutOfMemoryError decoding a304×304 platform default activity icon on Main. The log shows calloc369664 failing and many package-resource load failures. This is package-list imagery, not the removed alternate launcher artwork. The device supports ARM64 but the captured process loaded armeabi-v7a; deliver ARM64 as the preferred build for this phone without treating architecture alone as the fix. Do not commit the raw log/settings or credentials.
 

@@ -20,6 +20,24 @@ assert "application-label:'فیلترشکن'" in badging, 'Incorrect public appl
 resources = subprocess.check_output([str(aapt), 'dump', 'resources', str(apk)], text=True)
 assert 'mipmap/ic_launcher_light' not in resources and 'mipmap/ic_launcher_dark' not in resources
 assert 'drawable/splash_screen' not in resources
+assert 'drawable/ic_service_active' not in resources, 'Legacy cat notification icon remains'
+
+def resource_files(name):
+    block = re.search(r'(?m)^    resource 0x[0-9a-f]+ ' + re.escape(name) + r'\n((?:      .*\n)+)', resources)
+    assert block, 'Missing resource: ' + name
+    return re.findall(r'\(([^)]*)\) \(file\) (\S+) type=XML', block[1])
+
+for name in ['mipmap/ic_launcher', 'mipmap/ic_launcher_round']:
+    variants = resource_files(name)
+    assert {config for config, _ in variants} == {'anydpi', 'anydpi-v26'}
+    for config, path in variants:
+        tree = subprocess.check_output([str(aapt), 'dump', 'xmltree', str(apk), '--file', path], text=True)
+        assert 'drawable(0x01010199)=@0x0106000b' in tree, 'Missing fixed white launcher background: ' + config
+        assert ('E: adaptive-icon' if config.endswith('v26') else 'E: layer-list') in tree
+mark_files = resource_files('drawable/mobiletina_notification')
+assert len(mark_files) == 1
+mark_tree = subprocess.check_output([str(aapt), 'dump', 'xmltree', str(apk), '--file', mark_files[0][1]], text=True)
+assert 'E: vector' in mark_tree and 'E: path' in mark_tree and '0xffffffff' in mark_tree
 configurations = subprocess.check_output([str(aapt), 'dump', 'configurations', str(apk)], text=True)
 removed_locales = {match[1] for relative in json.loads((ROOT/'SOURCE_REMOVALS.json').read_text())
                   if (match := re.search(r'/res/values-([a-z]{2,3})(?:-r[A-Z]{2})?/', relative))}
@@ -49,7 +67,8 @@ with zipfile.ZipFile(apk) as z:
                for name in z.namelist() if name.endswith('.ttf')), 'Missing Exclave font'
 report = {'file': apk.name, 'bytes': apk.stat().st_size, 'sha256': hashlib.sha256(apk.read_bytes()).hexdigest(),
           'package': package[1], 'versionCode': package[2], 'versionName': package[3], 'abis': sorted(abis),
-          'native_source': (ROOT/'UPSTREAM_COMMIT').read_text().strip(), 'debuggable': False}
+          'native_source': (ROOT/'UPSTREAM_COMMIT').read_text().strip(), 'debuggable': False,
+          'white_launcher_backgrounds': True, 'brand_notification_vector': True, 'legacy_cat_removed': True}
 import runpy
 report.update(runpy.run_path(str(ROOT/'scripts/verify-release-protection.py'))['verify'](apk, abis))
 apk.with_suffix('.verification.json').write_text(json.dumps(report, indent=2)+'\n')

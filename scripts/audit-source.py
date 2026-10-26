@@ -143,7 +143,7 @@ assert strings['quick_toggle'] == strings['tile_title'] == 'VPN'
 tile = (NBA/'app/src/main/java/io/nekohasekai/sagernet/bg/TileService.kt').read_text()
 assert 'R.mipmap.ic_launcher' in tile and 'R.string.tile_title' in tile
 assert 'label = profileName' not in tile and 'ic_service_' not in tile
-assert 'VERSION_NAME=1.4.2-110' in metadata and 'VERSION_CODE=97' in metadata
+assert 'VERSION_NAME=1.4.2-111' in metadata and 'VERSION_CODE=98' in metadata
 print('Verified release106 live-service expiry, QR access, VPN shortcut/tile branding and version identity.')
 
 work_services = {'androidx.work.multiprocess.RemoteWorkManagerService',
@@ -170,3 +170,29 @@ assert 'ActivityCompat.requestPermissions(' not in main
 print('Verified release107 worker execution process, runtime Iran geosite alias, import text, bold stop control, group-row QR and lightweight startup metadata.')
 
 assert all(n.get(android+'process') == ':bg' for n in manifest.findall('application/receiver') if n.get(android+'name','').startswith('androidx.work.'))
+
+# The screenshot's legacy cat mark must disappear from every notification path.
+assert not (res/'drawable/ic_service_active.xml').exists()
+notification_sources = [
+    'io/nekohasekai/sagernet/bg/ServiceNotification.kt',
+    'io/nekohasekai/sagernet/bg/SubscriptionUpdater.kt',
+    'io/nekohasekai/sagernet/ui/MobileTinaSubscriptionExpiry.kt',
+    'moe/matsuri/nb4a/NativeInterface.kt',
+]
+for relative in notification_sources:
+    source = (NBA/'app/src/main/java'/relative).read_text()
+    assert '.setSmallIcon(R.drawable.mobiletina_notification)' in source, relative
+assert 'R.drawable.ic_service_active' not in application_source
+mark = ET.parse(res/'drawable/mobiletina_notification.xml').getroot()
+assert mark.tag == 'vector' and mark.get(android+'width') == '24dp'
+assert len(mark) == 1 and mark[0].get(android+'fillColor') == '#FFFFFFFF'
+for name in ['ic_launcher', 'ic_launcher_round']:
+    adaptive = ET.parse(res/f'mipmap-anydpi-v26/{name}.xml').getroot()
+    assert adaptive.find('background').get(android+'drawable') == '@android:color/white'
+    legacy = ET.parse(res/f'mipmap-anydpi/{name}.xml').getroot()
+    assert legacy.tag == 'layer-list' and legacy[0].get(android+'drawable') == '@android:color/white'
+assert any(n.get(android+'name') == 'android.permission.POST_NOTIFICATIONS'
+           for n in manifest.findall('uses-permission'))
+assert 'startupNotificationPermission.launch(POST_NOTIFICATIONS)' in main
+assert 'STARTUP_PERMISSION_WAITING' in main and 'continueStartupPermissions()' in main
+print('Verified111 unified notification mark, removed cat drawable, white launcher backgrounds and sequential notification permission flow.')
