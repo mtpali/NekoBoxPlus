@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
+artifact_name="$(python3 scripts/native-source-id.py)"
 for round in $(seq 1 180); do
-  run_id="$(gh api --paginate "repos/$GITHUB_REPOSITORY/actions/artifacts?name=native-7e662032-arm&per_page=100" \
+  run_id="$(gh api --paginate "repos/$GITHUB_REPOSITORY/actions/artifacts?name=$artifact_name&per_page=100" \
     --jq '[.artifacts[] | select(.expired == false)] | sort_by(.created_at) | last | .workflow_run.id // empty' | tail -n1)"
   if [ -n "$run_id" ]; then
     echo "run_id=$run_id" >> "$GITHUB_OUTPUT"

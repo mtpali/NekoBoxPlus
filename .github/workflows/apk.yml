@@ -1,7 +1,7 @@
 name: Build VPN APK
 on:
   push:
-    branches: [main]
+    branches: [main, fix/notification-expiry-qr-widget]
     paths-ignore: ['**.md']
   workflow_dispatch:
 permissions:
@@ -39,15 +39,20 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: bash scripts/find-native.sh
+      - name: Identify native source
+        id: native_id
+        run: echo "artifact_name=$(python3 scripts/native-source-id.py)" >> "$GITHUB_OUTPUT"
       - uses: actions/download-artifact@v4
         with:
-          name: native-7e662032-arm
+          name: ${{ steps.native_id.outputs.artifact_name }}
           github-token: ${{ github.token }}
           run-id: ${{ steps.native.outputs.run_id }}
           path: native
       - name: Install native core and prepare geodata
         run: |
           cmp UPSTREAM_COMMIT native/UPSTREAM_COMMIT
+          python3 scripts/native-source-id.py --hash > expected-native-features.txt
+          cmp expected-native-features.txt native/NATIVE_FEATURES_SHA256
           mkdir -p upstream/workspace/NekoBoxForAndroid/app/libs
           cp native/libcore.aar upstream/workspace/NekoBoxForAndroid/app/libs/
           cd upstream/workspace/NekoBoxForAndroid
@@ -69,6 +74,8 @@ jobs:
           cp -r upstream/workspace/NekoBoxForAndroid/app/build/test-results/testPlusDebugUnitTest dist/validation/
           cp "$ANDROID_HOME/build-tools/36.0.0/lib/apksigner.jar" dist/signing-tools/
           cp RELEASE_CERT_SHA256 UPSTREAM_COMMIT BRANDING_PROTECTION.json native-guard-validation.txt dist/validation/
+          cp native/NATIVE_FEATURES_SHA256 native/SOURCE_COMMIT dist/validation/
+          mv dist/validation/SOURCE_COMMIT dist/validation/NATIVE_SOURCE_COMMIT
           printf '%s\n' "$GITHUB_SHA" > dist/validation/SOURCE_COMMIT
       - uses: actions/upload-artifact@v4
         if: success()

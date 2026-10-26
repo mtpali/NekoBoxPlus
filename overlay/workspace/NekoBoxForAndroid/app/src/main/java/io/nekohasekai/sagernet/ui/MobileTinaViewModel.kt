@@ -70,29 +70,30 @@ internal class MobileTinaViewModel(application: Application) : AndroidViewModel(
         val groupId: Long,
         val groupName: String,
         val profiles: List<ProxyEntity>,
+        val count: Int,
         val selected: ProxyEntity?,
         val usage: MobileTinaUsage,
         val expired: Boolean,
     )
 
-    private fun load(): Snapshot {
+    private fun load(includeProfiles: Boolean = false): Snapshot {
         val running = if (mutable.value.service.connected) AppData.profiles.getById(DataStore.currentProfile) else null
         var group = AppData.groups.getById(running?.groupId ?: DataStore.currentGroupId())
         if (group?.subscription == null && (group == null || AppData.profiles.countByGroup(group.id) == 0L)) {
             group = AppData.groups.allGroups().firstOrNull { it.subscription != null || AppData.profiles.countByGroup(it.id) > 0 } ?: group
             group?.let { DataStore.selectedGroup = it.id }
         }
-        val profiles = group?.let { AppData.profiles.getByGroup(it.id) }.orEmpty()
-        val selected = profiles.firstOrNull { it.id == (running?.id ?: DataStore.selectedProxy) }
+        val profiles = MobileTinaHomeProfiles.read(AppData.profiles, group?.id ?: 0L,
+            running?.id ?: DataStore.selectedProxy, includeProfiles)
         val subscription = group?.subscription
         val expiry = subscription?.expireAt?.takeIf { it > 0 }
             ?: subscription?.expiryDate?.toLong()?.takeIf { it > 0 } ?: 0L
         val usage = MobileTinaUsage.parse(subscription?.subscriptionUserinfo, expiry)
-        val marker = profiles.any(MobileTinaSubscriptionExpiry::isMarker)
+        val marker = profiles.expired
         val managedExpiry = group?.let { MobileTinaSubscriptionExpiry.expiresAt(it.id) }
         val expirySeconds = managedExpiry?.div(1000L) ?: usage.expiresAt
         return Snapshot(
-            group?.id ?: 0, group?.displayName().orEmpty(), profiles, selected,
+            group?.id ?: 0, group?.displayName().orEmpty(), profiles.profiles, profiles.count, profiles.selected,
             usage.copy(expiresAt = expirySeconds),
             marker || if (managedExpiry != null) MobileTinaSubscriptionExpiry.isVerifiedExpired(managedExpiry)
             else (expirySeconds != null && MobileTinaSubscriptionExpiry.nowMillis()?.let { expirySeconds <= it / 1000L } == true),
@@ -119,7 +120,7 @@ internal class MobileTinaViewModel(application: Application) : AndroidViewModel(
                     profileName = snapshot.selected?.displayName().orEmpty(),
                     profileId = snapshot.selected?.id ?: 0,
                     ping = snapshot.selected?.ping ?: 0,
-                    count = snapshot.profiles.count { !MobileTinaSubscriptionExpiry.isMarker(it) },
+                    count = snapshot.count,
                     usage = snapshot.usage, expired = snapshot.expired,
                 )
             }
@@ -173,7 +174,7 @@ internal class MobileTinaViewModel(application: Application) : AndroidViewModel(
         mutable.value = mutable.value.copy(pending = true, testing = true, failed = false, message = "")
         attempt = viewModelScope.launch {
             try {
-                var snapshot = withContext(Dispatchers.IO) { load() }
+                var snapshot = withContext(Dispatchers.IO) { load(includeProfiles = true) }
                 if (snapshot.profiles.isEmpty()) {
                     withContext(Dispatchers.IO) {
                         val group = AppData.groups.getById(snapshot.groupId) ?: return@withContext
@@ -184,7 +185,7 @@ internal class MobileTinaViewModel(application: Application) : AndroidViewModel(
                             }
                         } else GroupUpdater.executeUpdate(group, true)
                     }
-                    snapshot = withContext(Dispatchers.IO) { load() }
+                    snapshot = withContext(Dispatchers.IO) { load(includeProfiles = true) }
                 }
                 if (!MobileTinaConnectionGate.accepts(token)) return@launch
                 if (snapshot.expired) { fail(R.string.mobiletina_expired); return@launch }

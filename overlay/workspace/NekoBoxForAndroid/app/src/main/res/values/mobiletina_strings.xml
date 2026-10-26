@@ -7,7 +7,7 @@
     <string name="mobiletina_disconnect">Disconnect or cancel</string>
     <string name="mobiletina_subscription">Subscription details</string>
     <string name="mobiletina_share_hint">Copy the subscription link or show its QR code.</string>
-    <string name="mobiletina_qr">Show QR code</string>
+    <string name="mobiletina_qr">نمایش بارکد</string>
     <string name="mobiletina_unlimited">Unlimited</string>
     <string name="mobiletina_usage">%1$s used of %2$s</string>
     <string name="mobiletina_no_internet">Please turn on your internet connection.</string>
@@ -46,9 +46,9 @@
     <string name="mobiletina_more_tools" translatable="false">سایر ابزارها</string>
     <string name="mobiletina_group" translatable="false">انتخاب اشتراک</string>
     <string name="mobiletina_clear_all" translatable="false">پاکسازی کامل برنامه</string>
-    <string name="mobiletina_clear_all_message" translatable="false">تمام سرورها و لینک‌های اشتراک حذف می‌شوند. تنظیمات برنامه باقی می‌مانند. ادامه می‌دهید؟</string>
+    <string name="mobiletina_clear_all_message" translatable="false">تمام سرورها، لینک‌های اشتراک و آمار log حذف می‌شوند. تنظیمات برنامه باقی می‌مانند. ادامه می‌دهید؟</string>
     <string name="mobiletina_clear_all_confirm" translatable="false">پاکسازی</string>
-    <string name="mobiletina_clear_all_done" translatable="false">تمام سرورها و اشتراک‌ها پاک شدند</string>
+    <string name="mobiletina_clear_all_done" translatable="false">تمام سرورها، اشتراک‌ها و آمار log پاک شدند</string>
     <string name="mobiletina_clear_stop_failed">Stop the VPN connection and try again.</string>
     <string name="mobiletina_usage_remaining" translatable="false">حجم باقی‌مانده</string>
     <string name="mobiletina_cancel" translatable="false">بیخیال</string>
@@ -63,4 +63,16 @@
     <string name="mobiletina_protected">این اشتراک محافظت‌شده است</string>
     <string name="mobiletina_delete_count_confirm">تعداد %d کانفیگ حذف شود؟</string>
     <string name="mobiletina_inactive">غیرفعال</string>
+    <string name="mobiletina_log" translatable="false">log</string>
+    <string name="mobiletina_log_enable" translatable="false">Recording</string>
+    <string name="mobiletina_log_next_connection" translatable="false">Applies on next connection</string>
+    <string name="mobiletina_log_current" translatable="false">Current session</string>
+    <string name="mobiletina_log_last" translatable="false">Last session</string>
+    <string name="mobiletina_log_empty" translatable="false">No data</string>
+    <string name="mobiletina_log_unknown" translatable="false">Unknown</string>
+    <string name="mobiletina_log_refresh" translatable="false">Refresh</string>
+    <string name="mobiletina_log_clear" translatable="false">Clear log</string>
+    <string name="mobiletina_log_back" translatable="false">Back</string>
+    <string name="mobiletina_log_error" translatable="false">Could not load log</string>
+    <string name="mobiletina_clear_log_failed">پاک‌سازی آمار log انجام نشد. دوباره تلاش کنید.</string>
 </resources>

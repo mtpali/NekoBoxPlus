@@ -1,4 +1,90 @@
-# Current release: 1.4.2-105 / فیلترشکن
+# Current release: 1.4.2-111 / فیلترشکن
+
+VersionCode490 (98 × 5); same original signer, upstream pin and native feature identity. The user's notification screenshot shows the old pink cat from ic_service_active, which remained after alternate launcher icons were removed. All four notification builders (VPN, expiry, subscription updates and native authentication) now use mobiletina_notification: a24dp transparent vector of the existing main launcher mark. Remove the unused cat drawable explicitly via SOURCE_REMOVALS. Keep service-button animations and the single launcher alias. The original launcher PNG and protected connection artwork bytes remain unchanged. Android supplies small-icon tint/background, so do not promise full-color status-bar artwork or control of OEM theming.
+
+Both adaptive launcher variants previously requested black backgrounds around their inset foreground. Use fixed Android white for normal/round adaptive icons, and fill the formerly transparent legacy inset area with white using a layer-list. No night override or additional alternate icon is introduced.
+
+Startup now waits for the welcome dialog to close and the Activity to be drawn/resumed, then requests camera, notification permission on API33+, and VPN consent sequentially using three Activity Result launchers. Already granted permissions are skipped, denial still advances, no VPN connection is started by this consent pass, and saved stage/pending state prevents overlapping or repeated requests after recreation. This preserves one pass per fresh Activity visit. Android cannot show the runtime notification permission on API32 or below, or override a system-fixed denial. No new settings/usage-access permission or forced settings redirect.
+
+Required checks: six JVM regression cases for permission order/denial, upgrade with camera granted, API23–32, granted permissions, in-flight recreation and completed-pass recreation; full JVM suite plus Debug/Release; clean pinned replay twice and source audits. Inspect actual compiled resource variants for white backgrounds, the new vector and removal of the cat, plus actual DEX/manifest, original signature and unchanged native core. No physical-device/OEM or emulator result is claimed, and no AVD unless explicitly requested. Preserve all110 app-picker/default-theme,109 log/cleanup/defaults and user-confirmed108 expiry changes.
+
+---
+
+# Historical release: 1.4.2-110 / فیلترشکن
+
+VersionCode485 (97 × 5), original signer and native feature identity retained. User supplied a109 crash from Samsung SM-A356E / Android16 / API36. Exact109 R8 mapping ID bf3f7030db81a01e62aaa7e0202c28605018b12cc15f263657561ee300e530bf retraces the fatal stack to AppSelectionScreen.kt:391 / AppRow: an OutOfMemoryError decoding a304×304 platform default activity icon on Main. The log shows calloc369664 failing and many package-resource load failures. This is package-list imagery, not the removed alternate launcher artwork. The device supports ARM64 but the captured process loaded armeabi-v7a; deliver ARM64 as the preferred build for this phone without treating architecture alone as the fix. Do not commit the raw log/settings or credentials.
+
+Per-app routing and rule/adblock package pickers share an Activity-owned asset loader. Read the existing package snapshot instead of forcing another heavy PackageCache reload on every entry; omit entries not installed for this user, resolve labels on IO with package-name fallback per failed resource, preserve normal labels, UID selection, ordering, search and modes. Cancellation propagates on leaving.
+
+Only visible/prefetched row icons load on IO, serialized by one mutex. Rasterize to a maximum128×128 ARGB bitmap, cache at most512KiB and retain no platform Drawable in the row. Never request PackageManager.defaultActivityIcon on the UI path. The existing local Android vector is the fallback. Missing icons are remembered for the page; OOM disables further package-resource allocations for that screen and evicts the bitmap cache. Closing the Activity clears cache ownership without recycling bitmaps still referenced by Compose. This contains the recorded failure; a fixed build is not a successful Samsung device retest.
+
+The user's screenshot points to row6/column4 in the palette: AMOLED id22 (the pure black swatch), distinct from BLACK id21. DataStore and Theme fallback now use AMOLED, with a one-time110 migration enabling it on existing installs. Later manual palette choices and the separate saved night-mode preference remain respected.
+
+Required validation: clean replay twice, full JVM suite including OOM suppression/resource failure/cancellation/size limits, Debug/Release, actual DEX/manifest/resources, original signatures and unchanged core payload. No AVD unless requested, no numeric device-memory/startup benchmark. Preserve all109 defaults/log/cleanup and the user-confirmed108 expiry behavior.
+
+---
+
+# Historical release: 1.4.2-109 / فیلترشکن
+
+VersionCode480 (96 × 5), original signer and native feature identity unchanged from108. The user confirmed108 expiry works on their physical phone. Preserve that stop/retirement implementation; the expiry status notification now sets only its title so «اشتراک شما منقضی شد» appears once.
+
+Short profile protocol info is true in both DataStore and the Compose settings fallback. App traffic recording defaults true. A single109 migration enables both on existing installations; later manual Off choices are preserved.
+
+The log page is LTR English, with one compact recording/session row and only app name + total MB/GB per usage row, sorted descending. Remove the permanent hint, verbose explanations and per-direction subrows. A brief next-connection message is shown only after toggling recording. Labels are cached for the lifetime of the page, volumes are formatted on IO, superseded reads are cancelled and a reply receiver exists only while a query is pending. No periodic refresh/disk writer is introduced. English text itself is not claimed as a measured speed gain.
+
+Saved log reads use a4KiB streaming buffer instead of allocating512KiB unconditionally; reject streams after at most512KiB+1 bytes. The existing4097-UID/512KiB caps, unknown/shared-UID behavior, atomic final snapshot and native packet path remain intact. No libcore rebuild is needed.
+
+The drawer's full app cleanup first stops VPN as before, then awaits private :bg confirmation that saved/current log counters were cleared, before deleting configurations. A missing clear acknowledgement reports a failure instead of declaring successful full cleanup. Existing settings remain, including the user's recording preference. The same owner/lock/clear operation serves the log trash button. Regression coverage adds bounded stream parsing and an oversized/infinite input limit; retain clear/open-flow/stop tests.
+
+Required checks: clean pinned replay twice, source audit, full JVM suite, Debug/Release, original signer, actual DEX/manifest/resources and payload identity. No new device/emulator success is inferred from the user's108 confirmation.
+
+---
+
+# Historical release: 1.4.2-108 / فیلترشکن
+
+VersionCode475 (95 × 5); original 104/v2 certificate and base upstream pin retained. The native core now has optional per-UID proxied traffic counters, source identity recorded in NATIVE_FEATURES_SHA256. Native build40300969044 passed before the Android integration.
+
+The user's 107 device test showed expiry still left the VPN running. An imported BASIC group's sole SOCKS1:1 marker was incorrectly treated as fully retired: recovery discarded the record and retirement skipped its notification/name update. That shortcut is removed. Header-based subscription deadlines now use the same precedence as the usage display. Service state and group-update completion trigger verification directly in :bg, serialized with workers. A one-shot coroutine deadline exists only for the active service, with the existing alarm and durable worker fallback. Stopping cancels deadline waits, not the separate finalizer. Retirement waits for both Stopped and actual TUN descriptor closure, preserves renewal guards, replaces only the expired group's profiles and posts «اشتراک شما منقضی شد». Internet clock/monotonic-time policy is retained; no device-wall-clock expiry fallback.
+
+The final Settings row opens `log`. Logging is off by default and changes take effect on the next VPN connection. Enabled sessions force process lookup and attach native counters once before routing. Direct/DNS/block routes and temporary test instances are excluded. Each packet adds native atomic counters; there is no per-packet database work, history or page timer. The screen ranks upload+download, displays MB/GB only, resolves names on IO and groups shared Android UIDs honestly. Unknown ownership is shown explicitly. Counts represent proxied payload, not encrypted wire overhead or all device traffic.
+
+Only the current connection and one last normal-stop snapshot are retained. At most4097 UID aggregates and a512KiB atomic private file; no domains/URLs/packets/icons/history are logged. Refresh occurs on open/manual refresh and the snapshot is saved at normal teardown. The top trash button deletes persisted stats and sets an in-memory baseline for existing open flows; subsequent traffic remains countable without restarting the VPN. Starting a new connection resets that baseline. Abrupt process death can lose the unsaved current session; there is intentionally no periodic disk writer. No extra Android usage-access permission is required.
+
+Regression tests cover fresh sole-marker finalization, header precedence/overflow, open-flow clear, repeated clear and stop/save, reconnection, byte units, ranking, malformed data and bounded full snapshots. Run the full JVM suite, native counter tests, source audits, clean replay twice, Debug and minified Release builds and signed APK validation. No physical-device or emulator success is claimed from CI.
+
+---
+
+# Historical release: 1.4.2-107 / فیلترشکن
+
+VersionCode470 (94 × 5), original 104/v2 release certificate and pinned native core unchanged. Preserve all106 changes and the user's later15-tap rule.
+
+The reported geosite failure happens before connection: the106 APK's bundled database contains category-ir (378 entries) and no ir code. Runtime compatibility now resolves the legacy local pseudo-rule-set path against the actual global or subscription-specific geosite asset: prefer ir when present, otherwise category-ir, otherwise retain the tag using an inline .ir suffix rule. Outbounds, REALITY fields, route order, DNS references and unrelated countries remain intact; saved profiles/rules are not rewritten. Corrupt/unreadable assets still report their real error. The alias catalog is cached by file identity; unrelated configs do not read it.
+
+The previous merged APK manifest left RemoteWorkManagerService and AndroidX execution services in the UI process despite setDefaultProcessName(:bg). A default-process setting does not relocate Android service components. All four WorkManager services, its eight library receivers and the expiry alarm receiver now explicitly run in :bg with the live VPN service. On-demand initialization stays enabled. Verified-due requests use expedited work on Android12+ with quota fallback. The existing live-service stop/teardown acknowledgement, per-group transaction, expiry notification and stable-ID SOCKS1:1 marker are retained. This fixes an actual process mismatch; physical device confirmation is still required.
+
+Import success text (single and plural) is exactly «اضافه شد». The white notification stop button has bold black text. The per-group row update icon now opens subscription URL QR when sharing is allowed; manual update remains in its three-dot menu and update-all/foreground auto-update remain available. Protected sources remain protected.
+
+Home metadata uses SQL count, one selected-profile lookup and a SOCKS-only marker query instead of deserializing every protocol config on every refresh. Smart Connect explicitly loads the full group when requested. Expiry recovery also skips full-profile reads for nonterminal subscription groups. The duplicate notification permission request is removed and the combined startup request waits for the first frame. Removed-dashboard WebView housekeeping no longer runs at startup. No numeric startup-speed claim is made without device profiling.
+
+Validate clean patch replay twice, complete JVM suite, native guard, Debug/Release, all signed APK contracts and the actual merged manifest processes. User-provided live VLESS credentials must not be committed or included in handoff/evidence; regression fixtures use synthetic credentials. References reviewed: mtpali/MobileTinaVPN@670b895 and mtpali/exclave@6a4169e3. Their global wipe/fallback-to-device-time behavior is not copied.
+
+---
+
+# Historical release: 1.4.2-106 / فیلترشکن
+
+The 2026-10-26 user change log and both main@7380499 and the draft PR branch@7757ccd were reviewed before editing. Preserve startup camera/notification permission requests, concise subscription-import errors, fifteen-tap QR access, the white notification stop button with black text, and the unchanged pinned native core.
+
+Expiration now reads the live background service's root profile and selector group instead of relying on the last-used profile preference. It cancels pending startup/recovery, directly stops the affected service on Main and observes its actual teardown before retirement. A delayed service start rechecks expiry. Retirement retains the connected profile ID when it belongs to the expired group, replaces its name with «اشتراک شما منقضی شد», and does not alter other groups. Expiry posts the same Persian message on a separate notification channel; disabled notification permissions cannot retry an already committed retirement. Notification taps open the application.
+
+The subscription Group Settings toolbar has a QR icon beside delete. It uses the existing QR dialog with duplicate/state-saved guards and preserves protected-source restrictions. Both the legacy home-screen toggle shortcut and the Quick Settings tile are labelled VPN and use the original launcher artwork. Tile updates no longer replace the label or icon with a profile name/status glyph. No new AppWidget provider is introduced.
+
+VersionCode is 465 (93 × 5). The deliverable uses the available original v2 signing key/certificate from the delivered 104 APKs (05d8ab…); the later source-only signer pin 9e5062… did not have a matching private key available. No new signing key is generated. Builds also run on fix/notification-expiry-qr-widget so the draft PR can be validated without merging main.
+
+Required checks: clean source preparation twice, full existing audits, the complete JVM suite including live-service scope and profile-ID/name regressions, Debug and minified Release builds, native guard, actual APK/R8/JSON/artwork/signature validation. No device/emulator or real VPN scenario is claimed from CI alone. Historical sections below do not override this release.
+
+---
+
+# Historical release: 1.4.2-105 / فیلترشکن
 
 Application ID and v2 signing certificate remain unchanged. Android versionCode is 460 (92 × 5); the launcher and network core stay pinned as in104.
 

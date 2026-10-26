@@ -16,7 +16,7 @@
         android:layout_height="40dp" android:minWidth="0dp" android:paddingStart="14dp"
         android:paddingEnd="14dp" android:textSize="12sp" android:maxLines="1"
         android:background="@drawable/mobiletina_notification_stop_bg"
-        android:textColor="@android:color/white"
+        android:textColor="#FF000000" android:textStyle="bold"
         android:text="@string/mobiletina_notification_stop" android:contentDescription="@string/mobiletina_notification_stop"
         android:textAllCaps="false" android:stateListAnimator="@null" />
 </LinearLayout>

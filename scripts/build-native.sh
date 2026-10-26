@@ -5,6 +5,7 @@ cd "$ROOT"
 test "$(git -C upstream rev-parse HEAD)" = "$(cat UPSTREAM_COMMIT)"
 NBA="$ROOT/upstream/workspace/NekoBoxForAndroid"
 WORKSPACE="$ROOT/upstream/workspace"
+python3 "$ROOT/scripts/prepare-native.py"
 mkdir -p "$ROOT/.cache"
 IMAGE="neko-android-aar-go:1.27.1-runtime-patches-v2"
 if [ -s "$ROOT/.cache/native-toolchain.tar.zst" ]; then
@@ -53,6 +54,7 @@ from pathlib import Path
 import sys
 p = Path(sys.argv[1])
 s = p.read_text()
+s = s.replace('export GOBIND=gobind', 'CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go test ./appstats || exit 1\nexport GOBIND=gobind')
 s = s.replace('gomobile bind -v -androidapi 23', 'gomobile bind -target=android/arm,android/arm64 -v -androidapi 23')
 for abi in ['i686-linux-android', 'x86_64-linux-android']:
     s = '\n'.join(line for line in s.split('\n') if not ('cargo build ' in line and '--target ' + abi in line))
@@ -65,6 +67,8 @@ test -s app/libs/libcore.aar
 mkdir -p "$ROOT/dist/native"
 cp app/libs/libcore.aar "$ROOT/dist/native/"
 cp "$ROOT/UPSTREAM_COMMIT" "$ROOT/dist/native/UPSTREAM_COMMIT"
+python3 "$ROOT/scripts/native-source-id.py" --hash > "$ROOT/dist/native/NATIVE_FEATURES_SHA256"
+printf '%s\n' "${GITHUB_SHA:-local}" > "$ROOT/dist/native/SOURCE_COMMIT"
 sha256sum "$ROOT/dist/native/libcore.aar" > "$ROOT/dist/native/SHA256SUMS"
 python3 - "$ROOT/dist/native/libcore.aar" <<'PY'
 import sys, zipfile
@@ -72,6 +76,10 @@ with zipfile.ZipFile(sys.argv[1]) as z:
     abis = {p.split('/')[1] for p in z.namelist() if p.startswith('jni/') and p.endswith('.so')}
     assert abis == {'armeabi-v7a', 'arm64-v8a'}, abis
     assert z.getinfo('classes.jar').file_size > 0
+    import io
+    with zipfile.ZipFile(io.BytesIO(z.read('classes.jar'))) as classes:
+        box = classes.read('libcore/BoxInstance.class')
+        assert b'queryAppTrafficStats' in box and b'enableAppTrafficStats' in box
     for abi in abis:
         payload = z.read(f'jni/{abi}/libgojni.so')
         assert b'amneziawg' in payload.lower(), f'AWG backend absent from {abi}'

@@ -64,7 +64,7 @@ internal class MobileTinaExpiryStore(context: Context) {
         PublicDatabase.instance.runInTransaction(Callable {
             if (getLong("expiry.$groupId", 0) == expectedTrigger &&
                 getString("link.$groupId", "") == expectedLink && getInt("updated.$groupId", 0) == expectedUpdated) {
-                listOf("expiry.", "link.", "updated.").forEach { dao.delete(prefix + it + groupId) }
+                listOf("expiry.", "link.", "updated.", "metadata.").forEach { dao.delete(prefix + it + groupId) }
                 removed = true
             }
             Unit

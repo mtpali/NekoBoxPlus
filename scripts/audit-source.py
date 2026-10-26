@@ -121,3 +121,78 @@ print('Verified GitHub-first trusted clock, no device-date expiration fallback a
 
 assert 'MobileTinaSubscriptionExpiry.deferVerification(group, trigger, revision!!)' in expiry_source
 assert 'private fun scheduleFallback(record: Record, wait: Long)' in expiry_source
+
+# Release106: operate on the live background service, preserve the expired profile ID,
+# and update both Android entry points (legacy home shortcut and Quick Settings tile).
+assert 'confirmStopped(groupId)' in expiry_source
+assert 'MobileTinaExpiryConnectionPolicy.shouldStop(groupId, data.state,' in expiry_source
+assert 'service.stopRunner()' in expiry_source
+assert 'activeGroup == groupId' not in expiry_source
+assert 'previousProfileId)' in expiry_source
+assert 'manager.notify("mobiletina-expiry-$groupId"' in expiry_source
+base_service = (NBA/'app/src/main/java/io/nekohasekai/sagernet/bg/BaseService.kt').read_text()
+assert 'MobileTinaSubscriptionExpiry.canStart(profile.id)' in base_service
+group_settings = (NBA/'app/src/main/java/io/nekohasekai/sagernet/ui/GroupSettingsActivity.kt').read_text()
+assert 'onShowQrCode = ::showSubscriptionQr' in group_settings
+assert 'supportFragmentManager.isStateSaved' in group_settings
+assert 'MobileTinaSubscriptionPolicy.isProtectedUrl(DataStore.subscriptionLink)' in group_settings
+for relative in ['app/src/main/res/xml/shortcuts.xml', 'app/src/debug/res/xml/shortcuts.xml']:
+    assert ET.parse(NBA/relative).getroot()[0].get(android+'icon') == '@mipmap/ic_launcher'
+strings = {s.get('name'): s.text for s in ET.parse(res/'values/strings.xml').getroot().findall('string')}
+assert strings['quick_toggle'] == strings['tile_title'] == 'VPN'
+tile = (NBA/'app/src/main/java/io/nekohasekai/sagernet/bg/TileService.kt').read_text()
+assert 'R.mipmap.ic_launcher' in tile and 'R.string.tile_title' in tile
+assert 'label = profileName' not in tile and 'ic_service_' not in tile
+assert 'VERSION_NAME=1.4.2-111' in metadata and 'VERSION_CODE=98' in metadata
+print('Verified release106 live-service expiry, QR access, VPN shortcut/tile branding and version identity.')
+
+work_services = {'androidx.work.multiprocess.RemoteWorkManagerService',
+    'androidx.work.impl.background.systemjob.SystemJobService',
+    'androidx.work.impl.background.systemalarm.SystemAlarmService',
+    'androidx.work.impl.foreground.SystemForegroundService'}
+services = {n.get(android+'name'):n for n in manifest.findall('application/service')}
+assert all(services[name].get(android+'process') == ':bg' for name in work_services)
+expiry_receiver = next(n for n in manifest.findall('application/receiver') if n.get(android+'name','').endswith('MobileTinaExpiryReceiver'))
+assert expiry_receiver.get(android+'process') == ':bg'
+assert strings['action_import_msg'] == 'اضافه شد'
+added = next(n for n in ET.parse(res/'values/strings.xml').getroot() if n.tag=='plurals' and n.get('name')=='added')
+assert all(item.text == 'اضافه شد' for item in added)
+stop_button = next(n for n in ET.parse(res/'layout/mobiletina_service_notification.xml').getroot().iter() if n.get(android+'id')=='@+id/mobiletina_notification_stop')
+assert stop_button.get(android+'textStyle') == 'bold'
+group_screen = (NBA/'app/src/main/java/io/nekohasekai/sagernet/ui/compose/GroupScreen.kt').read_text()
+assert 'onAction(group.id, GroupAction.ShareUrlQr)' in group_screen
+assert 'select(GroupAction.Update)' in group_screen
+box = (NBA/'app/src/main/java/io/nekohasekai/sagernet/bg/proto/BoxInstance.kt').read_text()
+assert 'MobileTinaGeositeCompatibility.forRuntime' in box
+home = (NBA/'app/src/main/java/io/nekohasekai/sagernet/ui/MobileTinaViewModel.kt').read_text()
+assert 'MobileTinaHomeProfiles.read(' in home and home.count('load(includeProfiles = true)') == 2
+assert 'ActivityCompat.requestPermissions(' not in main
+print('Verified release107 worker execution process, runtime Iran geosite alias, import text, bold stop control, group-row QR and lightweight startup metadata.')
+
+assert all(n.get(android+'process') == ':bg' for n in manifest.findall('application/receiver') if n.get(android+'name','').startswith('androidx.work.'))
+
+# The screenshot's legacy cat mark must disappear from every notification path.
+assert not (res/'drawable/ic_service_active.xml').exists()
+notification_sources = [
+    'io/nekohasekai/sagernet/bg/ServiceNotification.kt',
+    'io/nekohasekai/sagernet/bg/SubscriptionUpdater.kt',
+    'io/nekohasekai/sagernet/ui/MobileTinaSubscriptionExpiry.kt',
+    'moe/matsuri/nb4a/NativeInterface.kt',
+]
+for relative in notification_sources:
+    source = (NBA/'app/src/main/java'/relative).read_text()
+    assert '.setSmallIcon(R.drawable.mobiletina_notification)' in source, relative
+assert 'R.drawable.ic_service_active' not in application_source
+mark = ET.parse(res/'drawable/mobiletina_notification.xml').getroot()
+assert mark.tag == 'vector' and mark.get(android+'width') == '24dp'
+assert len(mark) == 1 and mark[0].get(android+'fillColor') == '#FFFFFFFF'
+for name in ['ic_launcher', 'ic_launcher_round']:
+    adaptive = ET.parse(res/f'mipmap-anydpi-v26/{name}.xml').getroot()
+    assert adaptive.find('background').get(android+'drawable') == '@android:color/white'
+    legacy = ET.parse(res/f'mipmap-anydpi/{name}.xml').getroot()
+    assert legacy.tag == 'layer-list' and legacy[0].get(android+'drawable') == '@android:color/white'
+assert any(n.get(android+'name') == 'android.permission.POST_NOTIFICATIONS'
+           for n in manifest.findall('uses-permission'))
+assert 'startupNotificationPermission.launch(POST_NOTIFICATIONS)' in main
+assert 'STARTUP_PERMISSION_WAITING' in main and 'continueStartupPermissions()' in main
+print('Verified111 unified notification mark, removed cat drawable, white launcher backgrounds and sequential notification permission flow.')

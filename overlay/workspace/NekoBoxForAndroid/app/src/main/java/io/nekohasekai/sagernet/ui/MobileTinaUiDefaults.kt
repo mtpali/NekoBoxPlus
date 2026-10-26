@@ -30,6 +30,17 @@ object MobileTinaUiDefaults {
     }.joinToString("\n")
 
     fun apply() {
+        val themeKey = "mobiletinaAmoledDefaultV110"
+        if (!DataStore.configurationStore.getBoolean(themeKey, false)) {
+            DataStore.appTheme = Theme.AMOLED
+            DataStore.configurationStore.putBoolean(themeKey, true)
+        }
+        val devDefaultsKey = "mobiletinaDevDefaultsV109"
+        if (!DataStore.configurationStore.getBoolean(devDefaultsKey, false)) {
+            DataStore.shortProfileProtocolInfo = true
+            DataStore.configurationStore.putBoolean(MobileTinaAppTraffic.KEY, true)
+            DataStore.configurationStore.putBoolean(devDefaultsKey, true)
+        }
         val appsKey = "mobiletinaAppSelectionV102"
         if (!DataStore.configurationStore.getBoolean(appsKey, false)) {
             DataStore.proxyApps = false
