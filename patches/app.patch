@@ -2539,7 +2539,7 @@ index 3bda1fd..51c4601 100644
      override fun countByGroup(groupId: Long) = dao.countByGroup(groupId)
      override fun nextOrder(groupId: Long) = dao.nextOrder(groupId)
 diff --git a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/database/DataStore.kt b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/database/DataStore.kt
-index cc5908d..c9886f1 100644
+index cc5908d..d3347b1 100644
 --- a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/database/DataStore.kt
 +++ b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/database/DataStore.kt
 @@ -1,5 +1,7 @@
@@ -2587,7 +2587,8 @@ index cc5908d..c9886f1 100644
 -        Key.NOTIFICATION_COUNTRY_INDICATOR,
 -    ) { true }
 -    var tabDoubleTapToNavigate by configurationStore.boolean(Key.TAB_DOUBLE_TAP_TO_NAVIGATE) { true }
-     var shortProfileProtocolInfo by configurationStore.boolean(Key.SHORT_PROFILE_PROTOCOL_INFO)
+-    var shortProfileProtocolInfo by configurationStore.boolean(Key.SHORT_PROFILE_PROTOCOL_INFO)
++    var shortProfileProtocolInfo by configurationStore.boolean(Key.SHORT_PROFILE_PROTOCOL_INFO) { true }
      var dontHighlightInsecureProfiles by configurationStore.boolean(Key.DONT_HIGHLIGHT_INSECURE_PROFILES)
 -    var showBottomBarInSettings by configurationStore.boolean(Key.SHOW_BOTTOM_BAR_IN_SETTINGS)
 -    var compactStatsBar by configurationStore.boolean(Key.COMPACT_STATS_BAR)
@@ -5729,7 +5730,7 @@ index 32891b1..588f893 100644
          val id = DataStore.editingId
          if (id == 0L) {
 diff --git a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/MainActivity.kt b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/MainActivity.kt
-index c403caa..dda0d10 100644
+index c403caa..65d2889 100644
 --- a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/MainActivity.kt
 +++ b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/MainActivity.kt
 @@ -12,6 +12,7 @@ import android.os.Build
@@ -6030,7 +6031,7 @@ index c403caa..dda0d10 100644
      }
  
      private fun requestProxyAppsToggle(enabled: Boolean) {
-@@ -441,10 +427,136 @@ class MainActivity :
+@@ -441,10 +427,147 @@ class MainActivity :
  
      fun closeDrawer() = shellState.closeDrawer()
  
@@ -6111,6 +6112,17 @@ index c403caa..dda0d10 100644
 +                        snackbar(R.string.mobiletina_clear_stop_failed).show()
 +                        return@launch
 +                    }
++                    try {
++                        MobileTinaAppTraffic.query(clear = true)
++                    } catch (error: kotlinx.coroutines.TimeoutCancellationException) {
++                        snackbar(R.string.mobiletina_clear_log_failed).show()
++                        return@launch
++                    } catch (error: kotlinx.coroutines.CancellationException) { throw error }
++                      catch (error: Exception) {
++                        Logs.w(error)
++                        snackbar(R.string.mobiletina_clear_log_failed).show()
++                        return@launch
++                    }
 +                    withContext(Dispatchers.IO) { GroupManager.clearAllConfigurations() }
 +                    mobileTina.refresh()
 +                    displayFragmentWithId(R.id.nav_mobiletina)
@@ -6167,7 +6179,7 @@ index c403caa..dda0d10 100644
  
          if (DataStore.hideFromRecentApps) {
              applyHideFromRecentApps(DataStore.hideFromRecentApps)
-@@ -464,19 +576,64 @@ class MainActivity :
+@@ -464,19 +587,64 @@ class MainActivity :
          }
      }
  
@@ -6236,7 +6248,7 @@ index c403caa..dda0d10 100644
  
          RoutingLinkProcessors.forLink(uri.toString())?.let { processor ->
              setIntent(Intent(intent).setAction(null).setData(null))
-@@ -648,60 +805,6 @@ class MainActivity :
+@@ -648,60 +816,6 @@ class MainActivity :
          }
      }
  
@@ -6297,7 +6309,7 @@ index c403caa..dda0d10 100644
      fun urlTest(automatic: Boolean = false): Int {
          if (!DataStore.serviceState.connected || connection.service == null) {
              error("not started")
-@@ -709,7 +812,7 @@ class MainActivity :
+@@ -709,7 +823,7 @@ class MainActivity :
          return connection.service!!.urlTest(automatic)
      }
  
@@ -6306,7 +6318,7 @@ index c403caa..dda0d10 100644
          val group: ProxyGroup
  
          val url = uri.getQueryParameter("url")
-@@ -746,7 +849,12 @@ class MainActivity :
+@@ -746,7 +860,12 @@ class MainActivity :
          if (name.isNullOrBlank()) return
  
          group.name = group.name.takeIf { !it.isNullOrBlank() }
@@ -6320,7 +6332,7 @@ index c403caa..dda0d10 100644
  
          onMainDispatcher {
              displayFragmentWithId(R.id.nav_group)
-@@ -755,7 +863,7 @@ class MainActivity :
+@@ -755,7 +874,7 @@ class MainActivity :
                  title = getText(R.string.subscription_import),
                  message = getString(R.string.subscription_import_message, name),
                  positiveButton = getText(R.string.yes),
@@ -6329,7 +6341,7 @@ index c403caa..dda0d10 100644
                  onPositive = {
                      runOnDefaultDispatcher {
                          finishImportSubscription(group)
-@@ -765,9 +873,40 @@ class MainActivity :
+@@ -765,9 +884,40 @@ class MainActivity :
          }
      }
  
@@ -6373,7 +6385,7 @@ index c403caa..dda0d10 100644
      }
  
      suspend fun importProfile(uri: Uri) {
-@@ -804,7 +943,7 @@ class MainActivity :
+@@ -804,7 +954,7 @@ class MainActivity :
                  title = getText(R.string.profile_import),
                  message = message,
                  positiveButton = getText(R.string.yes),
@@ -6382,7 +6394,7 @@ index c403caa..dda0d10 100644
                  onPositive = {
                      runOnDefaultDispatcher {
                          finishImportProfiles(profiles)
-@@ -818,6 +957,8 @@ class MainActivity :
+@@ -818,6 +968,8 @@ class MainActivity :
          val targetId = DataStore.selectedGroupForImport()
  
          ProfileManager.createProfiles(targetId, profiles)
@@ -6391,7 +6403,7 @@ index c403caa..dda0d10 100644
  
          onMainDispatcher {
              displayFragmentWithId(R.id.nav_configuration)
-@@ -905,20 +1046,16 @@ class MainActivity :
+@@ -905,20 +1057,16 @@ class MainActivity :
          fragment.openGroup(groupId, animate = false)
      }
  
@@ -6415,7 +6427,7 @@ index c403caa..dda0d10 100644
          binding.stats.useExternalScrollDriver =
              fragment is ConfigurationFragment || fragment is SettingsFragment
          if (bottomControlsVisibleForCurrentFragment) {
-@@ -959,6 +1096,14 @@ class MainActivity :
+@@ -959,6 +1107,14 @@ class MainActivity :
          @IdRes id: Int,
      ): Boolean {
          when (id) {
@@ -6430,7 +6442,7 @@ index c403caa..dda0d10 100644
              R.id.nav_configuration -> {
                  displayFragment(ConfigurationFragment())
              }
-@@ -984,19 +1129,6 @@ class MainActivity :
+@@ -984,19 +1140,6 @@ class MainActivity :
                  displayFragment(SettingsFragment())
              }
  
@@ -6450,7 +6462,7 @@ index c403caa..dda0d10 100644
              R.id.nav_about -> {
                  displayFragment(AboutFragment())
              }
-@@ -1018,6 +1150,7 @@ class MainActivity :
+@@ -1018,6 +1161,7 @@ class MainActivity :
          val previousState = renderedServiceState
          renderedServiceState = state
          DataStore.serviceState = state
@@ -6458,7 +6470,7 @@ index c403caa..dda0d10 100644
  
          if (bottomControlsVisibleForCurrentFragment) {
              binding.fab.changeState(state, previousState, animate)
-@@ -1032,8 +1165,6 @@ class MainActivity :
+@@ -1032,8 +1176,6 @@ class MainActivity :
                  it.refreshVisibleProfileActions()
                  it.refreshToolbarMenuState()
              }
@@ -6467,7 +6479,7 @@ index c403caa..dda0d10 100644
          (supportFragmentManager.findFragmentById(R.id.fragment_holder) as? SettingsFragment)
              ?.syncServiceState()
          if (msg != null) snackbar(getString(R.string.vpn_error, msg)).show()
-@@ -1141,6 +1272,12 @@ class MainActivity :
+@@ -1141,6 +1283,12 @@ class MainActivity :
          connection.connect(this, this)
      }
  
@@ -6480,7 +6492,7 @@ index c403caa..dda0d10 100644
      private val connect =
          registerForActivityResult(VpnRequestActivity.StartService()) {
              if (it) snackbar(R.string.vpn_permission_denied).show()
-@@ -1188,14 +1325,6 @@ class MainActivity :
+@@ -1188,14 +1336,6 @@ class MainActivity :
                  }
              }
  
@@ -6495,7 +6507,7 @@ index c403caa..dda0d10 100644
              Key.GLOBAL_MODE -> {
                  syncGlobalModeFabStyle()
              }
-@@ -1227,6 +1356,10 @@ class MainActivity :
+@@ -1227,6 +1367,10 @@ class MainActivity :
      }
  
      override fun onDestroy() {
@@ -6506,7 +6518,7 @@ index c403caa..dda0d10 100644
          binding.root.removeCallbacks(initialDrawTimeout)
          initialDrawListener?.let { listener ->
              binding.root.viewTreeObserver.takeIf { it.isAlive }
-@@ -1239,12 +1372,8 @@ class MainActivity :
+@@ -1239,12 +1383,8 @@ class MainActivity :
          customThemePreviewDialog?.dismiss()
          customThemePreviewDialog = null
          if (isFinishing) {
@@ -7021,7 +7033,7 @@ index 2765e38..a5135c1 100644
          },
      )
 diff --git a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/compose/GlobalSettingsScreen.kt b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/compose/GlobalSettingsScreen.kt
-index b6c495f..f918e54 100644
+index b6c495f..8772d73 100644
 --- a/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/compose/GlobalSettingsScreen.kt
 +++ b/workspace/NekoBoxForAndroid/app/src/main/java/io/nekohasekai/sagernet/ui/compose/GlobalSettingsScreen.kt
 @@ -6,7 +6,6 @@ import androidx.annotation.StringRes
@@ -7101,20 +7113,21 @@ index b6c495f..f918e54 100644
                          else -> ProfileActionRow(
                              item.icon, item.title,
                              item.fixedSummary.takeIf { it != 0 }?.let { stringResource(it) },
-@@ -253,11 +224,8 @@ private val GLOBAL_NUMBER_KEYS = setOf(
+@@ -253,11 +224,9 @@ private val GLOBAL_NUMBER_KEYS = setOf(
  private val GLOBAL_TEXT_ACTION_KEYS = setOf("globalCustomConfig", "dnsDomainOverrides")
  
  private val GLOBAL_TRUE_DEFAULT_KEYS = setOf(
 -    "profileCountryIndicator",
 -    "notificationCountryIndicator",
 -    "tabDoubleTapToNavigate",
++    "shortProfileProtocolInfo",
 +    "mobileTinaBypassIr",
      "automaticConnectionCheck",
 -    "enableGroupUpdateDialog",
      "openGroupSettingsOnLongPress",
      "confirmProfileDelete",
      "networkChangeResetConnections",
-@@ -270,8 +238,7 @@ private val GLOBAL_TRUE_DEFAULT_KEYS = setOf(
+@@ -270,8 +239,7 @@ private val GLOBAL_TRUE_DEFAULT_KEYS = setOf(
  )
  
  private fun globalBooleanDefault(context: android.content.Context, key: String): Boolean =
@@ -7124,7 +7137,7 @@ index b6c495f..f918e54 100644
  
  private val GLOBAL_STRING_DEFAULTS = mapOf(
      "nightTheme" to "0",
-@@ -293,7 +260,7 @@ private val GLOBAL_STRING_DEFAULTS = mapOf(
+@@ -293,7 +261,7 @@ private val GLOBAL_STRING_DEFAULTS = mapOf(
      "mixedUsername" to "User",
      "tunUnrecognizedTraffic" to "block",
      "tunSystemDnsTraffic" to "normal-proxy-bypass-direct",
@@ -7133,7 +7146,7 @@ index b6c495f..f918e54 100644
      "ipv6Mode" to "0",
      "rulesProvider" to "1",
      "rulesGeositeUrl" to "https://github.com/SagerNet/sing-geosite/releases/latest/download/geosite.db",
-@@ -333,36 +300,16 @@ private val GLOBAL_SETTINGS: Map<String, List<GlobalSettingItem>> = mapOf(
+@@ -333,36 +301,16 @@ private val GLOBAL_SETTINGS: Map<String, List<GlobalSettingItem>> = mapOf(
          action("appTheme", R.drawable.ic_baseline_color_lens_24, R.string.theme),
          action("configureCustomTheme", R.drawable.ic_action_settings, R.string.configure_custom_theme),
          list("nightTheme", R.drawable.ic_baseline_wb_sunny_24, R.string.night_mode, R.array.night_mode, R.array.int_array_4),
@@ -7170,7 +7183,7 @@ index b6c495f..f918e54 100644
          sw("hideFromRecentApps", R.drawable.ic_baseline_visibility_off_24, R.string.hide_from_recent_apps, R.string.hide_from_recent_apps_summary),
      ),
      "connection" to listOf(
-@@ -412,6 +359,7 @@ private val GLOBAL_SETTINGS: Map<String, List<GlobalSettingItem>> = mapOf(
+@@ -412,6 +360,7 @@ private val GLOBAL_SETTINGS: Map<String, List<GlobalSettingItem>> = mapOf(
          sw("allowAccess", R.drawable.ic_baseline_nat_24, R.string.allow_access, R.string.allow_access_sum),
      ),
      "routing" to listOf(
@@ -10355,17 +10368,17 @@ index fde311a..758ec83 100644
              val originalFileName = output.outputFileName.get()
              output.outputFileName.set(
 diff --git a/workspace/NekoBoxForAndroid/nb4a.properties b/workspace/NekoBoxForAndroid/nb4a.properties
-index b5f787d..931810c 100644
+index b5f787d..53bd7bd 100644
 --- a/workspace/NekoBoxForAndroid/nb4a.properties
 +++ b/workspace/NekoBoxForAndroid/nb4a.properties
 @@ -1,4 +1,4 @@
 -PACKAGE_NAME=com.nb4a.plus
 -VERSION_NAME=1.4.2-97
 +PACKAGE_NAME=com.nb4a.mobiletina
-+VERSION_NAME=1.4.2-108
++VERSION_NAME=1.4.2-109
  PRE_VERSION_NAME=pre-1.4.2-20260214-1
 -VERSION_CODE=84
-+VERSION_CODE=95
++VERSION_CODE=96
 diff --git a/workspace/sing-box/clients/android/app/src/other/play/listings/en-US/graphics/icon/ic_launcher-playstore.png b/workspace/sing-box/clients/android/app/src/other/play/listings/en-US/graphics/icon/ic_launcher-playstore.png
 deleted file mode 120000
 index 52a651f..0000000

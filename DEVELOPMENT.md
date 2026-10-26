@@ -1,4 +1,20 @@
-# Current release: 1.4.2-108 / فیلترشکن
+# Current release: 1.4.2-109 / فیلترشکن
+
+VersionCode480 (96 × 5), original signer and native feature identity unchanged from108. The user confirmed108 expiry works on their physical phone. Preserve that stop/retirement implementation; the expiry status notification now sets only its title so «اشتراک شما منقضی شد» appears once.
+
+Short profile protocol info is true in both DataStore and the Compose settings fallback. App traffic recording defaults true. A single109 migration enables both on existing installations; later manual Off choices are preserved.
+
+The log page is LTR English, with one compact recording/session row and only app name + total MB/GB per usage row, sorted descending. Remove the permanent hint, verbose explanations and per-direction subrows. A brief next-connection message is shown only after toggling recording. Labels are cached for the lifetime of the page, volumes are formatted on IO, superseded reads are cancelled and a reply receiver exists only while a query is pending. No periodic refresh/disk writer is introduced. English text itself is not claimed as a measured speed gain.
+
+Saved log reads use a4KiB streaming buffer instead of allocating512KiB unconditionally; reject streams after at most512KiB+1 bytes. The existing4097-UID/512KiB caps, unknown/shared-UID behavior, atomic final snapshot and native packet path remain intact. No libcore rebuild is needed.
+
+The drawer's full app cleanup first stops VPN as before, then awaits private :bg confirmation that saved/current log counters were cleared, before deleting configurations. A missing clear acknowledgement reports a failure instead of declaring successful full cleanup. Existing settings remain, including the user's recording preference. The same owner/lock/clear operation serves the log trash button. Regression coverage adds bounded stream parsing and an oversized/infinite input limit; retain clear/open-flow/stop tests.
+
+Required checks: clean pinned replay twice, source audit, full JVM suite, Debug/Release, original signer, actual DEX/manifest/resources and payload identity. No new device/emulator success is inferred from the user's108 confirmation.
+
+---
+
+# Historical release: 1.4.2-108 / فیلترشکن
 
 VersionCode475 (95 × 5); original 104/v2 certificate and base upstream pin retained. The native core now has optional per-UID proxied traffic counters, source identity recorded in NATIVE_FEATURES_SHA256. Native build40300969044 passed before the Android integration.
 

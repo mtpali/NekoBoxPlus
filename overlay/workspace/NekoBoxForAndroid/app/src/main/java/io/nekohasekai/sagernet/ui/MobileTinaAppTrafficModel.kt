@@ -4,6 +4,8 @@ import com.google.gson.JsonArray
 import com.google.gson.JsonObject
 import com.google.gson.JsonParser
 import java.util.Locale
+import java.io.InputStream
+import java.io.ByteArrayOutputStream
 
 internal data class MobileTinaAppTrafficRow(val uid: Int, val upload: Long, val download: Long) {
     val total: Long get() = if (Long.MAX_VALUE - upload < download) Long.MAX_VALUE else upload + download
@@ -48,6 +50,18 @@ internal object MobileTinaAppTrafficModel {
         MobileTinaAppTrafficSnapshot(value["started"].asLong,
             value["live"]?.asBoolean == true, rows(value["rows"].toString()))
     }.getOrDefault(MobileTinaAppTrafficSnapshot())
+
+    fun read(input: InputStream): MobileTinaAppTrafficSnapshot {
+        val output = ByteArrayOutputStream(1024)
+        val buffer = ByteArray(4096)
+        while (output.size() <= MAX_BYTES) {
+            val count = input.read(buffer, 0, minOf(buffer.size, MAX_BYTES + 1 - output.size()))
+            if (count < 0) return decode(output.toString("UTF-8"))
+            if (count == 0) return MobileTinaAppTrafficSnapshot()
+            output.write(buffer, 0, count)
+        }
+        return MobileTinaAppTrafficSnapshot()
+    }
 
     fun volume(bytes: Long): String {
         if (bytes <= 0) return "0 MB"

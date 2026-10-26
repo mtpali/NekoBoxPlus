@@ -49,6 +49,25 @@ class MobileTinaAppTrafficModelTest {
         assertTrue(encoded.toByteArray().size < MobileTinaAppTrafficModel.MAX_BYTES)
         assertEquals(MobileTinaAppTrafficModel.MAX_ROWS, MobileTinaAppTrafficModel.decode(encoded).rows.size)
     }
+    @Test fun aSavedPeriodCanBeReadWithTheBoundedStreamReader() {
+        val saved = MobileTinaAppTrafficSnapshot(25, false, listOf(row(1, 100, 200)))
+        val bytes = MobileTinaAppTrafficModel.encode(saved).toByteArray()
+        assertEquals(saved, MobileTinaAppTrafficModel.read(bytes.inputStream()))
+        assertTrue(MobileTinaAppTrafficModel.read(byteArrayOf().inputStream()).rows.isEmpty())
+    }
+    @Test fun anOversizedStreamIsRejectedAfterReadingOnlyTheBoundedPrefix() {
+        var read = 0
+        val stream = object : java.io.InputStream() {
+            override fun read(): Int { read++; return 32 }
+            override fun read(buffer: ByteArray, off: Int, len: Int): Int {
+                java.util.Arrays.fill(buffer, off, off + len, 32.toByte())
+                read += len
+                return len
+            }
+        }
+        assertTrue(MobileTinaAppTrafficModel.read(stream).rows.isEmpty())
+        assertEquals(MobileTinaAppTrafficModel.MAX_BYTES + 1, read)
+    }
     @Test fun malformedDataAndZeroRowsAreHarmless() {
         assertTrue(MobileTinaAppTrafficModel.rows("broken").isEmpty())
         assertTrue(MobileTinaAppTrafficModel.decode("{}").rows.isEmpty())

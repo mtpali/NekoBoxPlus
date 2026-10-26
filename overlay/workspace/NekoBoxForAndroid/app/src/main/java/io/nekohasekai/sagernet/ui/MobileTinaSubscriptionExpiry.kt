@@ -412,8 +412,6 @@ internal object MobileTinaSubscriptionExpiry {
             val notification = androidx.core.app.NotificationCompat.Builder(app, channelId)
                 .setSmallIcon(R.drawable.ic_service_idle)
                 .setContentTitle(app.getString(R.string.mobiletina_expired))
-                .setContentText(app.getString(R.string.mobiletina_expired))
-                .setStyle(androidx.core.app.NotificationCompat.BigTextStyle().bigText(app.getString(R.string.mobiletina_expired)))
                 .setContentIntent(openApp).setAutoCancel(true).build()
             manager.notify("mobiletina-expiry-$groupId", 10525, notification)
         }.onFailure(Logs::w)

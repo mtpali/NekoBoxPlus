@@ -3,17 +3,23 @@ package io.nekohasekai.sagernet.ui
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
+import androidx.core.content.ContextCompat
 import android.util.AtomicFile
 import com.google.gson.JsonObject
 import com.google.gson.JsonParser
 import io.nekohasekai.sagernet.SagerNet
 import io.nekohasekai.sagernet.database.DataStore
 import io.nekohasekai.sagernet.ktx.Logs
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeout
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
 import libcore.BoxInstance
+import java.util.UUID
 import java.io.File
 
 /** The :bg service is the only writer. Work is on demand or once at normal teardown. */
@@ -24,7 +30,7 @@ internal object MobileTinaAppTraffic {
     private data class Session(val box: BoxInstance, val period: MobileTinaAppTrafficPeriod)
     private var active: Session? = null
     private val file get() = AtomicFile(File(SagerNet.application.filesDir, "mobiletina-app-traffic.json"))
-    val enabled: Boolean get() = DataStore.configurationStore.getBoolean(KEY, false)
+    val enabled: Boolean get() = DataStore.configurationStore.getBoolean(KEY, true)
 
     fun prepareConfig(config: String): String {
         val root = JsonParser.parseString(config).asJsonObject
@@ -57,18 +63,29 @@ internal object MobileTinaAppTraffic {
     }
 
     fun readSaved(): MobileTinaAppTrafficSnapshot = runCatching {
-        file.openRead().use { input ->
-            val bytes = ByteArray(MobileTinaAppTrafficModel.MAX_BYTES + 1)
-            var size = 0
-            while (size < bytes.size) {
-                val count = input.read(bytes, size, bytes.size - size)
-                if (count < 0) break
-                size += count
-            }
-            if (size > MobileTinaAppTrafficModel.MAX_BYTES) MobileTinaAppTrafficSnapshot()
-            else MobileTinaAppTrafficModel.decode(String(bytes, 0, size, Charsets.UTF_8)).copy(live = false)
-        }
+        file.openRead().use(MobileTinaAppTrafficModel::read).copy(live = false)
     }.getOrDefault(MobileTinaAppTrafficSnapshot())
+
+    /** A short-lived private reply receiver, shared by the page and full app cleanup. */
+    suspend fun query(clear: Boolean = false): MobileTinaAppTrafficSnapshot = withContext(Dispatchers.IO) {
+        val app = SagerNet.application
+        if (app.isBgProcess) return@withContext snapshot(clear)
+        if (!clear && !DataStore.serviceState.started) return@withContext readSaved()
+        val request = UUID.randomUUID().toString()
+        val result = CompletableDeferred<String>()
+        val receiver = object : BroadcastReceiver() {
+            override fun onReceive(context: Context, intent: Intent) {
+                if (intent.getStringExtra("request") == request)
+                    result.complete(intent.getStringExtra("snapshot").orEmpty())
+            }
+        }
+        ContextCompat.registerReceiver(app, receiver, IntentFilter(ACTION_RESULT), ContextCompat.RECEIVER_NOT_EXPORTED)
+        try {
+            app.sendBroadcast(Intent(app, MobileTinaAppTrafficReceiver::class.java)
+                .putExtra("request", request).putExtra("clear", clear))
+            MobileTinaAppTrafficModel.decode(withTimeout(5_000L) { result.await() })
+        } finally { app.unregisterReceiver(receiver) }
+    }
 
     private fun save(snapshot: MobileTinaAppTrafficSnapshot) {
         val bytes = MobileTinaAppTrafficModel.encode(snapshot).toByteArray()

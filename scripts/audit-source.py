@@ -143,7 +143,7 @@ assert strings['quick_toggle'] == strings['tile_title'] == 'VPN'
 tile = (NBA/'app/src/main/java/io/nekohasekai/sagernet/bg/TileService.kt').read_text()
 assert 'R.mipmap.ic_launcher' in tile and 'R.string.tile_title' in tile
 assert 'label = profileName' not in tile and 'ic_service_' not in tile
-assert 'VERSION_NAME=1.4.2-108' in metadata and 'VERSION_CODE=95' in metadata
+assert 'VERSION_NAME=1.4.2-109' in metadata and 'VERSION_CODE=96' in metadata
 print('Verified release106 live-service expiry, QR access, VPN shortcut/tile branding and version identity.')
 
 work_services = {'androidx.work.multiprocess.RemoteWorkManagerService',
